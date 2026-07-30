@@ -837,34 +837,49 @@ export default function PtImDashboard() {
                         </div>
                       </div>
 
-                      {/* Horizontal progression bars mimicking vertical ROM bar stats */}
-                      <div className="space-y-3 pt-2">
-                        {[
-                          { date: "14 Jul (onset)", deg: "40°", pct: "57%" },
-                          { date: "18 Jul (session 1)", deg: "48°", pct: "68%" },
-                          { date: "21 Jul (session 2)", deg: "52°", pct: "74%" },
-                          { date: "24 Jul (session 3)", deg: "58°", pct: "82%" },
-                          { date: "27 Jul (session 4)", deg: "62°", pct: "88%" }
-                        ].map((romBar, idx) => (
-                          <div key={idx} className="space-y-1">
-                            <div className="flex items-center justify-between font-mono text-[10px]">
-                              <span className="text-slate-450 font-sans">{romBar.date}</span>
-                              <span className="font-bold text-slate-700 dark:text-slate-300">{romBar.deg}</span>
-                            </div>
-                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-emerald-500 rounded-full" style={{ width: romBar.pct }}></div>
-                            </div>
+                      {/* Vertical ROM bar chart matching Figma layout */}
+                      <div className="flex flex-col flex-1 justify-between pt-2">
+                        {/* Bars Container */}
+                        <div className="flex items-end justify-between h-36 px-2 relative">
+                          {/* Target Dotted Line overlay */}
+                          <div className="absolute top-[10%] left-0 right-0 border-t border-dashed border-emerald-500/50 z-10 flex items-center justify-end pr-2">
+                            <span className="text-[8px] font-mono text-emerald-500 bg-white dark:bg-[#0e1628] px-1 -mt-1.5">70° target</span>
                           </div>
-                        ))}
-                      </div>
 
-                      <div className="flex gap-4 pt-2 border-t border-slate-100 dark:border-white/5 text-[9px] text-slate-455 font-mono">
-                        <span className="inline-flex items-center gap-1">
-                          <span className="size-2 bg-[#10b981] rounded-sm"></span> Measured - 5 sessions
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <span className="size-2 bg-slate-200 dark:bg-slate-800 rounded-sm"></span> Target 70°
-                        </span>
+                          {[
+                            { deg: "40°", pct: "57%" },
+                            { deg: "48°", pct: "68%" },
+                            { deg: "52°", pct: "74%" },
+                            { deg: "58°", pct: "82%" },
+                            { deg: "62°", pct: "88%" }
+                          ].map((romBar, idx) => (
+                            <div key={idx} className="flex flex-col justify-end items-center h-full flex-1 group z-20">
+                              <div 
+                                style={{ height: romBar.pct }}
+                                className="w-10 bg-emerald-500 dark:bg-emerald-600 hover:bg-emerald-700 rounded-t-md transition-all duration-300 relative"
+                              >
+                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                                  {romBar.deg}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Bottom line */}
+                        <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+
+                        {/* Legend Row */}
+                        <div className="flex gap-4 pt-3 text-[9px] font-bold text-slate-455 font-sans justify-start select-none">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="size-1.5 bg-blue-500 rounded-full"></span>
+                            Measured &mdash; 5 sessions
+                          </span>
+                          <span className="inline-flex items-center gap-1.5">
+                            <span className="size-1.5 bg-emerald-500 rounded-full"></span>
+                            Target 70°
+                          </span>
+                        </div>
                       </div>
                     </div>
 
@@ -875,26 +890,39 @@ export default function PtImDashboard() {
                         <p className="text-[9px] text-slate-455">Self-reported 0-10 &middot; trend down</p>
                       </div>
 
-                      <div className="space-y-3.5 pt-2">
-                        {[
-                          { date: "14 Jul", pain: "7/10", pct: "70%" },
-                          { date: "16 Jul", pain: "6/10", pct: "60%" },
-                          { date: "18 Jul", pain: "6/10", pct: "60%" },
-                          { date: "20 Jul", pain: "5/10", pct: "50%" },
-                          { date: "22 Jul", pain: "5/10", pct: "50%" },
-                          { date: "25 Jul", pain: "4/10", pct: "40%" },
-                          { date: "27 Jul", pain: "4/10", pct: "40%" }
-                        ].map((painBar, idx) => (
-                          <div key={idx} className="space-y-1">
-                            <div className="flex items-center justify-between font-mono text-[10px]">
-                              <span className="text-slate-450 font-sans">{painBar.date}</span>
-                              <span className="font-bold text-rose-500">{painBar.pain}</span>
+                      {/* Vertical Pain trend chart matching Figma layout */}
+                      <div className="flex flex-col flex-1 justify-between pt-2">
+                        {/* Bars Container */}
+                        <div className="flex items-end justify-between h-36 px-2 relative">
+                          {[
+                            { pain: "7/10", pct: "70%" },
+                            { pain: "6/10", pct: "60%" },
+                            { pain: "6/10", pct: "60%" },
+                            { pain: "5/10", pct: "50%" },
+                            { pain: "5/10", pct: "50%" },
+                            { pain: "4/10", pct: "40%" },
+                            { pain: "4/10", pct: "40%" }
+                          ].map((painBar, idx) => (
+                            <div key={idx} className="flex flex-col justify-end items-center h-full flex-1 group z-20">
+                              <div 
+                                style={{ height: painBar.pct }}
+                                className="w-8 bg-rose-500 dark:bg-rose-600 hover:bg-rose-700 rounded-t-md transition-all duration-300 relative"
+                              >
+                                <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap">
+                                  {painBar.pain}
+                                </span>
+                              </div>
                             </div>
-                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-rose-500 rounded-full" style={{ width: painBar.pct }}></div>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+
+                        {/* Bottom line */}
+                        <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+
+                        {/* Bottom Spacer/Text */}
+                        <div className="pt-3 text-[9px] font-bold text-slate-455 font-sans text-left select-none">
+                          Self-reported pain index &middot; 14-day history
+                        </div>
                       </div>
                     </div>
 
