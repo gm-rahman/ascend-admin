@@ -29,6 +29,7 @@ import {
   MessageSquare,
   Sparkles,
   TrendingUp,
+  FileText,
 } from "lucide-react";
 
 type TabType = "dashboard" | "consults" | "records" | "messages";
@@ -41,6 +42,28 @@ export default function NutrotinishDashboard() {
   const [hasMounted, setHasMounted] = useState(false);
   const [showConfirmToast, setShowConfirmToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
+
+  const [nutritionChatMessage, setNutritionChatMessage] = useState("");
+  const [nutritionMessagesList, setNutritionMessagesList] = useState([
+    { sender: "coach", text: "Quick check-in \u2014 how's the caffeine taper going? Cap coffee at 12:00 today and log sleep tonight.", time: "17:14", date: "25 JULY" },
+    { sender: "airman", text: "Cap held. One small cup at 11:30, no issues. Slept ok \u2014 about 6h.", time: "26 Jul · 06:50", date: "25 JULY" },
+    { sender: "coach", text: "Hydration note: you're at 57% adherence, below the 70% target. Try 500 mL at each meal and sip every 30 min during the block.", time: "09:02", date: "27 JULY" },
+    { sender: "airman", text: "Caffeine taper, day 3 \u2014 slept 6h 12m. Logged morning hydration.", time: "28 Jul · 06:42", date: "27 JULY" }
+  ]);
+
+  const handleSendNutritionMessage = () => {
+    if (!nutritionChatMessage.trim()) return;
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    setNutritionMessagesList([
+      ...nutritionMessagesList,
+      { sender: "coach", text: nutritionChatMessage, time: `${timeStr}`, date: "TODAY" }
+    ]);
+    setNutritionChatMessage("");
+    setTimeout(() => {
+      triggerToast("Nutrition message dispatched securely");
+    }, 100);
+  };
 
   const triggerToast = (msg: string) => {
     setToastMessage(msg);
@@ -1356,8 +1379,184 @@ export default function NutrotinishDashboard() {
             </div>
           )}
 
-          {/* Placeholders for tabs 4 */}
-          {activeTab !== "dashboard" && activeTab !== "consults" && activeTab !== "records" && (
+          {/* Tab 4: MESSAGES */}
+          {activeTab === "messages" && (
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · MESSAGES</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Messages</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    Direct messages with your caseload. CUI &middot; opt-in enforced &middot; every send is audit-logged.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => triggerToast("New caseload outreach message initiated")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Plus className="size-4" /> New message
+                  </button>
+                </div>
+              </div>
+
+              {/* Chat pane split layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                {/* Inbox Sidebar List */}
+                <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Inbox</h3>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] rounded-full text-[9px] font-bold uppercase font-mono">
+                      <span className="size-1 bg-[#0da2b3] rounded-full"></span>
+                      3 unread
+                    </span>
+                  </div>
+
+                  <div className="relative w-full">
+                    <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search messages"
+                      className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#f8fafc] dark:bg-[#070a13] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white focus:outline-none"
+                    />
+                  </div>
+
+                  {/* List of chat items */}
+                  <div className="divide-y divide-slate-150/40 dark:divide-white/5 overflow-y-auto max-h-96 pr-1 space-y-1">
+                    {[
+                      { initials: "AM", name: "A. Mendez", time: "06:42", txt: "Caffeine taper, day 3 \u2014 slept 6h 12m", unread: 2, active: true },
+                      { initials: "TC", name: "T. Cho", time: "25 Jul", txt: "Carb top-up during last ruck \u2014 felt strong", unread: 1, active: false },
+                      { initials: "SN", name: "S. Ndiaye", time: "27 Jul", txt: "Quick question on the log app", unread: 0, active: false },
+                      { initials: "JR", name: "J. Reyes", time: "24 Jul", txt: "Protein at lunch \u2014 chicken bowl worked", unread: 0, active: false },
+                      { initials: "RP", name: "R. Patel", time: "22 Jul", txt: "Pre-ruck fuelling plan received", unread: 0, active: false }
+                    ].map((item, idx) => (
+                      <div 
+                        key={idx}
+                        onClick={() => triggerToast(`Opened message history with: ${item.name}`)}
+                        className={`py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
+                          item.active 
+                            ? "bg-[#0da2b3]/10" 
+                            : "hover:bg-[#f8fafc] dark:hover:bg-slate-900/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="size-8 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono select-none">
+                            {item.initials}
+                          </div>
+                          <div className="space-y-0.5 text-left font-sans">
+                            <span className="text-xs font-bold text-slate-850 dark:text-white block">{item.name}</span>
+                            <p className="text-[10px] text-slate-455 truncate w-36">{item.txt}</p>
+                          </div>
+                        </div>
+
+                        <div className="text-right flex flex-col items-end gap-1.5">
+                          <span className="text-[9px] font-mono text-slate-400">{item.time}</span>
+                          {item.unread > 0 && (
+                            <span className="size-4.5 rounded-full bg-[#0da2b3] text-white text-[9px] font-bold font-mono flex items-center justify-center">
+                              {item.unread}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Main chat log pane */}
+                <div className="lg:col-span-8 bg-[#f8fafc] dark:bg-[#0b0f19] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between min-h-[500px]">
+                  
+                  <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-4 flex-shrink-0">
+                    <div className="flex items-center gap-3">
+                      <div className="size-9 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono select-none">
+                        AM
+                      </div>
+                      <div className="text-left space-y-0.5 font-sans">
+                        <span className="text-sm font-bold text-slate-800 dark:text-white block">A. Mendez</span>
+                        <span className="text-[10px] text-slate-400 block font-medium">Bravo flight &middot; Sleep nutrition</span>
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded-full uppercase tracking-wider font-mono flex items-center gap-1.5">
+                      <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                      Opt-in
+                    </span>
+                  </div>
+
+                  {/* Messaging records */}
+                  <div className="flex-1 overflow-y-auto py-6 space-y-6 max-h-[350px] pr-2">
+                    {nutritionMessagesList.map((msg, idx) => {
+                      const showDateHeader = idx === 0 || nutritionMessagesList[idx - 1].date !== msg.date;
+                      return (
+                        <div key={idx} className="space-y-4 text-left">
+                          {showDateHeader && (
+                            <div className="w-full flex items-center justify-center select-none">
+                              <span className="px-3 py-0.5 bg-slate-200/50 dark:bg-slate-900 border border-slate-300/40 dark:border-white/5 rounded-full text-[8px] font-bold uppercase tracking-wider text-slate-500 font-mono">
+                                {msg.date}
+                              </span>
+                            </div>
+                          )}
+
+                          <div className={`flex w-full ${msg.sender === "coach" ? "justify-end" : "justify-start"} text-left`}>
+                            <div className={`max-w-md p-3.5 rounded-2xl relative shadow-sm ${
+                              msg.sender === "coach" 
+                                ? "bg-[#0da2b3] text-white rounded-br-none" 
+                                : "bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-bl-none"
+                            }`}>
+                              <p className="text-xs leading-relaxed font-sans">{msg.text}</p>
+                              <span className={`text-[8px] block text-right mt-1.5 font-mono ${
+                                msg.sender === "coach" ? "text-slate-200" : "text-slate-400"
+                              }`}>
+                                {msg.time}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="w-full flex items-center justify-center select-none pt-4">
+                      <span className="text-[9px] text-slate-400 font-mono uppercase tracking-wide">
+                        Opt-in active · messages in this thread are audit-logged
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Message inputs */}
+                  <div className="border-t border-slate-200/60 dark:border-white/5 pt-4 flex-shrink-0 flex items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="Message A. Mendez"
+                      value={nutritionChatMessage}
+                      onChange={(e) => setNutritionChatMessage(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSendNutritionMessage()}
+                      className="flex-1 px-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none placeholder-slate-400"
+                    />
+                    <button 
+                      onClick={handleSendNutritionMessage}
+                      className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      Send
+                    </button>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Footer */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left">
+                Ascend &middot; Nutrition Workspace &middot; encrypted messages &middot; opt-in audit
+              </div>
+
+            </div>
+          )}
+
+          {/* Placeholders for tabs 5 */}
+          {activeTab !== "dashboard" && activeTab !== "consults" && activeTab !== "records" && activeTab !== "messages" && (
             <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
               <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
                 <Apple className="size-7" />
