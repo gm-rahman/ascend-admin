@@ -780,39 +780,715 @@ export default function ScsDashboard() {
             </div>
           )}
 
-          {/* Tab 1: OVERVIEW TAB */}
+           {/* Tab 1: OVERVIEW TAB */}
           {activeTab === "overview" && !reviewingAirmanId && (
-            <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
-              <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
-                <Users className="size-7" />
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono">SCS · Workspace</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Strength & Conditioning</h1>
+                  <p className="text-xs text-slate-555 dark:text-slate-455 mt-1">
+                    Queue, drill-in, plans, coverage, and messages for the 23 SFS flight. Calm under load &mdash; decision-support, not dashboard noise.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="px-3.5 py-1.5 bg-[#0da2b3]/10 text-[#0da2b3] border border-cyan-500/20 rounded-xl text-xs font-mono font-bold">
+                    Inbox &middot; 3
+                  </span>
+                  <button 
+                    onClick={() => setActiveTab("dashboard")}
+                    className="inline-flex items-center gap-1 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    Open queue &rarr;
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white">SCS Overview</h3>
-                <p className="text-xs text-slate-550 leading-relaxed mt-1">
-                  Strength & Conditioning Specialist flight queue initialized. Audit-logged context controls active.
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[
+                  { name: "Active airmen", count: "112", desc: "+4 this month", col: "green" },
+                  { name: "Needs review", count: "14", desc: "+3 since Mon", col: "orange" },
+                  { name: "OFT clearance queue", count: "7", desc: "3 cleared today", col: "teal" },
+                  { name: "Reconditioning", count: "5", desc: "2 awaiting review", col: "slate" }
+                ].map((card, i) => (
+                  <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                      <span className={`text-[10px] font-bold ${
+                        card.col === "green" ? "text-emerald-500" :
+                        card.col === "orange" ? "text-amber-500" :
+                        card.col === "teal" ? "text-[#0da2b3]" : "text-slate-500"
+                      }`}>
+                        {card.desc.split(" since ")[0].split(" this ")[0].split(" cleared ")[0].split(" awaiting ")[0]}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Surfaces section header */}
+              <div className="text-left space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase font-mono block">Surfaces</span>
+                <h3 className="text-lg font-bold text-slate-855 dark:text-white">6 surfaces</h3>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Last sync 06:42 &middot; all surfaces share one design system.
                 </p>
               </div>
-              <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
-                No active pending operations for TSgt Marcus Lee.
+
+              {/* 5 Surface directory cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-left">
+                {[
+                  { id: "dashboard", title: "Dashboard", sub: "Today's queue · KPI tiles · 14-day trend", body: "Queue-first view of 14 airmen needing attention, with the flight readiness curve and a recommendations strip." },
+                  { id: "people", title: "Person detail", sub: "J. Reyes · drill-in · trend · plans", body: "Airman drill-in: OPS ring, driver sparklines, recent activity, assigned plan, audit log." },
+                  { id: "plans", title: "Plans", sub: "Templates · assign · assignment queue", body: "Browse templates, draft 4-week reconditioning plans, push assignments to the flight." },
+                  { id: "coverage", title: "Coverage", sub: "PT sessions · OFT lanes · heatmap", body: "Workload by flight, SCS availability heatmap, OFT clearance status, upcoming PT sessions." },
+                  { id: "messages", title: "Messages", sub: "Thread list · composer · role-aware", body: "Secure thread list with role-aware filters, message detail pane, and an inline composer." }
+                ].map((sfc, idx) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => {
+                      if (sfc.id === "people") {
+                        setReviewingAirmanId("J. Reyes");
+                      } else {
+                        setActiveTab(sfc.id as TabType);
+                      }
+                      triggerToast(`Navigating to ${sfc.title} surface`);
+                    }}
+                    className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 cursor-pointer transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                        <h4 className="text-sm font-black text-slate-800 dark:text-white leading-none">{sfc.title}</h4>
+                      </div>
+                      <ChevronRight className="size-4 text-slate-400" />
+                    </div>
+                    <span className="text-[10px] text-[#0da2b3] font-bold block leading-tight font-mono">{sfc.sub}</span>
+                    <p className="text-xs text-slate-500 leading-relaxed font-sans">{sfc.body}</p>
+                  </div>
+                ))}
               </div>
+
+              {/* Timeline and k>=5 Notes split layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                {/* Timeline agenda */}
+                <div className="lg:col-span-8 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 block uppercase font-mono">Today &middot; 28 Jul</span>
+                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Agenda Timeline</h3>
+                  </div>
+
+                  <div className="relative border-l border-slate-100 dark:border-white/5 pl-6 ml-2 space-y-6 text-xs font-sans">
+                    
+                    {/* Item 1 */}
+                    <div className="relative">
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#0da2b3] border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="font-mono text-slate-400 text-[10px] block">06:42</span>
+                      <span className="font-bold text-slate-800 dark:text-white block mt-0.5">OFT clearance run</span>
+                      <span className="text-[10px] text-emerald-500 block leading-tight font-mono">3 cleared</span>
+                    </div>
+
+                    {/* Item 2 */}
+                    <div className="relative">
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#0da2b3] border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="font-mono text-slate-400 text-[10px] block">07:00</span>
+                      <span className="font-bold text-slate-750 dark:text-slate-350 block mt-0.5">PT session &middot; Alpha flight</span>
+                    </div>
+
+                    {/* Item 3 */}
+                    <div className="relative">
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-slate-300 dark:bg-slate-700 border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="font-mono text-slate-400 text-[10px] block">11:00</span>
+                      <span className="font-bold text-slate-750 dark:text-slate-350 block mt-0.5">Rehab review &middot; J. Reyes</span>
+                    </div>
+
+                    {/* Item 4 */}
+                    <div className="relative">
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-slate-300 dark:bg-slate-700 border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="font-mono text-slate-400 text-[10px] block">14:00</span>
+                      <span className="font-bold text-slate-750 dark:text-slate-350 block mt-0.5">Plan sync with PT/IM</span>
+                    </div>
+
+                  </div>
+                </div>
+
+                {/* k>=5 Guidelines notes */}
+                <div className="lg:col-span-4 bg-[#f8fafc] dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 text-left text-xs space-y-3 font-sans flex flex-col justify-between">
+                  <div>
+                    <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px] font-mono">K&ge;5 Notes</span>
+                    <p className="text-slate-500 leading-relaxed font-normal mt-2">
+                      Cohort views with k &ge; 5 airmen: 14-day flight readiness, role-color SCS green. Below k = 1, individual values only.
+                    </p>
+                  </div>
+                  <div className="text-[9px] text-slate-440 select-none font-mono">
+                    Ascend &middot; SCS Workspace prototype
+                  </div>
+                </div>
+
+              </div>
+
             </div>
           )}
 
           {/* Tab 2: DASHBOARD VIEW */}
           {activeTab === "dashboard" && !reviewingAirmanId && (
-            <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
-              <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
-                <TrendingUp className="size-7" />
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono">SCS · Input</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Today's queue</h1>
+                  <p className="text-xs text-slate-555 dark:text-slate-445 mt-1 font-sans">
+                    Showing 7 of 11 &mdash; 7 require attention today &middot; k&ge;5 on cohort trend &middot; Tuesday 28 Jul.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/5 p-1 bg-white dark:bg-slate-900 text-[10px] font-bold font-mono">
+                    {["Today", "Week", "Month"].map((opt) => (
+                      <button
+                        key={opt}
+                        onClick={() => triggerToast(`Filtering dashboard queue by: ${opt}`)}
+                        className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                          opt === "Today" 
+                            ? "bg-slate-100 dark:bg-slate-855 text-slate-800 dark:text-white font-bold" 
+                            : "text-slate-400 hover:text-slate-655"
+                        }`}
+                      >
+                        {opt}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => { setActiveTab("plans"); triggerToast("Assign new plan process initialized"); }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    + New plan
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white">Reconditioning Dashboard</h3>
-                <p className="text-xs text-slate-550 leading-relaxed mt-1">
-                  Overall reconditioning load and flight metrics visual workspace.
-                </p>
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[
+                  { name: "Active airmen", count: "112", desc: "+4 this month", col: "green" },
+                  { name: "Needs review", count: "14", desc: "+3 since Mon", col: "orange" },
+                  { name: "OFT clearance queue", count: "7", desc: "3 cleared today", col: "teal" },
+                  { name: "Reconditioning", count: "5", desc: "2 awaiting review", col: "slate" }
+                ].map((card, i) => (
+                  <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                      <span className={`text-[10px] font-bold ${
+                        card.col === "green" ? "text-emerald-500" :
+                        card.col === "orange" ? "text-amber-500" :
+                        card.col === "teal" ? "text-[#0da2b3]" : "text-slate-500"
+                      }`}>
+                        {card.desc.split(" since ")[0].split(" this ")[0].split(" cleared ")[0].split(" awaiting ")[0]}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
+                  </div>
+                ))}
               </div>
-              <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
-                No alerts flagged for TSgt Marcus Lee.
+
+              {/* Flagged airmen warning banner */}
+              <div className="bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl p-4 text-left flex items-start gap-3 text-xs font-sans">
+                <AlertTriangle className="size-4.5 text-rose-500 flex-shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <h4 className="font-extrabold text-rose-600">2 airmen flagged L4+ &mdash; review before 11:00</h4>
+                  <p className="text-[11px] text-rose-455 font-medium leading-relaxed font-sans">
+                    J. Reyes (Rehab Block 2), T. Cho (OFT), D. Mendez (Sleep), B. Ndiaye (Mobility). Confidence: High across all views.
+                  </p>
+                </div>
               </div>
+
+              {/* Main splits layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                {/* Left Column (8/12): Queue roster table & Driver Breakdown */}
+                <div className="lg:col-span-8 space-y-6">
+                  
+                  {/* Queue table card */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-855 dark:text-white">Queue &middot; 14</h3>
+                        <p className="text-[10px] text-slate-455 font-mono">Sorted by severity then confidence</p>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {["Needs review", "OFT", "Reconditioning", "L4+"].map((fPill, idx) => (
+                          <button
+                            key={idx}
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
+                              fPill === "Needs review"
+                                ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            }`}
+                          >
+                            {fPill}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <th className="pb-3">Airman</th>
+                            <th className="pb-3">Driver</th>
+                            <th className="pb-3 text-right">Last Ops</th>
+                            <th className="pb-3">Confidence</th>
+                            <th className="pb-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                          {[
+                            { code: "J. Reyes", details: "SrA · 23 SFS", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High" },
+                            { code: "A. Mendez", details: "A1C · 23 SFS", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium" },
+                            { code: "T. Cho", details: "SSgt · 23 SFS", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High" },
+                            { code: "B. Ndiaye", details: "A1C · 23 SFS", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High" },
+                            { code: "K. Patel", details: "A1C · 23 SFS", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High" },
+                            { code: "M. Hayes", details: "SrA · 23 SFS", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High" },
+                            { code: "D. Okafor", details: "SSgt · 23 SFS", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium" }
+                          ].map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-55/20 transition">
+                              <td className="py-2.5">
+                                <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
+                                <span className="text-[10px] text-slate-455 block mt-0.5">{row.details}</span>
+                              </td>
+                              <td className="py-2.5">
+                                {row.drCol === "red" && <span className="font-bold text-rose-500">{row.dr}</span>}
+                                {row.drCol === "orange" && <span className="font-bold text-amber-500">{row.dr}</span>}
+                                {row.drCol.startsWith("badge-") && (
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                    row.drCol === "badge-teal" ? "bg-cyan-500/10 text-cyan-600" : "bg-amber-500/10 text-amber-600"
+                                  }`}>
+                                    {row.dr}
+                                  </span>
+                                )}
+                              </td>
+                              <td className={`py-2.5 text-right font-mono font-bold ${
+                                row.opsCol === "red" ? "text-rose-500" :
+                                row.opsCol === "green" ? "text-emerald-500" : "text-slate-500"
+                              }`}>{row.ops}</td>
+                              <td className="py-2.5">
+                                <span className="inline-flex items-center gap-1.5 font-bold">
+                                  <span className={`size-1.5 rounded-full ${
+                                    row.conf === "High" ? "bg-emerald-500" : "bg-amber-500"
+                                  }`}></span>
+                                  {row.conf}
+                                </span>
+                              </td>
+                              <td className="py-2.5 text-right">
+                                <button
+                                  onClick={() => { setReviewingAirmanId(row.code); triggerToast(`Opened chart view context: ${row.code}`); }}
+                                  className="px-3 py-1 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                                >
+                                  Open
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono">
+                      <span className="text-slate-400">Showing 7 of 14 airmen</span>
+                      <span onClick={() => setActiveTab("people")} className="text-[#0da2b3] font-bold cursor-pointer hover:underline">
+                        View all &rarr;
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Driver breakdown widget */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Driver Breakdown</h3>
+                      <p className="text-[9px] text-slate-455 font-mono">Cohort &middot; last 7 days</p>
+                    </div>
+
+                    <div className="space-y-4 font-sans text-xs">
+                      {[
+                        { label: "Physical", val: 72, col: "bg-cyan-500" },
+                        { label: "Sleep", val: 59, col: "bg-cyan-500" },
+                        { label: "Mental (training implication)", val: 65, col: "bg-blue-500" },
+                        { label: "Nutritional", val: 71, col: "bg-amber-500" },
+                        { label: "Spiritual", val: 70, col: "bg-yellow-500" }
+                      ].map((bar, idx) => (
+                        <div key={idx} className="space-y-1.5">
+                          <div className="flex justify-between items-baseline font-mono text-[10px]">
+                            <span className="font-bold text-slate-700 dark:text-slate-350 font-sans">{bar.label}</span>
+                            <span>{bar.val}</span>
+                          </div>
+                          <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${bar.col}`} style={{ width: `${bar.val}%` }}></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* Right Column (4/12): Trend curve chart, Recommendations, and PT agenda */}
+                <div className="lg:col-span-4 space-y-6">
+                  
+                  {/* Line Chart card */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4 text-left">
+                    <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-855 dark:text-white">Flight readiness &middot; 14 days</h3>
+                        <p className="text-[9px] text-slate-455">Cohort: S-3 &middot; Tue 15 Jul &ndash; Mon 28 Jul</p>
+                      </div>
+                      <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded uppercase tracking-wider font-mono">
+                        k&ge;5
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <h2 className="text-3xl font-black text-slate-800 dark:text-white font-mono leading-none">77</h2>
+                      <span className="text-[10px] text-emerald-500 block leading-tight font-medium">
+                        today &middot; +1.2 vs start
+                      </span>
+                    </div>
+
+                    {/* SVG Line Graph */}
+                    <div className="h-32 w-full pt-2">
+                      <svg viewBox="0 0 200 100" className="w-full h-full" preserveAspectRatio="none">
+                        {/* Grid lines */}
+                        <line x1="0" y1="20" x2="200" y2="20" stroke="currentColor" className="text-slate-100 dark:text-slate-850" strokeWidth="0.5" />
+                        <line x1="0" y1="50" x2="200" y2="50" stroke="currentColor" className="text-slate-100 dark:text-slate-855" strokeWidth="0.5" />
+                        <line x1="0" y1="80" x2="200" y2="80" stroke="currentColor" className="text-slate-100 dark:text-slate-855" strokeWidth="0.5" />
+
+                        {/* Trend path */}
+                        <path 
+                          d="M 0,85 C 20,80 30,70 50,60 C 70,50 80,55 100,45 C 120,35 130,42 150,30 C 170,18 180,22 200,10" 
+                          fill="none" 
+                          stroke="#0da2b3" 
+                          strokeWidth="2.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round"
+                        />
+                        {/* Dots markers */}
+                        <circle cx="100" cy="45" r="3" fill="#0da2b3" />
+                        <circle cx="200" cy="10" r="3.5" fill="#0da2b3" />
+                      </svg>
+                    </div>
+
+                    <div className="flex justify-between items-center text-[9px] font-bold text-slate-455 border-t border-slate-55 dark:border-white/5 pt-2 select-none">
+                      <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-emerald-500"></span> Flight readiness</span>
+                      <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-blue-500"></span> Physical</span>
+                      <span className="flex items-center gap-1"><span className="size-1.5 rounded-full bg-cyan-500"></span> Sleep</span>
+                    </div>
+                  </div>
+
+                  {/* Recommendations */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                      <div>
+                        <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recommendations</h3>
+                        <p className="text-[9px] text-slate-455">3 actions &middot; 1 due before 11:00</p>
+                      </div>
+                      <span className="px-2 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] text-[8px] font-bold rounded uppercase tracking-wider font-mono">
+                        3 due
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 font-sans text-xs">
+                      {[
+                        { title: "L4 Reyes - reduce load", body: "Sub-60% 1RM lifts; daily mobility reset. Coordinated with PT/IM.", col: "red" },
+                        { title: "OFT T. Cho - clear for high-tempo lane", body: "Open 4-week 2-block OFT prep roster · sign-off with flight lead.", col: "teal" },
+                        { title: "Sleep A. Mendez - 8 nights monitor", body: "Lights-out 22:30 for 8 nights. Monitor findings log.", col: "orange" }
+                      ].map((rec, i) => (
+                        <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1">
+                          <h4 className={`text-[11px] font-extrabold inline-flex items-center gap-1.5 ${
+                            rec.col === "red" ? "text-rose-500" :
+                            rec.col === "teal" ? "text-cyan-555" : "text-amber-500"
+                          }`}>
+                            {rec.title}
+                          </h4>
+                          <p className="text-[10px] text-slate-500 leading-normal font-sans font-medium">{rec.body}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Today's PT line-up */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Today's PT line-up</h3>
+                      <p className="text-[9px] text-slate-455">5 sessions &middot; 28 Jul</p>
+                    </div>
+
+                    <div className="overflow-x-auto text-[10px] text-left">
+                      <table className="w-full border-collapse">
+                        <thead>
+                          <tr className="border-b border-slate-100 dark:border-white/5 text-[8px] font-bold uppercase tracking-wider text-slate-400 font-sans">
+                            <th className="pb-2">Time</th>
+                            <th className="pb-2">Group</th>
+                            <th className="pb-2">Focus</th>
+                            <th className="pb-2 text-right">Lead</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-55 dark:divide-white/5 font-sans">
+                          {[
+                            { time: "07:00", grp: "Alpha - 12", fcs: "Strength", lead: "TSgt Lee" },
+                            { time: "09:00", grp: "Bravo - 16", fcs: "Endurance", lead: "SSgt Park" },
+                            { time: "11:00", grp: "Rehab - 4", fcs: "Reconditioning", lead: "TSgt Lee" },
+                            { time: "14:00", grp: "OFT prep - 5", fcs: "Tempo", lead: "SSgt Park" },
+                            { time: "16:00", grp: "Mobility - 8", fcs: "Recovery", lead: "TSgt Lee" }
+                          ].map((lineRow, idx) => (
+                            <tr key={idx} className="hover:bg-slate-55/20 transition">
+                              <td className="py-2 font-mono text-slate-500 font-bold">{lineRow.time}</td>
+                              <td className="py-2 text-slate-805 dark:text-white font-bold">{lineRow.grp}</td>
+                              <td className="py-2 text-slate-550 font-medium">{lineRow.fcs}</td>
+                              <td className="py-2 text-right text-slate-500">{lineRow.lead}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* OFT clearance status table takes up full width */}
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-855 dark:text-white">OFT clearance status</h3>
+                  <p className="text-[9px] text-slate-455">Test date · score/exemption · Pass/Fail · status · next due · linked plan</p>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="pb-3 w-1/4">Airman</th>
+                        <th className="pb-3">Test Date</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right">Score</th>
+                        <th className="pb-3">Next Due</th>
+                        <th className="pb-3 text-right">Linked Plan</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                      {[
+                        { name: "T. Cho", date: "28 Jul", stat: "C - Pass", code: "green-dot", score: "92", due: "15 Jan", plan: "Cycle 4 Perf." },
+                        { name: "K. Patel", date: "20 Jul", stat: "C - Pass", code: "green-dot", score: "88", due: "20 Oct", plan: "OFT Tempo Prep" },
+                        { name: "M. Hayes", date: "25 Jul", stat: "C - Pass", code: "green-dot", score: "90", due: "25 Jan", plan: "Cycle 4 Perf." },
+                        { name: "B. Ndiaye", date: "18 Jul", stat: "NC - Recond.", code: "badge-orange", score: "71", due: "22 Jul", plan: "Reconditioning" },
+                        { name: "D. Okafor", date: "12 Jul", stat: "NC - Recond.", code: "badge-orange", score: "68", due: "19 Jul", plan: "Hip Recond." },
+                        { name: "R. Singh", date: "20 Jul", stat: "Exempt · profile", code: "badge-slate", score: "\u2014", due: "20 Oct", plan: "Mobility Reset" },
+                        { name: "S. Bauer", date: "25 Jul", stat: "Exempt · profile", code: "badge-slate", score: "\u2014", due: "25 Oct", plan: "Sleep Reset" }
+                      ].map((clRow, idx) => (
+                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                          <td className="py-2.5 font-bold text-slate-800 dark:text-white">{clRow.name}</td>
+                          <td className="py-2.5 font-mono text-slate-500">{clRow.date}</td>
+                          <td className="py-2.5">
+                            {clRow.code === "green-dot" ? (
+                              <span className="inline-flex items-center gap-1.5 font-bold text-emerald-500">
+                                <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                                {clRow.stat}
+                              </span>
+                            ) : (
+                              <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                clRow.code === "badge-orange" ? "bg-amber-500/10 text-amber-550" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                              }`}>
+                                {clRow.stat}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2.5 text-right font-mono text-slate-555">{clRow.score}</td>
+                          <td className="py-2.5 font-mono text-slate-500">{clRow.due}</td>
+                          <td className="py-2.5 text-right text-slate-655 dark:text-slate-350">{clRow.plan}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="pt-2 flex justify-between items-center text-[9px] font-mono text-slate-400">
+                  <span>Exemption reason recordable audit log &middot; Score entry via OFT lead</span>
+                  <span onClick={() => setActiveTab("coverage")} className="text-[#0da2b3] font-bold cursor-pointer hover:underline">Coverage &rarr;</span>
+                </div>
+              </div>
+
+              {/* Hours coverage and RTP splits */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs text-left font-sans items-stretch">
+                
+                {/* Hours coverage stats */}
+                <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">SCS hours coverage</h3>
+                      <p className="text-[9px] text-slate-455 font-mono">Scheduled + worked &middot; progress toward 2,080 annual</p>
+                    </div>
+                    <span className="px-2 py-0.2 bg-[#0da2b3]/15 text-[#0da2b3] text-[8px] font-bold rounded uppercase font-mono">
+                      95% target
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 text-left">
+                    <div>
+                      <span className="text-[8px] text-slate-400 block uppercase font-mono">Scheduled</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-350 block">160</span>
+                      <span className="text-[9px] text-slate-500 block">Cap 200</span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 block uppercase font-mono">Worked</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-350 block">152</span>
+                      <span className="text-[9px] text-emerald-500 block">95% of scheduled</span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 block uppercase font-mono">YTD Annual</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-350 block font-mono">1,128 / 2,080</span>
+                      <span className="text-[9px] text-slate-500 block">54% on pace</span>
+                    </div>
+                    <div>
+                      <span className="text-[8px] text-slate-400 block uppercase font-mono">Missed</span>
+                      <span className="font-bold text-rose-500 block">8</span>
+                      <span className="text-[9px] text-slate-500 block">2 due to leave</span>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[9px] font-mono">
+                    <span className="text-slate-455">RSD coverage (separate)</span>
+                    <span className="font-bold text-amber-505 font-sans">36 / 20</span>
+                  </div>
+                  <p className="text-[9px] text-slate-450 leading-relaxed font-sans mt-1">
+                    Restricted-status duty sessions &mdash; tracked separate from regular SCS hours.
+                  </p>
+                </div>
+
+                {/* RTP + RTD guide guidelines */}
+                <div className="bg-[#f8fafc] dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 text-left text-xs space-y-3 font-sans">
+                  <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px] font-mono">RTP + RTD &mdash; they are not the same</span>
+                  <div className="space-y-2">
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-[#0da2b3] block">RTP (Return to Performance)</span>
+                      <p className="text-slate-555 leading-normal font-normal font-sans">
+                        is managed in Ascend: SCS + PT/IM coordinate reconditioning, training load, and progression.
+                      </p>
+                    </div>
+                    <div className="space-y-0.5">
+                      <span className="font-bold text-amber-550 block">RTD (Return to Duty)</span>
+                      <p className="text-slate-555 leading-normal font-normal font-sans">
+                        requires source-authority + decision date + verification + reevaluation/expiration. RTD is only surfaced when all four fields are present.
+                      </p>
+                      <p className="text-[10px] text-slate-400 font-sans italic leading-normal">
+                        SCS does not edit restriction profiles, adjust temporary clinical clearings, or edit RTD thresholds. We plan re-load.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Workout log last 14 days table */}
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recent workouts &middot; 7 events</h3>
+                    <p className="text-[9px] text-slate-455 font-mono">Status · date · type · duration · RPE · linked plan · applied limitation · review</p>
+                  </div>
+                  <span onClick={() => triggerToast("Displaying all trailing workouts")} className="text-[10px] text-[#0da2b3] font-bold cursor-pointer hover:underline font-mono">
+                    All workouts &rarr;
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Date</th>
+                        <th className="pb-3">Type</th>
+                        <th className="pb-3 text-right">Duration</th>
+                        <th className="pb-3 text-right">RPE</th>
+                        <th className="pb-3">Linked Plan</th>
+                        <th className="pb-3 w-1/4">Applied Limitation</th>
+                        <th className="pb-3 text-right">Review</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                      {[
+                        { status: "Done", date: "28 Jul", type: "Rehab · McGill Big 3", dur: "32 min", rpe: "6", plan: "Rehab Block 2", lim: "Sub-80% 1RM deadlift", rev: "Reviewed", col: "green" },
+                        { status: "Done", date: "27 Jul", type: "Mobility reset", dur: "12 min", rpe: "3", plan: "Rehab Block 2", lim: "\u2014", rev: "Reviewed", col: "green" },
+                        { status: "Done", date: "25 Jul", type: "Strength · back squat", dur: "45 min", rpe: "7", plan: "Cycle 4 Perf.", lim: "\u2014", rev: "Reviewed", col: "green" },
+                        { status: "Modified", date: "24 Jul", type: "Tempo run", dur: "24 min", rpe: "5", plan: "OFT Tempo Prep", lim: "HR cap: 165", rev: "Pending", col: "orange" },
+                        { status: "Skipped", date: "22 Jul", type: "Loaded carry", dur: "\u2014", rpe: "\u2014", plan: "Rehab Block 2", lim: "L4 lower back", rev: "PT/IM reviews", col: "blue" },
+                        { status: "Done", date: "20 Jul", type: "Endurance · intervals", dur: "36 min", rpe: "7", plan: "Cycle 4 Perf.", lim: "\u2014", rev: "Reviewed", col: "green" },
+                        { status: "Done", date: "18 Jul", type: "Strength · deadlift", dur: "45 min", rpe: "6", plan: "Rehab Block 2", lim: "Sub-80% 1RM", rev: "Reviewed", col: "green" }
+                      ].map((workRow, idx) => (
+                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                          <td className="py-2.5">
+                            <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              workRow.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
+                              workRow.col === "orange" ? "bg-amber-500/10 text-amber-500" : "bg-sky-500/10 text-sky-500"
+                            }`}>
+                              {workRow.status}
+                            </span>
+                          </td>
+                          <td className="py-2.5 font-mono text-slate-500">{workRow.date}</td>
+                          <td className="py-2.5 font-bold text-slate-700 dark:text-slate-350">{workRow.type}</td>
+                          <td className="py-2.5 text-right font-mono text-slate-500">{workRow.dur}</td>
+                          <td className="py-2.5 text-right font-mono text-slate-500">{workRow.rpe}</td>
+                          <td className="py-2.5 text-slate-655 dark:text-slate-350">{workRow.plan}</td>
+                          <td className="py-2.5 text-slate-500 leading-normal">{workRow.lim}</td>
+                          <td className="py-2.5 text-right text-slate-500 font-medium">{workRow.rev}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* View Authorized performance summary block */}
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans text-xs">
+                <div className="space-y-1">
+                  <h4 className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
+                    View Authorized Performance Summary
+                    <span className="px-2 py-0.2 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
+                      Authorized access
+                    </span>
+                  </h4>
+                  <p className="text-slate-555 leading-normal font-sans">
+                    PT/IM approved &middot; versioned &middot; minimum-necessary &middot; named audiences.
+                  </p>
+                  <p className="text-[10px] text-slate-455 font-mono">
+                    Open the read-only Performance Summary for any airman on an active plan. Medical records remain in PT/IM control &mdash; SCS never opens raw medical files.
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-shrink-0">
+                  <button onClick={() => { setReviewingAirmanId("J. Reyes"); triggerToast("Displaying J. Reyes Performance summary record"); }} className="px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl font-bold transition">
+                    View J. Reyes Summary
+                  </button>
+                  <button onClick={() => triggerToast("Dossier plan guidelines opened")} className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 font-bold transition hover:bg-slate-50">
+                    Plan references
+                  </button>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left pt-2">
+                Ascend &middot; SCS Workspace prototype
+              </div>
+
             </div>
           )}
 
