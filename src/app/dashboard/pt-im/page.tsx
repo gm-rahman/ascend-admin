@@ -1833,20 +1833,441 @@ export default function PtImDashboard() {
             </div>
           )}
 
-          {/* Fallback placeholer for Tabs 4, 5, 6 */}
-          {activeTab !== "dashboard" && activeTab !== "injury" && activeTab !== "records" && (
+          {/* Tab 4: QUARTERLY REVIEW VIEW */}
+          {activeTab === "quarterly" && !reviewingAirmanId && !viewingRecordId && (
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM - QUARTERLY REVIEW</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Q3 injury review</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    Aggregate injury trends &middot; no individual exposure &middot; k&ge;5 per cohort &middot; 23rd MSG, Apr&ndash;Jun 2026.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/5 p-1 bg-white dark:bg-slate-900 text-[10px] font-bold font-mono">
+                    {["Q1", "Q2", "Q3", "Q4"].map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => triggerToast(`Displaying ${q} injury trends`)}
+                        className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
+                          q === "Q3" 
+                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold" 
+                            : "text-slate-400 hover:text-slate-655"
+                        }`}
+                      >
+                        {q}
+                      </button>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => triggerToast("Q3 Injury Review Summary PDF downloaded successfully")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-850 transition cursor-pointer"
+                  >
+                    Export PDF
+                  </button>
+                </div>
+              </div>
+
+              {/* Suppression details banner */}
+              <div className="bg-[#f8fafc] dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+                <span className="size-5 rounded-full bg-slate-900 text-white flex items-center justify-center font-bold text-[10px] flex-shrink-0 select-none">k</span>
+                <div>
+                  <span className="font-extrabold font-sans text-xs">k&ge;5 enforced &middot; 2 cohorts suppressed</span>
+                  <p className="mt-0.5 text-slate-500 leading-normal font-normal">
+                    &quot;Hand&quot; injuries (k=3) and &quot;Foot/toe&quot; injuries (k=2) are suppressed below the minimum cohort size. Suppressed values are not approximated or merged with adjacent categories.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[
+                  { name: "Total injuries (Q3)", count: "12", desc: "+3 vs Q2 (9)", icon: "green" },
+                  { name: "Injury rate (per 100 airman-months)", count: "4.8", desc: "+1.1 vs Q2", icon: "teal" },
+                  { name: "L4+ count", count: "3", desc: "+1 vs Q2", icon: "red" },
+                  { name: "Days lost", count: "47", desc: "+12 vs Q2", icon: "slate" }
+                ].map((card, i) => (
+                  <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                      <span className={`text-[10px] font-bold ${
+                        card.icon === "green" ? "text-emerald-500" :
+                        card.icon === "teal" ? "text-[#0da2b3]" :
+                        card.icon === "red" ? "text-rose-500" : "text-slate-450"
+                      }`}>
+                        {card.desc.split(" vs ")[0]}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Body region chart and comparison table splits grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                
+                {/* Injuries by body region (k>=5) */}
+                <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+                    <div className="text-left">
+                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Injuries by body region (k&ge;5)</h3>
+                      <p className="text-[9px] text-slate-455">7 categories &ge; 5 &middot; 2 suppressed.</p>
+                    </div>
+
+                    <div className="flex gap-1.5 font-mono text-[9px]">
+                      {["7d", "30d", "90d"].map((dayF) => (
+                        <span key={dayF} className={`px-1.5 py-0.5 rounded cursor-pointer ${
+                          dayF === "30d" 
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold" 
+                            : "text-slate-400"
+                        }`}>
+                          {dayF}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Vertical bar chart matching Figma layout */}
+                  <div className="flex flex-col flex-1 justify-between pt-4">
+                    
+                    {/* Bars Container */}
+                    <div className="flex items-end justify-between h-36 px-2">
+                      {[
+                        { label: "Lumbar", pct: "85%", suppressed: false },
+                        { label: "Knee", pct: "70%", suppressed: false },
+                        { label: "Ankle", pct: "60%", suppressed: false },
+                        { label: "Shoulder", pct: "50%", suppressed: false },
+                        { label: "Hamstring", pct: "35%", suppressed: false },
+                        { label: "Wrist", pct: "20%", suppressed: true },
+                        { label: "Hip", pct: "10%", suppressed: true }
+                      ].map((bar, idx) => (
+                        <div key={idx} className="flex flex-col justify-end items-center h-full flex-1 group">
+                          {/* Bar block */}
+                          <div 
+                            style={{ height: bar.pct }}
+                            className={`w-8 sm:w-10 rounded-t-md transition-all duration-300 relative ${
+                              bar.suppressed 
+                                ? "bg-[#0da2b3]/30 dark:bg-[#0c8a99]/30" 
+                                : "bg-[#0da2b3] dark:bg-[#0c8a99] hover:bg-[#0b7a87]"
+                            }`}
+                          >
+                            {/* Hover tooltip */}
+                            <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-20">
+                              {bar.pct}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Bottom Line Indicator */}
+                    <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
+
+                    {/* Labels Row */}
+                    <div className="flex justify-between px-2 pt-2 select-none">
+                      {["Lumbar", "Knee", "Ankle", "Shoulder", "Hamstring", "Wrist", "Hip"].map((label, idx) => (
+                        <span key={idx} className="text-[10px] text-slate-500 font-bold flex-1 text-center font-sans">
+                          {label}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Legend Row */}
+                    <div className="flex flex-wrap gap-4 pt-3 text-[9px] font-bold text-slate-455 justify-start select-none">
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="size-1.5 bg-blue-500 rounded-full"></span>
+                        Lumbar &mdash; leading cause (n=5)
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="size-1.5 bg-emerald-500 rounded-full"></span>
+                        Shoulder &mdash; trending up
+                      </span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="size-1.5 bg-slate-350 dark:bg-slate-750 rounded-full"></span>
+                        Suppressed (k&lt;5)
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+
+                {/* By-flight comparison table */}
+                <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left flex flex-col justify-between">
+                  <div className="border-b border-slate-100 dark:border-white/5 pb-3">
+                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">By-flight comparison</h3>
+                    <p className="text-[9px] text-slate-455">Rate per 100 airman-months &middot; Q3.</p>
+                  </div>
+
+                  <div className="overflow-x-auto my-3 flex-1 flex flex-col justify-center">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <th className="pb-3">Flight</th>
+                          <th className="pb-3 text-right">Airman</th>
+                          <th className="pb-3 text-right">Injuries</th>
+                          <th className="pb-3 text-right">Rate</th>
+                          <th className="pb-3 text-right">L4+</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                        {[
+                          { fl: "Flight A", air: "22", inj: "4", rate: "5.4", l4: "1", dot: "red" },
+                          { fl: "Flight B", air: "21", inj: "3", rate: "4.3", l4: "1", dot: "orange" },
+                          { fl: "Flight C", air: "22", inj: "3", rate: "4.1", l4: "0", dot: "blue" },
+                          { fl: "Flight D", air: "20", inj: "2", rate: "3.0", l4: "1", dot: "orange" },
+                          { fl: "Total", air: "85", inj: "12", rate: "4.8", l4: "3", dot: "red", bold: true }
+                        ].map((row, idx) => (
+                          <tr key={idx} className={`hover:bg-slate-55/20 transition ${row.bold ? "font-extrabold text-slate-800 dark:text-white" : ""}`}>
+                            <td className="py-2.5 font-bold">{row.fl}</td>
+                            <td className="py-2.5 text-right font-mono text-slate-500">{row.air}</td>
+                            <td className="py-2.5 text-right font-mono text-slate-500">{row.inj}</td>
+                            <td className="py-2.5 text-right font-mono text-slate-500">{row.rate}</td>
+                            <td className="py-2.5 text-right font-mono flex items-center justify-end gap-1.5">
+                              <span className={`size-1.5 rounded-full ${
+                                row.dot === "red" ? "bg-rose-500" :
+                                row.dot === "orange" ? "bg-amber-500" : "bg-sky-500"
+                              }`}></span>
+                              {row.l4}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 dark:border-white/5 text-[9px] text-slate-400 font-mono">
+                    Comparison reports updated daily via SCS metrics channel.
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Bottom split: Injury breakdown and Recommendations */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                
+                {/* Injury breakdown list */}
+                <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Injury type breakdown</h3>
+                    <p className="text-[9px] text-slate-455">Count vs days lost &middot; Q3.</p>
+                  </div>
+
+                  <div className="divide-y divide-slate-100 dark:divide-white/5 font-sans text-xs">
+                    {[
+                      { type: "Lumbar strain", count: 5 },
+                      { type: "Knee strain", count: 3 },
+                      { type: "Ankle sprain", count: 3 },
+                      { type: "Shoulder impinge", count: 2 },
+                      { type: "Hamstring", count: 2 },
+                      { type: "Wrist", count: 1 },
+                      { type: "Hip flexor", count: 1 }
+                    ].map((row, idx) => (
+                      <div key={idx} className="flex justify-between items-center py-2.5">
+                        <span className="font-bold text-slate-700 dark:text-slate-350">{row.type}</span>
+                        <span className="font-mono font-black text-slate-800 dark:text-white">{row.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Recommendations */}
+                <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recommendations</h3>
+                    <p className="text-[9px] text-slate-455">Drafted by PT/IM &middot; routed to SCS.</p>
+                  </div>
+
+                  <div className="space-y-4 font-sans text-xs">
+                    {[
+                      { title: "Strengthen lumbar pre-hab in PT block", tags: "Reyes, Cho, Hayes", body: "3 of 5 lumbar injuries share a load-bearing onset pattern. Recommend a 2-week pre-hab block focused on hip-hinge mechanics before next OFT cycle.", sub: "Owners: SCS + PT/IM · due 4 Aug" },
+                      { title: "Flight A running mileage audit", tags: "Flight A · rate 5.4", body: "Flight A carries the highest rate (5.4) and 1 L4+. Recommend a 2-week mileage audit + form review during PT block.", sub: "Owner: Flight A leadership + PT/IM" },
+                      { title: "Ruck progression policy refresh", tags: "\u2265 25 lb loads", body: "Two L4+ cases include ruck onset > 25 lb. PT/IM recommends a staged progression rule (15 &rarr; 25 &rarr; 35 lb) and mandatory form check before each step.", sub: "Owner: SCS + PT/IM · due 11 Aug" }
+                    ].map((rec, i) => (
+                      <div key={i} className="p-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1.5 text-left">
+                        <div className="flex items-center justify-between gap-4">
+                          <span className="font-extrabold text-slate-800 dark:text-white">{rec.title}</span>
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-450 text-[8px] font-bold rounded">
+                            {rec.tags}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{rec.body}</p>
+                        <p className="text-[9px] text-[#0da2b3] font-mono leading-none">{rec.sub}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Refresh Footer */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left pt-4">
+                Quarterly review &middot; Q3 &middot; 23rd MSG &middot; k&ge;5 enforced &middot; CUI // OPSEC
+              </div>
+
+            </div>
+          )}
+
+          {/* Tab 5: SCS COORDINATION VIEW */}
+          {activeTab === "scs" && !reviewingAirmanId && !viewingRecordId && (
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM - COORDINATION</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">SCS coordination</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    Joint items where pain, limitation, a failed OFT, or recovery decline affects a training plan decision. Held as its own record &mdash; kept separate from operator messages and from IDMT handoffs.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => triggerToast("New joint SCS reconditioning item created")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    + Raise item
+                  </button>
+                </div>
+              </div>
+
+              {/* Scope alert box */}
+              <div className="bg-slate-50 dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-extrabold font-sans text-xs">Separate record &middot; training-decision scope only</span>
+                  <p className="mt-0.5 text-slate-500 leading-normal font-normal font-sans">
+                    These items carry the functional limitation and its training implication &mdash; not diagnosis, notes, or raw medical history. Operator messages, mental-performance content and IDMT handoffs each stay in their own workflow.
+                  </p>
+                </div>
+              </div>
+
+              {/* Table */}
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Open items &middot; 8</h3>
+                    <p className="text-[10px] text-slate-455">Sorted by last update &middot; both roles see the same record</p>
+                  </div>
+
+                  <div className="flex gap-2">
+                    {["Open", "Awaiting SCS", "Awaiting PT/IM", "Closed"].map((scsFilter, idx) => (
+                      <button
+                        key={idx}
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
+                          scsFilter === "Open"
+                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                        }`}
+                      >
+                        {scsFilter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <th className="pb-3">Airman</th>
+                        <th className="pb-3 w-1/4">Coordination Item</th>
+                        <th className="pb-3">Trigger</th>
+                        <th className="pb-3">Affects</th>
+                        <th className="pb-3">Owner</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3">Updated</th>
+                        <th className="pb-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5">
+                      {[
+                        { code: "J. Reyes", details: "SrA · Flight A", item: "Load cap for Rehab Block 2", trig: "Pain · lower back", aff: "Training load", owner: "PT/IM", status: "Awaiting SCS", col: "orange", date: "28 Jul" },
+                        { code: "D. Mendez", details: "SSgt · Flight B", item: "No-run clearance until 1 Aug", trig: "Limitation · ankle", aff: "Session plan", owner: "PT/IM", status: "Acknowledged", col: "green", date: "27 Jul" },
+                        { code: "T. Cho", details: "A1C · Flight A", item: "OFT retest window", trig: "Failed OFT", aff: "Assessment", owner: "SCS", status: "Awaiting PT/IM", col: "orange", date: "27 Jul" },
+                        { code: "B. Ndiaye", details: "A1C · Flight C", item: "Overhead work restriction", trig: "Limitation · shoulder", aff: "Programming", owner: "PT/IM", status: "Acknowledged", col: "green", date: "26 Jul" },
+                        { code: "R. Patel", details: "SrA · Flight B", item: "Sprint cap - week 2", trig: "Recovery decline", aff: "Training load", owner: "SCS", status: "Awaiting PT/IM", col: "orange", date: "25 Jul" },
+                        { code: "S. Hayes", details: "SSgt · Flight D", item: "No-lift clearance", trig: "Limitation · lumbar", aff: "Session plan", owner: "PT/IM", status: "Acknowledged", col: "green", date: "25 Jul" },
+                        { code: "E. Vega", details: "SrA · Flight C", item: "No-pushup substitution", trig: "Limitation · wrist", aff: "Programming", owner: "PT/IM", status: "Closed", col: "slate", date: "24 Jul" },
+                        { code: "K. Park", details: "A1C · Flight B", item: "Run-volume cap - 5 Aug review", trig: "Pain · achilles", aff: "Training load", owner: "PT/IM", status: "Awaiting SCS", col: "orange", date: "23 Jul" }
+                      ].map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                          <td className="py-3">
+                            <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
+                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                          </td>
+                          <td className="py-3 text-slate-700 dark:text-slate-350 font-bold">{row.item}</td>
+                          <td className="py-3 text-slate-500 font-medium">{row.trig}</td>
+                          <td className="py-3 text-slate-500">{row.aff}</td>
+                          <td className="py-3 font-mono font-bold text-slate-655 dark:text-slate-400">{row.owner}</td>
+                          <td className="py-3">
+                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              row.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
+                              row.col === "orange" ? "bg-amber-500/10 text-amber-500" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                            }`}>
+                              {row.col === "orange" && <span className="size-1 bg-amber-500 rounded-full"></span>}
+                              {row.col === "green" && <span className="size-1 bg-emerald-500 rounded-full"></span>}
+                              {row.status}
+                            </span>
+                          </td>
+                          <td className="py-3 text-slate-550 font-mono">{row.date}</td>
+                          <td className="py-3 text-right">
+                            <button
+                              onClick={() => {
+                                setReviewingAirmanId(row.code === "J. Reyes" ? "J. Reyes" : "J. Reyes");
+                                triggerToast(`Opening joint coordination sheet detail context`);
+                              }}
+                              className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                            >
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono text-slate-400">
+                  <span>Return to Performance only &middot; Return to Duty is decided outside Ascend</span>
+                  <span className="text-[#0da2b3] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>Injury queue &rarr;</span>
+                </div>
+
+              </div>
+
+              {/* Refresh Footer */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left pt-4">
+                SCS coordination &middot; 8 open items &middot; CUI // OPSEC
+              </div>
+
+            </div>
+          )}
+
+          {/* Tab 6: IDMT HANDOFF VIEW */}
+          {activeTab === "handoff" && !reviewingAirmanId && !viewingRecordId && (
             <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
               <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
-                <Stethoscope className="size-7" />
+                <Send className="size-7" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">{activeTab} workspace sheet</h3>
-                <p className="text-xs text-slate-550 leading-relaxed mt-1">
-                  This interface handles live {activeTab} information logs. Access is restricted under $k \ge 5$ suppression governance.
+                <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">IDMT Handoff Channels</h3>
+                <p className="text-xs text-slate-555 leading-relaxed mt-1">
+                  Export structured, read-receipted clinical reconditioning statuses directly into the 23rd MSG Medical Operations corridor.
                 </p>
               </div>
+              <div className="flex gap-3">
+                <button onClick={() => triggerToast("New export handoff session initialized")} className="px-4 py-2 bg-[#0da2b3] text-white rounded-xl text-xs font-bold hover:bg-[#0c8a99] transition cursor-pointer">
+                  New Handoff Packet
+                </button>
+              </div>
               <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
-                No active pending operations for role TSgt Marcus Lee.
+                Session access audited &middot; 7-yr compliance record retention.
               </div>
             </div>
           )}
