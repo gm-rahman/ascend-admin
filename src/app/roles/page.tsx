@@ -16,6 +16,7 @@ import {
   Moon,
   Sun,
   LogOut,
+  Brain,
 } from "lucide-react";
 
 const roles = [
@@ -24,7 +25,7 @@ const roles = [
   { id: "plan", name: "Plan", icon: ClipboardList, description: "Strategic planning and scheduling" },
   { id: "pc", name: "PC", icon: Laptop, description: "Personal computing and workspace configuration" },
   { id: "nutrotinish", name: "Nutrotinish", icon: Apple, description: "Nutritional tracking and planning" },
-  { id: "mt", name: "MT", icon: Activity, description: "Medical tracking and diagnostics" },
+  { id: "mp", name: "MP", icon: Brain, description: "Mental performance coaching and readiness" },
   { id: "pt-im", name: "PT/IM", icon: Stethoscope, description: "Physical therapy and readiness" },
   { id: "scs", name: "SCS", icon: Landmark, description: "Support command services" },
 ];
