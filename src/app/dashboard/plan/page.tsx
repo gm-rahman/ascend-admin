@@ -849,22 +849,369 @@ export default function PlanDashboard() {
 
           {/* Tab 3: RECONDITIONING */}
           {activeTab === "reconditioning" && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · RECONDITIONING HUB</p>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Reconditioning registry</h1>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                  Review flight-level reconditioning plans, progression loops, and caseload statistics.
-                </p>
-              </div>
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · RECONDITIONING</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Reconditioning program</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    4 / 6-week blocks. Daily / weekly schedule. Aggregate progress by flight (k &ge; 5). Cross-persona coordination.
+                  </p>
+                </div>
 
-              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-4">
-                <h3 className="text-sm font-bold text-slate-855 dark:text-white">Multi-Specialist Activity</h3>
-                <p className="text-xs text-slate-550">Track collaborative return-to-duty workflows across SCS, PT/IM, and Nutrition.</p>
-                <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-xs text-slate-400 font-mono">
-                  All active cohorts are current. Next scheduled review on August 1st.
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setActiveTab("dashboard")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    Plan dashboard
+                  </button>
+                  <button 
+                    onClick={() => triggerToast("Initializing new reconditioning block")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Plus className="size-4" /> New block
+                  </button>
                 </div>
               </div>
+
+              {/* Warnings Banner */}
+              <div className="bg-[#fcf8e3] dark:bg-amber-950/10 text-slate-800 dark:text-slate-200 p-5 rounded-2xl border border-[#faf2cc]/50 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
+                <AlertTriangle className="size-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-extrabold">Cohort gate · k &ge; 5 enforced</span>
+                  <p className="mt-0.5 text-slate-600 dark:text-slate-400 font-normal">
+                    Every aggregate view is rendered at flight-cohort level. Individual names never surface in any plan or reconditioning view.
+                  </p>
+                </div>
+              </div>
+
+              {/* 4 Cards Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                {[
+                  { name: "Active reconditioning", count: "8", desc: "across 3 flights", arrow: null },
+                  { name: "Avg adherence · 30d", count: "82%", desc: "vs prior 30d", arrow: "▲ +4.1" },
+                  { name: "Wk-of-program distribution", count: "W2 → W4", desc: "3 blocks in W2-W3", arrow: null },
+                  { name: "Cross-persona actions", count: "12", desc: "5 owners", arrow: null }
+                ].map((kpi, idx) => (
+                  <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <div className="flex items-baseline gap-2">
+                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
+                      {kpi.arrow && (
+                        <span className="text-[10px] font-bold text-emerald-500">
+                          {kpi.arrow}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-500 font-mono">{kpi.desc}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Reconditioning Templates */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
+                    <h3 className="text-base font-bold text-slate-855 dark:text-white">Reconditioning templates</h3>
+                    <p className="text-xs text-slate-500">Pre-defined cadences · cross-persona by default · k &ge; 5 at every aggregate view</p>
+                  </div>
+                  <button 
+                    onClick={() => triggerToast("Opening switch templates dialog")}
+                    className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    Switch template
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
+                  {[
+                    { cat: "Recovery", title: "4-week reconditioning", desc: "Daily capture · weekly review · aggregate progress at k \u2265 5", b1: "4 weeks", b2: "k \u2265 5" },
+                    { cat: "Strength", title: "6-week strength block", desc: "SCS-led · strength + mobility · OFT prep cadence", b1: "6 weeks", b2: "SCS-led" },
+                    { cat: "Mental", title: "Sleep reset", desc: "Mental Performance-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
+                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutrition-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
+                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutrition + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" }
+                  ].map((tpl, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/55 rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                    >
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
+                        <h4 className="text-xs font-bold text-slate-855 dark:text-white mt-1 leading-tight">{tpl.title}</h4>
+                        <p className="text-[9px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 pt-2">
+                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 rounded text-[8px] font-bold uppercase">{tpl.b1}</span>
+                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-400 rounded text-[8px] font-bold uppercase font-mono">{tpl.b2}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Cohort Progress table */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">COHORT PROGRESS</span>
+                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Aggregate progress by cohort - k &ge; 5</h3>
+                    <p className="text-xs text-slate-550">Each row is a flight cohort · k is enforced · progress shown as cohort mean</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-full text-[9px] font-bold text-slate-500 uppercase">
+                      <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                      Block A - wk 2
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-full text-[9px] font-bold text-slate-500 uppercase">
+                      <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
+                      8 cohorts
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          <th className="pb-3 w-1/4">Cohort</th>
+                          <th className="pb-3">Block</th>
+                          <th className="pb-3">Wk</th>
+                          <th className="pb-3">Adherence</th>
+                          <th className="pb-3 w-1/6">Progress</th>
+                          <th className="pb-3">Owners</th>
+                          <th className="pb-3">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
+                        {[
+                          { name: "Flight Alpha - aggregate", details: "k=22 · OFT prep", block: "6-week strength", wk: "2 of 6", adh: "88%", pct: 88, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
+                          { name: "Flight Bravo - aggregate", details: "k=24 · recovery", block: "4-week recovery", wk: "2 of 4", adh: "81%", pct: 81, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
+                          { name: "Flight Charlie - aggregate", details: "k=20 · mobility", block: "4-week mobility", wk: "1 of 4", adh: "76%", pct: 76, owners: ["SCS"], status: "Ramping", col: "teal" },
+                          { name: "Foxtrot - aggregate", details: "k=18 · hydration ramp", block: "4-week nutrition", wk: "1 of 4", adh: "74%", pct: 74, owners: ["NUTRITION"], status: "Ramping", col: "teal" },
+                          { name: "Opt-in: Sleep reset", details: "k=12 · Mental Perf", block: "4-week sleep", wk: "2 of 4", adh: "65%", pct: 65, owners: ["MENTAL PERF"], status: "Watch", col: "orange" },
+                          { name: "Opt-in: Mission purpose", details: "k=10 · Purpose", block: "6-week purpose", wk: "2 of 6", adh: "91%", pct: 91, owners: ["PURPOSE"], status: "On track", col: "green" },
+                          { name: "Caseload: Lower-back RTD", details: "k=8 · PT/IM", block: "6-week rehab", wk: "3 of 6", adh: "85%", pct: 85, owners: ["PT/IM"], status: "On track", col: "green" },
+                          { name: "Caseload: Pre-OFT clearance", details: "k=14 · PT/IM", block: "1-week clearance", wk: "1 of 1", adh: "92%", pct: 100, owners: ["PT/IM"], status: "Cleared", col: "green" }
+                        ].map((c, i) => (
+                          <tr key={i} className="hover:bg-slate-55/20 transition">
+                            <td className="py-3">
+                              <span className="font-bold text-slate-800 dark:text-white block">{c.name}</span>
+                              <span className="text-[10px] text-slate-455 mt-0.5 block font-sans">{c.details}</span>
+                            </td>
+                            <td className="py-3 text-slate-700 dark:text-slate-300 font-bold">{c.block}</td>
+                            <td className="py-3 font-mono text-[10px]">{c.wk}</td>
+                            <td className="py-3 font-mono font-bold text-slate-800 dark:text-white">{c.adh}</td>
+                            <td className="py-3 pr-4">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                                  <div className={`h-full ${c.status === "Cleared" ? "bg-emerald-500" : "bg-[#0da2b3]"} rounded-full`} style={{ width: `${c.pct}%` }}></div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {c.owners.map((owner, oIdx) => (
+                                  <span key={oIdx} className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                    owner === "SCS" ? "bg-[#0da2b3]/15 text-[#0c8a99]" :
+                                    owner === "PT/IM" ? "bg-indigo-500/15 text-indigo-500" :
+                                    owner === "NUTRITION" ? "bg-amber-500/15 text-amber-500" :
+                                    owner === "MENTAL PERF" ? "bg-indigo-500/15 text-indigo-500" :
+                                    "bg-emerald-500/15 text-emerald-500"
+                                  }`}>
+                                    {owner}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-3">
+                              <span className={`inline-flex items-center gap-1.5 font-bold text-[9px] uppercase ${
+                                c.col === "green" ? "text-emerald-500" :
+                                c.col === "teal" ? "text-[#0da2b3]" : "text-amber-500"
+                              }`}>
+                                <span className={`size-1.5 rounded-full ${
+                                  c.col === "green" ? "bg-emerald-500" :
+                                  c.col === "teal" ? "bg-[#0da2b3]" : "bg-amber-500"
+                                }`}></span>
+                                {c.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* Active blocks by owner columns */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">CROSS-PERSONA COORDINATION</span>
+                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Active blocks by owner</h3>
+                    <p className="text-xs text-slate-500">Each block is owned by at least one role &middot; moves through the linked workspaces</p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-full text-[9px] font-bold text-slate-500 uppercase">
+                      <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
+                      5 workspaces
+                    </span>
+                    <button
+                      onClick={() => triggerToast("Opening general assignments queue")}
+                      className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      Open assignment
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 items-start">
+                  
+                  {/* SCS Column */}
+                  <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">SCS</span>
+                      <span className="text-[10px] text-slate-400 font-mono">4</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: "4-week recovery · Bravo", desc: "Recovery · wk 2 of 4", badge: "Strength", k: "k=24" },
+                        { title: "OFT prep · Alpha", desc: "Strength · wk 3 of 6", badge: "Strength", k: "k=22" },
+                        { title: "Mobility block · Charlie", desc: "Active · wk 1 of 4", badge: "Mobility", k: "k=20" },
+                        { title: "Block A · week 2 sign-off", desc: "Due Fri · 3 signers pending", badge: "Sign-off", k: null, badgeCol: "indigo" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
+                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            }`}>{item.badge}</span>
+                            {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* PT/IM Column */}
+                  <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">PT/IM</span>
+                      <span className="text-[10px] text-slate-400 font-mono">3</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: "Lower-back return-to-duty", desc: "Caseload · wk 3 of 6", badge: "Rehab", k: "k=8" },
+                        { title: "Pre-OFT clearance", desc: "Active · wk 1", badge: "Clearance", k: "k=14" },
+                        { title: "L4 mobility v2 review", desc: "Caseload · in review", badge: "Review", k: null, badgeCol: "indigo" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
+                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            }`}>{item.badge}</span>
+                            {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Mental Perf Column */}
+                  <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Mental Perf</span>
+                      <span className="text-[10px] text-slate-400 font-mono">2</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: "Stress & sleep reset", desc: "Opt-in · wk 2 of 4", badge: "Mental", k: "k=12" },
+                        { title: "Week close reflection", desc: "Scheduled · wk 4", badge: "Reflect", k: null, badgeCol: "indigo" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
+                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
+                              item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
+                            }`}>{item.badge}</span>
+                            {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Nutrition Column */}
+                  <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Nutrition</span>
+                      <span className="text-[10px] text-slate-400 font-mono">2</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: "Hydration ramp", desc: "Caseload · wk 1 of 4", badge: "Hydration", k: "k=18" },
+                        { title: "Nutrition prep · OFT", desc: "Active · wk 2", badge: "Nutrition", k: null }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
+                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[8px] font-bold uppercase">{item.badge}</span>
+                            {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Purpose Column */}
+                  <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Purpose</span>
+                      <span className="text-[10px] text-slate-400 font-mono">1</span>
+                    </div>
+
+                    <div className="space-y-3">
+                      {[
+                        { title: "Mission purpose cohort", desc: "Opt-in · wk 3", badge: "Purpose", k: "k=10" }
+                      ].map((item, idx) => (
+                        <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
+                          <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
+                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <div className="flex items-center gap-1.5 pt-1">
+                            <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[8px] font-bold uppercase">{item.badge}</span>
+                            {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Sub footnote */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left">
+                PR-W · Reconditioning program · k &ge; 5 enforced · 8 active cohorts
+              </div>
+
             </div>
           )}
 
