@@ -29,6 +29,7 @@ import {
   ClipboardList,
   User,
   Users,
+  Lock,
 } from "lucide-react";
 
 type TabType = "dashboard" | "assignment" | "reconditioning";
@@ -539,22 +540,310 @@ export default function PlanDashboard() {
 
           {/* Tab 2: ASSIGNMENT */}
           {activeTab === "assignment" && (
-            <div className="space-y-6 animate-fade-in text-left">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · ASSIGNMENT QUEUE</p>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Assignments</h1>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                  Approve and route cross-persona plans awaiting assignment roles.
-                </p>
-              </div>
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="text-left">
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · AUTHORING</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">New plan · 4-week recovery · Bravo</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    Author a structured plan from a template. Route to roles. Assign cohort.
+                  </p>
+                </div>
 
-              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-4">
-                <h3 className="text-sm font-bold text-slate-855 dark:text-white">Pending Assignments</h3>
-                <p className="text-xs text-slate-550">Assignments automatically generated from cohort triggers where k &ge; 5 is satisfied.</p>
-                <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-xs text-slate-400 font-mono">
-                  No active custom assignments currently pending authorization.
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => triggerToast("Authoring draft saved to local database")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    Save draft
+                  </button>
+                  <button 
+                    onClick={() => triggerToast("Readiness plan sent to owner specialists for approval")}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Send className="size-3.5" /> Send to owners
+                  </button>
                 </div>
               </div>
+
+              {/* Draft Info Banner */}
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 md:p-6 text-left space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="bg-slate-900 text-white dark:bg-slate-800 rounded px-2.5 py-0.5 text-[9px] font-mono inline-block">
+                    DRAFT
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-mono">Auto-saved</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-850 dark:text-white">Plan authoring &mdash; structured doc</h2>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Author a plan like a doc with structured sections and clear routing metadata, not a form. Seven sections, every one routed.
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2.5 pt-1">
+                  {[
+                    "k \u2265 5 enforced",
+                    "5 linked workspaces",
+                    "template - 4-week reconditioning"
+                  ].map((ind, idx) => (
+                    <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-550 dark:text-slate-400 leading-normal uppercase">
+                      <span className="size-1.5 rounded-full bg-emerald-500"></span>
+                      {ind}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Outline and Document editor */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                
+                {/* Left Outline panel */}
+                <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left h-fit space-y-3">
+                  <div className="border-b border-slate-100 dark:border-white/5 pb-3">
+                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Outline</h3>
+                    <p className="text-[10px] text-slate-455 mt-0.5">Drag to reorder · click to edit</p>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {[
+                      { num: "01", name: "Plan metadata", active: true },
+                      { num: "02", name: "Goal & rationale", active: false },
+                      { num: "03", name: "Cadence & schedule", active: false },
+                      { num: "04", name: "Owner routing", active: false },
+                      { num: "05", name: "Cohort & scope", active: false },
+                      { num: "06", name: "Recommendations", active: false },
+                      { num: "07", name: "Review & sign-off", active: false }
+                    ].map((item, idx) => (
+                      <div 
+                        key={idx}
+                        className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                          item.active 
+                            ? "bg-[#0da2b3]/10 text-[#0da2b3]" 
+                            : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/60"
+                        }`}
+                      >
+                        <span>{item.num} &middot; {item.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Document form cards */}
+                <div className="lg:col-span-8 space-y-6">
+                  
+                  {/* Section 01 */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 01</span>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Plan metadata</h3>
+                      <p className="text-[10px] text-slate-455">Name the plan, pick a template, and define the lifecycle.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 block uppercase">Plan name</label>
+                        <input 
+                          type="text" 
+                          defaultValue="4-week recovery · Bravo"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none focus:border-[#0da2b3]/50 font-bold"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block uppercase">Template</label>
+                          <div className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-455 select-none cursor-pointer">
+                            <span>Select template</span>
+                            <ChevronDown className="size-4 text-slate-400" />
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-bold text-slate-400 block uppercase">Window</label>
+                          <div className="w-full h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between px-3 text-xs text-slate-700 dark:text-slate-350 cursor-pointer">
+                            <span className="font-bold">20 Jul &mdash; 15 Aug 2025 · 4 weeks</span>
+                            <ChevronDown className="size-4 text-slate-400" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section 02 */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 02</span>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Goal & rationale</h3>
+                      <p className="text-[10px] text-slate-455">Author the cohort-level rationale. Members may reference aggregate trends; identifiers are not allowed here.</p>
+                    </div>
+
+                    <div className="pt-2">
+                      <textarea 
+                        rows={4}
+                        defaultValue="Recovery protocol rollout in response to the +1.2 MoM lift in wing OPS. Sleep watch on Delta flight is the cohort-level driver."
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Section 03 */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 03</span>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Cadence & schedule</h3>
+                      <p className="text-[10px] text-slate-455">Define the schedule. Daily capture is encouraged but never mandatory; weekly aggregate is the minimum cadence for k &ge; 5 reporting.</p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2.5 pt-2">
+                      <button className="px-4 py-1.5 rounded-full text-xs font-bold bg-[#0da2b3] text-white cursor-pointer transition">
+                        Daily
+                      </button>
+                      {["Weekly", "Bi-weekly", "Ad-hoc"].map((c, i) => (
+                        <button key={i} className="px-4 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-655 dark:text-slate-350 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                          {c}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Section 04 */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 04</span>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Owner routing</h3>
+                      <p className="text-[10px] text-slate-455">Route the plan to one or more owners across linked workspaces. Each owner inherits a role-keyed scope.</p>
+                    </div>
+
+                    <div className="overflow-x-auto pt-2">
+                      <table className="w-full text-left border-collapse text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <th className="pb-3 w-1/3">Owner Role</th>
+                            <th className="pb-3">Requests</th>
+                            <th className="pb-3">Read</th>
+                            <th className="pb-3">Write</th>
+                            <th className="pb-3">Notify</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-mono">
+                          {[
+                            { role: "SCS", req: "Primary", col: "teal", r: true, w: true, n: true },
+                            { role: "PT/IM", req: "Secondary", col: "indigo", r: true, w: true, n: true },
+                            { role: "MENTAL PERFORMANCE", req: "Advisory", col: "orange", r: false, w: false, n: true },
+                            { role: "NUTRITIONIST", req: null, col: null, r: false, w: false, n: false },
+                            { role: "PURPOSE COACH", req: null, col: null, r: "lock", w: false, n: false }
+                          ].map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/10">
+                              <td className="py-3 font-bold text-slate-700 dark:text-slate-300 font-sans">{row.role}</td>
+                              <td className="py-3">
+                                {row.req ? (
+                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                    row.col === "teal" ? "bg-[#0da2b3]/15 text-[#0c8a99]" :
+                                    row.col === "indigo" ? "bg-indigo-500/15 text-indigo-500" :
+                                    "bg-amber-500/15 text-amber-500"
+                                  }`}>
+                                    {row.req}
+                                  </span>
+                                ) : "—"}
+                              </td>
+                              <td className="py-3">
+                                {row.r === "lock" ? <Lock className="size-3 text-slate-400" /> :
+                                 row.r ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
+                              </td>
+                              <td className="py-3">
+                                {row.w ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
+                              </td>
+                              <td className="py-3">
+                                {row.n ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Section 05 */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
+                    <div>
+                      <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 05</span>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Cohort & scope</h3>
+                      <p className="text-[10px] text-slate-455">Cohort minimum (k) is enforced at every data point. Select the cohort scope or import an existing one.</p>
+                    </div>
+
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-400 block uppercase">Cohort</label>
+                        <div className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-455 select-none cursor-pointer">
+                          <span>Select cohort scope</span>
+                          <ChevronDown className="size-4 text-slate-400" />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 pt-2">
+                        <button 
+                          onClick={() => triggerToast("Authoring draft saved for routing later")}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                        >
+                          Save & route later
+                        </button>
+                        <button 
+                          onClick={() => triggerToast("Readiness plan sent to owners for review")}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                        >
+                          <Send className="size-3.5" /> Send to owners
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+
+              {/* Templates Switching grid */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
+                  <h3 className="text-base font-bold text-slate-855 dark:text-white">Switch template</h3>
+                  <p className="text-xs text-slate-500">Pre-defined cadences &middot; cross-persona by default</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {[
+                    { cat: "Recovery", title: "4-week reconditioning", desc: "Daily capture · weekly review · aggregate progress at k \u2265 5", b1: "4 weeks", b2: "k \u2265 5" },
+                    { cat: "Strength", title: "6-week strength block", desc: "SCS-led · strength + mobility · OFT prep cadence", b1: "6 weeks", b2: "SCS-led" },
+                    { cat: "Mental", title: "Sleep reset", desc: "Mental Performance-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
+                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutrition-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
+                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutrition + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" },
+                    { cat: "Purpose", title: "Purpose cohort", desc: "Purpose Coach-led · opt-in · 6 weeks", b1: "6 weeks", b2: "Opt-in" }
+                  ].map((tpl, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/55 rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                    >
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
+                        <h4 className="text-sm font-bold text-slate-855 dark:text-white mt-1">{tpl.title}</h4>
+                        <p className="text-[10px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 pt-2">
+                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 rounded text-[8px] font-bold uppercase">{tpl.b1}</span>
+                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-400 rounded text-[8px] font-bold uppercase font-mono">{tpl.b2}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Sub footnote */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left">
+                PR-W · Plan assignment · drafting · auto-save on
+              </div>
+
             </div>
           )}
 
