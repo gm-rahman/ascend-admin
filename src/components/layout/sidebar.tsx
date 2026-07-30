@@ -22,10 +22,8 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { setSidebarOpen, sidebarOpen } = useUiStore((state) => ({
-    setSidebarOpen: state.setSidebarOpen,
-    sidebarOpen: state.sidebarOpen,
-  }));
+  const setSidebarOpen = useUiStore((state) => state.setSidebarOpen);
+  const sidebarOpen = useUiStore((state) => state.sidebarOpen);
 
   return (
     <>

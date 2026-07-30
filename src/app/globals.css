@@ -1,21 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f4f1ea;
-  --foreground: #111827;
-  --surface: #fffdf8;
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --surface: #ffffff;
   --surface-strong: #ffffff;
-  --surface-muted: #ede7dc;
-  --border: rgba(17, 24, 39, 0.08);
-  --border-strong: rgba(17, 24, 39, 0.14);
+  --surface-muted: #f1f5f9;
+  --border: rgba(15, 23, 42, 0.08);
+  --border-strong: rgba(15, 23, 42, 0.14);
   --primary: #1d4ed8;
   --primary-foreground: #f8fbff;
   --secondary: #d97706;
   --secondary-foreground: #fff9f1;
-  --muted: #6b7280;
+  --muted: #64748b;
   --success: #15803d;
   --danger: #dc2626;
-  --shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+  --shadow: 0 24px 80px rgba(15, 23, 42, 0.04);
+}
+
+.dark {
+  --background: #0b0f19;
+  --foreground: #f8fafc;
+  --surface: #111827;
+  --surface-strong: #1f2937;
+  --surface-muted: #1e293b;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #f59e0b;
+  --secondary-foreground: #111827;
+  --muted: #94a3b8;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --shadow: 0 24px 80px rgba(0, 0, 0, 0.3);
 }
 
 @theme inline {
@@ -50,17 +68,7 @@ body {
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
   text-rendering: optimizeLegibility;
-}
-
-body::before {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at top left, rgba(217, 119, 6, 0.14), transparent 30%),
-    radial-gradient(circle at top right, rgba(29, 78, 216, 0.12), transparent 32%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.72), rgba(244, 241, 234, 0.9));
-  content: "";
+  transition: background-color 0.2s, color 0.2s;
 }
 
 a {
@@ -94,3 +102,4 @@ textarea {
 .text-balance {
   text-wrap: balance;
 }
+

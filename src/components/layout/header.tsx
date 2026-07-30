@@ -1,11 +1,13 @@
 "use client";
 
-import { Bell, Menu, Search, SlidersHorizontal } from "lucide-react";
+import { Bell, Menu, Search, SlidersHorizontal, LogOut } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { useUiStore } from "@/store/ui-store";
+import { useAuthStore } from "@/store/auth-store";
 
 export function Header() {
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const { isAuthenticated, logout } = useAuthStore();
 
   return (
     <header className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
@@ -51,7 +53,19 @@ export function Header() {
         >
           <Bell className="size-4" />
         </button>
+
+        {isAuthenticated && (
+          <button
+            onClick={logout}
+            className="inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 dark:border-red-950/20 dark:bg-red-950/10 px-4 py-2.5 text-sm font-medium text-red-600 dark:text-red-400 transition hover:bg-red-100 dark:hover:bg-red-950/30 cursor-pointer"
+            type="button"
+          >
+            <LogOut className="size-4" />
+            Sign Out
+          </button>
+        )}
       </div>
     </header>
+
   );
 }
