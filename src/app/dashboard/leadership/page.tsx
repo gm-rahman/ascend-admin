@@ -23,6 +23,9 @@ import {
   AlertTriangle,
   Download,
   Calendar,
+  Plus,
+  Send,
+  Search,
 } from "lucide-react";
 
 type TabType = "index" | "aggregate" | "trends" | "reports" | "briefings";
@@ -1189,86 +1192,450 @@ export default function LeadershipDashboard() {
 
           {/* Tab 4: REPORTS VIEW */}
           {activeTab === "reports" && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · REPORTS</p>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Reports registry</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Weekly, monthly, quarterly, and annual aggregates.
-                </p>
-              </div>
-
-              {/* Reports List */}
-              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-4">
-                <div className="border-b border-slate-100 dark:border-white/5 pb-3">
-                  <h3 className="text-sm font-bold text-slate-850 dark:text-white">Available aggregate reports</h3>
-                  <p className="text-[10px] text-slate-455">All documents are pre-anonymized to ensure k &ge; 5 compliance.</p>
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · REPORTS LIBRARY</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Reports</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Weekly, monthly, quarterly, and annual aggregate reports. Every export carries the k &ge; 5 statement and is CUI-labelled.
+                  </p>
                 </div>
 
-                <div className="divide-y divide-slate-100 dark:divide-white/5">
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => triggerToast("Opening export registry library")}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    <Download className="size-4" /> Export library
+                  </button>
+                  <button 
+                    onClick={() => triggerToast("Initializing new custom report draft")}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Plus className="size-4" /> New report
+                  </button>
+                </div>
+              </div>
+
+              {/* Warning Banner */}
+              <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
+                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Reports are aggregate only &middot; k &ge; 5 enforced</span>
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
+                    Any report containing fewer than 5 individuals is suppressed. Schedule exports or generate one-off aggregate reports from this library.
+                  </p>
+                </div>
+              </div>
+
+              {/* Tabs and Search Bar */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2">
+                  {["All", "Weekly", "Monthly", "Quarterly", "Annual", "Ad-hoc"].map((pill, idx) => (
+                    <button
+                      key={idx}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
+                        pill === "All"
+                          ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-850 dark:hover:text-white"
+                      }`}
+                    >
+                      {pill}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative w-full md:w-80">
+                  <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search by title, flight, or cohort"
+                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#0da2b3]/50 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Recent reports list card container */}
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4 mb-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Recent reports</h3>
+                    <p className="text-[10px] text-slate-455">Last 6 &middot; aggregate &middot; k &ge; 5</p>
+                  </div>
+                  <button 
+                    onClick={() => triggerToast("Filtering to show all historical reports")}
+                    className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-655 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
+                  >
+                    View all
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
+                        <th className="pb-3 w-1/3">Title</th>
+                        <th className="pb-3">Type</th>
+                        <th className="pb-3">Period</th>
+                        <th className="pb-3">Generated</th>
+                        <th className="pb-3">Status</th>
+                        <th className="pb-3 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
+                      {[
+                        {
+                          title: "Wing Weekly OPS",
+                          subtext: "Composite + 5 drivers · 6 flights",
+                          type: "Weekly",
+                          period: "21 – 27 Jul 2025",
+                          gen: "28 Jul · 06:00",
+                          status: "Ready",
+                          color: "green"
+                        },
+                        {
+                          title: "Monthly Cohort Review",
+                          subtext: "High / mid / watch bands",
+                          type: "Monthly",
+                          period: "Jun 2025",
+                          gen: "01 Jul · 09:14",
+                          status: "Sent",
+                          color: "green"
+                        },
+                        {
+                          title: "Q2 OFT Aggregate",
+                          subtext: "Pass rate · by-flight · k=125",
+                          type: "Quarterly",
+                          period: "Apr – Jun 2025",
+                          gen: "05 Jul · 12:02",
+                          status: "Archived",
+                          color: "green"
+                        },
+                        {
+                          title: "Annual Wing Readiness",
+                          subtext: "FY 24 → FY 25 comparison",
+                          type: "Annual",
+                          period: "Aug 2024 – Jul 2025",
+                          gen: "14 Jul · 16:30",
+                          status: "In review",
+                          color: "orange"
+                        },
+                        {
+                          title: "Recovery Program Progress",
+                          subtext: "3 flights · 12-week blocks",
+                          type: "Ad-hoc",
+                          period: "Mar – Jun 2025",
+                          gen: "02 Jul · 10:00",
+                          status: "Sent",
+                          color: "green"
+                        },
+                        {
+                          title: "Sleep Watch Brief",
+                          subtext: "Delta flight · driver context",
+                          type: "Ad-hoc",
+                          period: "Week of 14 Jul",
+                          gen: "21 Jul · 07:55",
+                          status: "Draft",
+                          color: "orange"
+                        }
+                      ].map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition">
+                          <td className="py-4">
+                            <span className="font-bold text-slate-800 dark:text-white block">{item.title}</span>
+                            <span className="text-[10px] text-slate-455 mt-0.5 block">{item.subtext}</span>
+                          </td>
+                          <td className="py-4">
+                            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded text-slate-500 dark:text-slate-400">
+                              {item.type}
+                            </span>
+                          </td>
+                          <td className="py-4 text-slate-700 dark:text-slate-300 font-mono text-[11px]">{item.period}</td>
+                          <td className="py-4 text-slate-655 dark:text-slate-400 font-mono text-[11px]">{item.gen}</td>
+                          <td className="py-4">
+                            <span className={`inline-flex items-center gap-1.5 font-bold uppercase text-[9px] ${
+                              item.color === "green" ? "text-emerald-500" : "text-amber-500"
+                            }`}>
+                              <span className={`size-1.5 rounded-full ${item.color === "green" ? "bg-emerald-500" : "bg-amber-500"}`}></span>
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="py-4 text-right">
+                            <button
+                              onClick={() => triggerToast(`Opening report: ${item.title}`)}
+                              className="px-3 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                            >
+                              Open
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Templates Section */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
+                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Report templates</h3>
+                  </div>
+                  <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase rounded-full text-slate-500">
+                    <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
+                    Aggregate only
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                   {[
-                    { name: "23rd SFS Weekly Briefing - W30", type: "PDF Report", size: "2.4 MB", date: "28 Jul 2026" },
-                    { name: "July 2026 Readiness Aggregate Summary", type: "CSV Spreadsheet", size: "1.1 MB", date: "25 Jul 2026" },
-                    { name: "Q2 2026 Cohort Stress Driver Analysis", type: "PDF Report", size: "5.8 MB", date: "30 Jun 2026" },
-                    { name: "FY26 Mid-Year Squadron Performance Review", type: "PDF Report", size: "14.2 MB", date: "15 Jun 2026" },
-                  ].map((doc, idx) => (
-                    <div key={idx} className="py-4 flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        <div className="size-9 rounded-xl bg-[#0da2b3]/10 text-[#0da2b3] flex items-center justify-center">
-                          <FileText className="size-4" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-800 dark:text-white">{doc.name}</p>
-                          <p className="text-[10px] text-slate-450">{doc.type} &middot; {doc.size} &middot; Published {doc.date}</p>
-                        </div>
+                    {
+                      cat: "WING WEEKLY",
+                      title: "Wing Weekly",
+                      desc: "Composite OPS + 5 drivers · 6 flights · MoM",
+                      per: "Period 7d",
+                      sub: "Flights 6"
+                    },
+                    {
+                      cat: "MONTHLY",
+                      title: "Monthly Cohort",
+                      desc: "High / mid / watch bands · cohort breakdown",
+                      per: "Period 1 mo",
+                      sub: "Bands 3"
+                    },
+                    {
+                      cat: "QUARTERLY",
+                      title: "Quarterly OFT",
+                      desc: "Pass rate · by-flight aggregate · target ≥ 90%",
+                      per: "Period 3 mo",
+                      sub: "Scope OFT"
+                    },
+                    {
+                      cat: "ANNUAL",
+                      title: "Annual Wing",
+                      desc: "FY-over-FY comparison · editorial summary",
+                      per: "Period 12 mo",
+                      sub: "Pages 12"
+                    }
+                  ].map((tpl, idx) => (
+                    <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-48">
+                      <div>
+                        <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{tpl.cat}</span>
+                        <h4 className="text-sm font-bold text-slate-855 dark:text-white mt-1">{tpl.title}</h4>
+                        <p className="text-[10px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
                       </div>
-                      <button className="px-3 py-1.5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-[10px] font-bold flex items-center gap-1.5 cursor-pointer text-slate-600 dark:text-slate-400 transition">
-                        <Download className="size-3" /> Download
-                      </button>
+
+                      <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-3 mt-3">
+                        <div className="text-[9px] text-slate-500 dark:text-slate-400 font-mono">
+                          <span className="font-bold">{tpl.per}</span> <span className="text-slate-400">&middot;</span> {tpl.sub}
+                        </div>
+                        <button
+                          onClick={() => triggerToast(`Using template: ${tpl.title}`)}
+                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white cursor-pointer transition"
+                        >
+                          Use
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
+
+              {/* Footnote */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left">
+                Leadership · Reports · k &ge; 5 · CUI
+              </div>
+
+              {/* Privacy Caption text */}
+              <div className="space-y-1 border-t border-slate-200 dark:border-white/5 pt-4 text-[10px] text-slate-400 leading-relaxed font-sans">
+                <p>Privacy & cohort suppression · Reports show cohort + period only. Cells where k &lt; 5 are suppressed and shown as "—". Exports inherit the same suppression.</p>
+                <p>Aggregate-only · no individual drill-down · no individual exports · UI gate &sect;7.5</p>
+              </div>
+
             </div>
           )}
 
           {/* Tab 5: BRIEFINGS VIEW */}
           {activeTab === "briefings" && (
-            <div className="space-y-6 animate-fade-in">
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · BRIEFINGS</p>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Briefings</h1>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Squadron mission briefings, readiness indexes, and recommendations.
-                </p>
+            <div className="space-y-8 animate-fade-in pb-16">
+              
+              {/* Header Section */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · BRIEFINGS BUILDER</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Briefings</h1>
+                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                    Compose the executive briefing from a structured outline. Every section pulls from aggregate data only.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => triggerToast("Briefing draft saved to local registry")}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                  >
+                    Save draft
+                  </button>
+                  <button 
+                    onClick={() => triggerToast("Executive briefing sent to squadron command channels")}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    <Send className="size-3.5" /> Send briefing
+                  </button>
+                </div>
               </div>
 
-              {/* Grid: Slide briefs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Warning Banner */}
+              <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
+                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Briefing content is aggregate only &middot; k &ge; 5 enforced</span>
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
+                    Briefings are generated from cohorts and never embed operator identifiers. Sections pull from aggregate trend, drivers, risk, and recommendations only.
+                  </p>
+                </div>
+              </div>
+
+              {/* Templates Section */}
+              <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                <div>
+                  <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
+                  <h3 className="text-base font-bold text-slate-855 dark:text-white">Start from a template</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  {[
+                    {
+                      title: "Mission Readiness",
+                      desc: "Composite trend · driver snapshot · OFT pass rate · top risk"
+                    },
+                    {
+                      title: "Recovery Rollout",
+                      desc: "Multi-flight progress · adherence · recovery signal · open risks"
+                    },
+                    {
+                      title: "Quarterly Wing Review",
+                      desc: "FY-quarter comparison · cohort bands · recommendations · next quarter"
+                    }
+                  ].map((tpl, idx) => (
+                    <div 
+                      key={idx} 
+                      onClick={() => triggerToast(`Selected template: ${tpl.title}`)}
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/50 rounded-2xl p-5 shadow-sm hover:shadow transition cursor-pointer text-left"
+                    >
+                      <h4 className="text-xs font-black text-[#0da2b3] uppercase tracking-wider">{tpl.title}</h4>
+                      <p className="text-[11px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Outline and Preview Panels */}
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
                 
-                <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 p-6 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-[#0da2b3]">
-                    <Calendar className="size-4" />
-                    <span>COMMAND SUMMARY</span>
+                {/* Outline Left Panel */}
+                <div className="lg:col-span-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-855 dark:text-white">Outline</h3>
+                        <p className="text-[10px] text-slate-455 mt-0.5">Drag to reorder · click to edit</p>
+                      </div>
+                      <button 
+                        onClick={() => triggerToast("Adding new outline section block")}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
+                      >
+                        <Plus className="size-3 text-[#0da2b3]" /> Add section
+                      </button>
+                    </div>
+
+                    <div className="divide-y divide-slate-100 dark:divide-white/5">
+                      {[
+                        { num: 1, name: "Mission context", desc: "Window · cohort · confidence" },
+                        { num: 2, name: "Composite OPS trend", desc: "12-mo · k=125 · +3.4 PvP" },
+                        { num: 3, name: "Driver snapshot", desc: "5 drivers · watch · momentum" },
+                        { num: 4, name: "By-flight comparison", desc: "6 flights · k \u2265 5 · MoM" },
+                        { num: 5, name: "Risk & recommendations", desc: "Sleep watch · 1 advisory open" }
+                      ].map((sec, idx) => (
+                        <div key={idx} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/20 transition cursor-pointer">
+                          <div className="space-y-0.5">
+                            <span className="text-xs font-bold text-slate-800 dark:text-white block">
+                              {sec.num} &middot; {sec.name}
+                            </span>
+                            <span className="text-[10px] text-slate-455 block font-mono">{sec.desc}</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-400 font-mono">Section</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <h3 className="text-base font-bold text-slate-850 dark:text-white">Readiness & Risk Level</h3>
-                  <p className="text-xs text-slate-550 leading-relaxed">
-                    Squadron performance has remained high with a stable 91.2% active combat capability index. General fatigue indicators are within thresholds, but W5 reverse-score elements on Alpha Flight suggest monitoring sleep allocations.
-                  </p>
                 </div>
 
-                <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 p-6 rounded-2xl shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-500">
-                    <Info className="size-4" />
-                    <span>RECOMMENDATIONS</span>
+                {/* Preview Right Panel */}
+                <div className="lg:col-span-7 bg-[#f8fafc] dark:bg-[#0b0f19] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-200/50 dark:border-white/5 pb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Preview</h3>
+                      <p className="text-[10px] text-slate-455 mt-0.5">Live · k &ge; 5 · CUI-labelled</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-full text-[9px] font-bold text-slate-500 uppercase">
+                        <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
+                        Draft
+                      </span>
+                      <button 
+                        onClick={() => triggerToast("Generating aggregate PDF document for download")}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        <Download className="size-3" /> PDF
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="text-base font-bold text-slate-850 dark:text-white">Recommended Actions</h3>
-                  <p className="text-xs text-slate-550 leading-relaxed">
-                    Adjust the sleep grace periods for Bravo Flight operators showing minor recovery delays. We recommend scheduling standard medical clearances for lower-back strain markers in early August.
-                  </p>
+
+                  {/* Rendered Live Briefing Text */}
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-5 md:p-6 shadow-sm text-xs font-sans text-slate-700 dark:text-slate-350 space-y-4 text-left leading-relaxed">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white">Mission readiness &middot; 28 Jul 2025</h4>
+                      <p className="text-[10px] font-mono text-slate-400 mt-0.5">Aggregate view &middot; cohort k = 125 &middot; 12-month window &middot; confidence high</p>
+                    </div>
+
+                    <ul className="space-y-3 pl-2 text-[11px] list-none">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                        Composite OPS lifted 8 points to 76 (Aug &rarr; Jul). Recovery program rollout in March is the dominant signal.
+                      </li>
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                        Drivers &mdash; Physical 78 (+2), Mental 73 (+3), Purpose 75 (+2). Sleep 71 (-1, watch).
+                      </li>
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                        By flight &mdash; Alpha, Bravo, Charlie, Echo, Foxtrot all high confidence. Delta flight flagged at cohort level (sleep watch).
+                      </li>
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                        Risk &mdash; Sleep watch open, L2 advisory. No L4+ at the cohort level.
+                      </li>
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                        Recommendation &mdash; Continue recovery program &middot; Sleep intervention in Delta &middot; No operational gate changes.
+                      </li>
+                    </ul>
+                  </div>
                 </div>
 
               </div>
+
+              {/* Footnote */}
+              <div className="text-[10px] text-slate-400 select-none font-mono text-left">
+                Leadership · Briefings · k &ge; 5 · CUI
+              </div>
+
+              {/* Privacy Caption text */}
+              <div className="space-y-1 border-t border-slate-200 dark:border-white/5 pt-4 text-[10px] text-slate-400 leading-relaxed font-sans">
+                <p>Privacy & cohort suppression · Briefings show cohort + period only. Cells where k &lt; 5 are suppressed and shown as "—". Exports inherit the same suppression.</p>
+                <p>Aggregate-only · no individual drill-down · no individual exports · UI gate &sect;7.5</p>
+              </div>
+
             </div>
           )}
 
