@@ -15,6 +15,7 @@ export function DashboardLayout({ roleName, children }: DashboardLayoutProps) {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const [hasMounted, setHasMounted] = useState(false);
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     setHasMounted(true);
