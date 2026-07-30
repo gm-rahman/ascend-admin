@@ -32,6 +32,9 @@ export default function RootLayout({
       className={`${plusJakartaSans.variable} ${jetBrainsMono.variable} h-full`}
       suppressHydrationWarning
     >
+      <head>
+        <meta name="darkreader-lock" content="true" />
+      </head>
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {children}
       </body>

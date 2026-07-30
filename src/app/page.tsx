@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Shield,
   User,
@@ -10,22 +11,29 @@ import {
   Lock,
   Loader2,
 } from "lucide-react";
-import { AppShell } from "@/components/layout/app-shell";
 import { AscendLogo } from "@/components/ascend-logo";
 import { AscendBanner } from "@/components/ascend-banner";
 import { useAuthStore } from "@/store/auth-store";
-import {
-  dashboardActivity,
-  dashboardHighlights,
-  projectRows,
-} from "@/features/dashboard/data/mock-dashboard";
 
 export default function Home() {
-  const { isAuthenticated, login } = useAuthStore();
+  const router = useRouter();
+  const { isAuthenticated, selectedRole, login } = useAuthStore();
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authStep, setAuthStep] = useState(0);
   const [authMethod, setAuthMethod] = useState<"CAC" | "SSO">("CAC");
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (selectedRole) {
+        const route = selectedRole.toLowerCase().replace("/", "-");
+        router.push(`/dashboard/${route}`);
+      } else {
+        router.push("/roles");
+      }
+    }
+  }, [isAuthenticated, selectedRole, router]);
 
   // Sync theme with document class list
   useEffect(() => {
@@ -65,6 +73,7 @@ export default function Home() {
     const timer4 = setTimeout(() => {
       login();
       setIsAuthenticating(false);
+      router.push("/roles");
     }, 2000);
 
     return () => {
@@ -74,17 +83,6 @@ export default function Home() {
       clearTimeout(timer4);
     };
   };
-
-  // If already authenticated, show the dashboard AppShell directly
-  if (isAuthenticated) {
-    return (
-      <AppShell
-        activity={dashboardActivity}
-        highlights={dashboardHighlights}
-        projects={projectRows}
-      />
-    );
-  }
 
   // Secure Auth logs for simulated scanning
   const getAuthLogs = () => {
@@ -304,7 +302,7 @@ export default function Home() {
         </section>
 
         {/* RIGHT COLUMN: GRAPHICS & MISSION GRADIENT */}
-        <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#238b94] via-[#114b53] to-[#072c30] p-8 sm:p-12 md:p-16 text-white lg:w-1/2">
+        <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1e6f77] via-[#114b53] to-[#0a3339] p-8 sm:p-12 md:p-16 text-white lg:w-1/2">
           {/* Subtle grid mesh overlay overlay for tactical aesthetic */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40" />
 
