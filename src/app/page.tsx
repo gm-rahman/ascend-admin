@@ -29,14 +29,11 @@ export default function Home() {
 
   // Sync theme with document class list
   useEffect(() => {
-    const savedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
     let initialTheme: "light" | "dark" = "light";
 
     if (savedTheme) {
       initialTheme = savedTheme;
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      initialTheme = prefersDark ? "dark" : "light";
     }
 
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
@@ -52,7 +49,7 @@ export default function Home() {
   const toggleTheme = () => {
     const newTheme = theme === "light" ? "dark" : "light";
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
+    localStorage.setItem("ascend_admin_theme", newTheme);
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
@@ -129,10 +126,10 @@ export default function Home() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground font-sans transition-colors duration-200">
+    <div className="flex h-screen flex-col bg-background text-foreground font-sans transition-colors duration-200 overflow-hidden">
       
       {/* 1. TOP HEADER BAR */}
-      <header className="flex h-14 w-full items-center justify-between border-b border-border bg-surface px-6 md:px-8">
+      <header className="flex h-14 w-full items-center justify-between border-b border-border bg-surface px-6 md:px-8 flex-shrink-0 z-20">
         {/* Left Brand Badge */}
         <div className="flex items-center gap-2">
           <AscendLogo width={20} height={20} showDetails={false} />
@@ -169,7 +166,7 @@ export default function Home() {
       </header>
 
       {/* 2. CUI / OPSEC NAVY BANNER */}
-      <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none">
+      <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none flex-shrink-0 z-10">
         <div className="flex items-center gap-2">
           <span className="size-1.5 rounded-full bg-[#0da2b3]"></span>
           <span>CUI // OPSEC · Not a Government System of Record</span>
@@ -177,10 +174,10 @@ export default function Home() {
       </section>
 
       {/* 3. SPLIT MAIN CONTAINER */}
-      <main className="flex flex-1 flex-col lg:flex-row">
+      <main className="flex flex-1 flex-col lg:flex-row overflow-hidden">
         
         {/* LEFT COLUMN: AUTH FORM */}
-        <section className="flex flex-1 flex-col justify-between bg-slate-50/50 dark:bg-[#0b0f19]/30 p-8 sm:p-12 md:p-16 lg:max-w-[58%]">
+        <section className="flex flex-col justify-between bg-[#f0f4f9] dark:bg-background p-8 sm:p-12 md:p-16 lg:w-1/2 overflow-y-auto">
           
           {/* Header/Greeting */}
           <div className="mb-8">
@@ -251,15 +248,11 @@ export default function Home() {
                     type="button"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-foreground group-hover:scale-105 transition-transform duration-200">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-background border dark:border-border text-foreground group-hover:scale-105 transition-transform duration-200">
                         <Shield className="size-5 text-foreground" />
                       </div>
-                      <div>
-                        <span className="block text-sm font-bold text-foreground">Continue with CAC / PIV</span>
-                        <span className="block text-[11px] text-muted">Common Access Card credential</span>
-                      </div>
+                      <span className="text-sm font-bold text-foreground">Continue with CAC / PIV</span>
                     </div>
-                    <span className="text-xs font-bold text-muted group-hover:text-foreground transition-colors duration-200">▸</span>
                   </button>
 
                   {/* SSO Login Button */}
@@ -269,15 +262,11 @@ export default function Home() {
                     type="button"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-foreground group-hover:scale-105 transition-transform duration-200">
+                      <div className="flex size-10 items-center justify-center rounded-lg bg-slate-100 dark:bg-background border dark:border-border text-foreground group-hover:scale-105 transition-transform duration-200">
                         <User className="size-5 text-foreground" />
                       </div>
-                      <div>
-                        <span className="block text-sm font-bold text-foreground">Continue with Unit SSO</span>
-                        <span className="block text-[11px] text-muted">Unified command portal sign-on</span>
-                      </div>
+                      <span className="text-sm font-bold text-foreground">Continue with Unit SSO</span>
                     </div>
-                    <span className="text-xs font-bold text-muted group-hover:text-foreground transition-colors duration-200">▸</span>
                   </button>
                 </div>
 
@@ -315,7 +304,7 @@ export default function Home() {
         </section>
 
         {/* RIGHT COLUMN: GRAPHICS & MISSION GRADIENT */}
-        <section className="relative flex flex-1 flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1e6f77] via-[#114b53] to-[#0a3339] p-8 sm:p-12 md:p-16 text-white lg:min-h-screen">
+        <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#238b94] via-[#114b53] to-[#072c30] p-8 sm:p-12 md:p-16 text-white lg:w-1/2">
           {/* Subtle grid mesh overlay overlay for tactical aesthetic */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40" />
 
@@ -323,16 +312,18 @@ export default function Home() {
           <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[#0da2b3]/15 blur-[80px] pointer-events-none" />
 
           {/* Top Branding Banner */}
-          <div className="relative z-10">
-            <AscendBanner logoSize={64} />
+          <div className="relative z-10 flex justify-center">
+            <div className="inline-flex items-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-6 py-4 shadow-lg">
+              <AscendBanner logoSize={64} />
+            </div>
           </div>
 
           {/* Central Quote Section */}
-          <div className="relative z-10 my-auto max-w-xl py-12">
+          <div className="relative z-10 my-auto max-w-xl py-12 text-center mx-auto">
             <h3 className="text-3xl font-medium leading-normal md:text-4xl text-white/95">
               “Readiness is the work we do every day, not the moment we need it.”
             </h3>
-            <div className="mt-6 flex items-center gap-2.5 text-xs tracking-wider text-slate-300">
+            <div className="mt-6 flex items-center justify-center gap-2.5 text-xs tracking-wider text-slate-300">
               <span className="font-semibold text-[#e2b13c]">Ascend</span>
               <span className="text-slate-500">•</span>
               <span>Mission statement</span>
