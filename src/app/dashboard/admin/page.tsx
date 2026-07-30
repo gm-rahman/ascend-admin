@@ -44,6 +44,7 @@ export default function AdminDashboardPage() {
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const adminStore = useAdminStore();
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [hasMounted, setHasMounted] = useState(false);
   
   // Local state for modals and changes
   const [activeReviewItem, setActiveReviewItem] = useState<ConfirmationItem | null>(null);
@@ -52,12 +53,16 @@ export default function AdminDashboardPage() {
   const [scopeChanged, setScopeChanged] = useState(false);
   const [systemChanged, setSystemChanged] = useState(false);
 
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Protect the route
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (hasMounted && !isAuthenticated) {
       router.push("/");
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, hasMounted, router]);
 
   // Sync theme
   useEffect(() => {
@@ -88,7 +93,7 @@ export default function AdminDashboardPage() {
     setTimeout(() => setShowConfirmToast(false), 3000);
   };
 
-  if (!isAuthenticated) return null;
+  if (!hasMounted || !isAuthenticated) return null;
 
   return (
     <div className="flex h-screen w-screen bg-[#f0f4f9] dark:bg-[#070a13] text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 overflow-hidden">

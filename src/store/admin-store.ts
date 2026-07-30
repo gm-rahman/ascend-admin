@@ -91,8 +91,18 @@ type AdminStore = {
   updateRoleCount: (roleId: string, value: string) => void;
 };
 
+const getInitialAdminTab = (): AdminTab => {
+  if (typeof window !== "undefined") {
+    const saved = localStorage.getItem("ascend_admin_active_tab");
+    if (saved && ["overview", "roles", "scope", "audit-log", "exports", "system"].includes(saved)) {
+      return saved as AdminTab;
+    }
+  }
+  return "overview";
+};
+
 export const useAdminStore = create<AdminStore>((set) => ({
-  activeTab: "overview",
+  activeTab: getInitialAdminTab(),
   pendingConfirmations: [
     { id: "conf-1", action: "Export", target: "PT/IM audit (Q3)", consequence: "14 records · restricted", scope: "PT/IM caseload", records: 14, risk: "L4" },
     { id: "conf-2", action: "Export", target: "Wing weekly PPTX", consequence: "aggregate · kz5", scope: "Aggregate - kz5", records: 125, risk: "L1" },
@@ -158,7 +168,12 @@ export const useAdminStore = create<AdminStore>((set) => ({
     nutrition: true,
     purpose: false,
   },
-  setActiveTab: (tab) => set({ activeTab: tab }),
+  setActiveTab: (tab) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("ascend_admin_active_tab", tab);
+    }
+    set({ activeTab: tab });
+  },
   setAuditSearchQuery: (query) => set({ auditSearchQuery: query }),
   setAuditFilter: (filter) => set({ auditFilter: filter }),
   setSelectedScopeUnit: (unit) => set({ selectedScopeUnit: unit }),
