@@ -910,7 +910,7 @@ export default function NutrotinishDashboard() {
                                   </span>
                                   {item.sub && (
                                     <span className={`inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase font-mono ${
-                                      item.review ? "bg-purple-500/10 text-purple-650" :
+                                      ("review" in item && item.review) ? "bg-purple-500/10 text-purple-650" :
                                       item.done ? "bg-[#0da2b3]/10 text-[#0da2b3]" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                                     }`}>
                                       {item.sub}

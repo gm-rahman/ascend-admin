@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { useAdminStore, AdminTab, ConfirmationItem } from "@/store/admin-store";
+import { useAdminStore, AdminTab, ConfirmationItem, ServiceStatus } from "@/store/admin-store";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Shield,
@@ -760,21 +760,24 @@ function RolesView({
     switch (state) {
       case "active":
         return (
-          <svg className="size-4 text-emerald-500 fill-current mx-auto" viewBox="0 0 16 16" title="Full">
+          <svg className="size-4 text-emerald-500 fill-current mx-auto" viewBox="0 0 16 16">
+            <title>Full</title>
             <circle cx="8" cy="8" r="6" />
             <path d="M5.5 8l2 2 3.5-3.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none" />
           </svg>
         );
       case "conditional":
         return (
-          <svg className="size-4 text-amber-500 mx-auto" viewBox="0 0 16 16" title="Conditional (reason required)">
+          <svg className="size-4 text-amber-500 mx-auto" viewBox="0 0 16 16">
+            <title>Conditional (reason required)</title>
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
             <path d="M8 2a6 6 0 0 1 0 12V2z" fill="currentColor" />
           </svg>
         );
       case "gated":
         return (
-          <svg className="size-4 text-red-500 mx-auto" viewBox="0 0 16 16" title="Gated">
+          <svg className="size-4 text-red-500 mx-auto" viewBox="0 0 16 16">
+            <title>Gated</title>
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
             <path d="M8 8H2a6 6 0 0 0 12 0H8z" fill="currentColor" />
           </svg>
@@ -783,7 +786,8 @@ function RolesView({
       case "none":
       default:
         return (
-          <svg className="size-4 text-slate-350 dark:text-slate-600 mx-auto" viewBox="0 0 16 16" title="None">
+          <svg className="size-4 text-slate-350 dark:text-slate-600 mx-auto" viewBox="0 0 16 16">
+            <title>None</title>
             <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" fill="none" />
             <path d="M5 8h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           </svg>

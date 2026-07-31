@@ -19,10 +19,10 @@ export type ActivityItem = {
   time: string;
   actor: string;
   action: string;
-  reason: string;
+  reason?: string;
   scope: string;
   tag: "logged" | "system" | "review" | "gated";
-  tagColor: "green" | "blue" | "yellow" | "red";
+  tagColor: "green" | "blue" | "yellow" | "red" | "gray" | "orange";
 };
 
 export type ServiceStatus = {
