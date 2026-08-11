@@ -58,7 +58,7 @@ export type DeviceOverrideItem = {
   log: string;
 };
 
-type AdminStore = {
+export type AdminStore = {
   activeTab: AdminTab;
   pendingConfirmations: ConfirmationItem[];
   recentActivity: ActivityItem[];

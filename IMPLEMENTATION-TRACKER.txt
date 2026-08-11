@@ -1,0 +1,69 @@
+# Implementation Tracker — Brand Color Migration & Hook Integration
+
+## Completed
+
+### Phase 1: Foundation & Small/Medium Pages
+- [x] Created `src/hooks/use-toast.ts` — toast queue with `show`, `message`, `triggerToast`
+- [x] Created `src/hooks/use-theme.ts` — theme state with `theme`, `mounted`, `toggleTheme`
+- [x] Created `src/lib/constants.ts` — `BRAND_COLOR`, `BRAND_COLOR_HOVER`, `initBrandColor()`
+- [x] Created `src/lib/terminology.ts` — centralized terminology constants
+- [x] `src/app/globals.css:20` — CSS variable `--brand-color: #0da2b3` confirmed
+- [x] `src/app/page.tsx` — 6 `#0da2b3` → `var(--brand-color)` in gradient, badge, blur classes
+- [x] `src/app/roles/page.tsx` — hover border, icon, heading, container classes
+- [x] `src/components/ascend-logo.tsx` — SVG `stroke` attribute
+- [x] `src/components/layout/dashboard-layout.tsx` — Full `useTheme()` integration; removed local theme state, useEffect sync, toggleTheme function
+
+### Phase 2: Hook Integration into Dashboard Pages
+- [x] `src/app/dashboard/plan/page.tsx` — `useToast()` integrated, replaced local toast state + triggerToast function
+- [x] `src/app/dashboard/pc/page.tsx` — `useToast()` integrated, removed `showConfirmToast`, `toastMessage`, `triggerToast`; replaced 20+ inline `#0da2b3` → `var(--brand-color)`
+- [x] `src/app/dashboard/mp/page.tsx` — `useToast()` integrated, removed toast state + function; replaced inline brand colors
+- [x] `src/app/dashboard/leadership/page.tsx` — `useToast()` integrated, removed toast state + function
+- [x] `src/app/dashboard/pt-im/page.tsx` — 50+ `#0da2b3` → `var(--brand-color)`
+- [x] `src/app/dashboard/nutrotinish/page.tsx` — 10+ `#0da2b3` → `var(--brand-color)`
+- [x] `src/app/dashboard/admin/page.tsx` — 15+ `#0da2b3` → `var(--brand-color)`
+- [x] `src/app/dashboard/scs/page.tsx` — 20+ `#0da2b3` → `var(--brand-color)`
+- [x] `src/app/dashboard/pc/page.tsx` — 30+ `#0da2b3` → `var(--brand-color)` in chat, buttons, badges
+- [x] `src/app/dashboard/mp/page.tsx` — 30+ `#0da2b3` → `var(--brand-color)` in SOAP, risk, records
+
+### Phase 3: Remaining Inline Color Replacements (9 references)
+- [x] `src/app/dashboard/plan/page.tsx:516` — badge color className
+- [x] `src/app/dashboard/pc/page.tsx:661` — filter button hover
+- [x] `src/app/dashboard/pc/page.tsx:702-703` — flag span color in reflections table
+- [x] `src/app/dashboard/pc/page.tsx:728` — textarea focus border
+- [x] `src/app/dashboard/pc/page.tsx:826-828` — unread badge in messages thread
+- [x] `src/app/dashboard/pc/page.tsx:854,859,871` — thread active bg, avatar, unread dot
+- [x] `src/app/dashboard/pc/page.tsx:887,920,954` — chat avatar, message bubble bg, send button
+- [x] `src/app/dashboard/mp/page.tsx:477` — risk level active button
+- [x] `src/app/dashboard/mp/page.tsx:509` — visibility card active bg
+- [x] `src/app/dashboard/mp/page.tsx:571` — audit log actor name color
+- [x] `src/app/dashboard/mp/page.tsx:637,685-686,729,733` — new note button, filter pills, status dot colors
+- [x] `src/app/dashboard/mp/page.tsx:887,910,996-997` — new note button, pagination, filter pills
+- [x] `src/app/dashboard/mp/page.tsx:1051,1116,1366,1380-1381,1409,1414,1426,1479,1513` — multiple buttons, badges, chat
+- [x] `src/app/dashboard/leadership/page.tsx:263` — CUI banner dot
+- [x] `src/app/dashboard/leadership/page.tsx:275` — Shield icon color
+- [x] `src/app/dashboard/leadership/page.tsx:295` — Open Aggregate button
+- [x] `src/app/dashboard/leadership/page.tsx:322-359` — card hover colors (4 cards)
+- [x] `src/app/dashboard/leadership/page.tsx:396,467-475,474-475` — Open trends button, SVG stroke + gradient
+- [x] `src/app/dashboard/leadership/page.tsx:639` — readiness bar fill
+- [x] `src/app/dashboard/leadership/page.tsx:660` — Trend button hover
+- [x] `src/app/dashboard/leadership/page.tsx:866` — pass rate label color
+- [x] `src/app/dashboard/leadership/page.tsx:930` — Shield icon color
+- [x] `src/app/dashboard/leadership/page.tsx:999-1007` — trends chart SVG stroke + gradient
+- [x] `src/app/dashboard/leadership/page.tsx:104,1104-1105,1168` — timeline date colors, cohort bars
+- [x] `src/app/dashboard/leadership/page.tsx:1216,1225,1242,1256` — report buttons
+- [x] `src/app/dashboard/leadership/page.tsx:1484,1529` — send briefing + template title colors
+- [x] `src/app/dashboard/leadership/page.tsx:1551` — Add section Plus icon color
+- [x] `src/app/dashboard/leadership/page.tsx:1607-1619` — briefing bullet pseudo-elements
+- [x] `src/app/dashboard/nutrotinish/page.tsx:494` — view all link color
+- [x] `src/app/dashboard/scs/page.tsx:403` — inline text brand color
+- [x] `src/app/dashboard/admin/page.tsx:457` — export button background
+- [x] `src/lib/constants.ts:2` — kept hex definition as source of truth (CSS var declaration depends on it)
+
+## Remaining
+
+### None — all `#0da2b3` inline references replaced.
+
+## Verification
+- [ ] Run `npx tsc --noEmit` to verify no type errors
+- [ ] Run dev server to verify no runtime errors
+- [ ] Visual check of all migrated pages in light/dark mode

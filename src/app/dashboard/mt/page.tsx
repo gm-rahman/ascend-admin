@@ -8,7 +8,7 @@ export default function MtDashboard() {
     <DashboardLayout roleName="MT">
       <div className="max-w-md w-full text-center space-y-6 animate-fade-in">
         <div className="inline-flex size-20 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Activity className="size-10 text-[#0da2b3]" />
+          <Activity className="size-10 text-[var(--brand-color)]" />
         </div>
         <div className="space-y-2">
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground">

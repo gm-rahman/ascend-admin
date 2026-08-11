@@ -4,6 +4,13 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { AscendLogo } from "@/components/ascend-logo";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
+import {
+  POPULATION_LEVELS,
+  PRIVACY_STATES,
+  FOLLOW_UP_STATUSES,
+} from "@/lib/terminology";
 import {
   Stethoscope,
   ChevronDown,
@@ -32,18 +39,62 @@ import {
   FileText,
   Landmark,
   ArrowLeftRight,
+  ShieldOff,
+  ShieldQuestion,
+  Dumbbell,
 } from "lucide-react";
 
 type TabType = "dashboard" | "injury" | "records" | "quarterly" | "scs" | "handoff";
+
+// Privacy state -> visual treatment. All 6 PRIVACY_STATES values must be
+// representable and must never render blank (a reason is always shown).
+const PRIVACY_STATE_STYLES: Record<string, { badge: string; icon: "shield" | "lock" | "question" | "off" }> = {
+  [PRIVACY_STATES.RESTRICTED]: { badge: "bg-[var(--brand-color)/10] text-[var(--brand-color)]", icon: "shield" },
+  [PRIVACY_STATES.AUTH_REQUIRED]: { badge: "bg-amber-500/10 text-amber-500", icon: "question" },
+  [PRIVACY_STATES.ACCESS_EXPIRED]: { badge: "bg-slate-200 dark:bg-slate-800 text-slate-500", icon: "lock" },
+  [PRIVACY_STATES.CONSENT_REQUIRED]: { badge: "bg-sky-500/10 text-sky-500", icon: "question" },
+  [PRIVACY_STATES.CONSENT_WITHDRAWN]: { badge: "bg-rose-500/10 text-rose-500", icon: "off" },
+  [PRIVACY_STATES.ACCESS_DENIED]: { badge: "bg-rose-500/10 text-rose-500", icon: "off" },
+};
+
+const PRIVACY_STATE_REASON: Record<string, string> = {
+  [PRIVACY_STATES.RESTRICTED]: "Minimum-necessary access only — PT/IM-scoped view.",
+  [PRIVACY_STATES.AUTH_REQUIRED]: "Authorizing clinician has not yet approved this request.",
+  [PRIVACY_STATES.ACCESS_EXPIRED]: "Prior authorization window closed — re-request required.",
+  [PRIVACY_STATES.CONSENT_REQUIRED]: "Soldier consent on file has not been captured for this record.",
+  [PRIVACY_STATES.CONSENT_WITHDRAWN]: "Soldier withdrew consent — record locked pending review.",
+  [PRIVACY_STATES.ACCESS_DENIED]: "Outside assigned caseload — access denied and logged.",
+};
+
+function PrivacyStateBadge({ state }: { state: string }) {
+  const style = PRIVACY_STATE_STYLES[state] ?? PRIVACY_STATE_STYLES[PRIVACY_STATES.RESTRICTED];
+  const Icon = style.icon === "shield" ? Shield : style.icon === "lock" ? Lock : style.icon === "off" ? ShieldOff : ShieldQuestion;
+  return (
+    <span className={`px-2 py-0.5 rounded text-[8px] font-bold font-sans uppercase inline-flex items-center gap-1 ${style.badge}`}>
+      <Icon className="size-2.5" />
+      {state}
+    </span>
+  );
+}
+
+// Population-level scope badge (Req 6) — every view must declare which
+// population level its data represents.
+function PopulationBadge({ level }: { level: string }) {
+  return (
+    <span className="px-2 py-0.5 rounded-full text-[8px] font-bold font-mono uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5 inline-flex items-center gap-1">
+      <Users className="size-2.5" />
+      {level}
+    </span>
+  );
+}
 
 export default function PtImDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, toggleTheme } = useTheme();
   const [hasMounted, setHasMounted] = useState(false);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
 
   // Detailed view states
   const [reviewingAirmanId, setReviewingAirmanId] = useState<string | null>(null);
@@ -60,12 +111,6 @@ export default function PtImDashboard() {
     { author: "Capt Chen · PT/IM", time: "22 Jul 14:55", note: "Phase 1 complete. Initiation of Phase 2 — manual therapy + mobility. NSAIDs PRN continued." },
     { author: "SSgt Lin · SCS", time: "14 Jul 08:30", note: "Hosted from SFS daily check-in. L4 back pain onset during PT. Initiated Phase 1 plan." }
   ]);
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
-  };
 
   const handleAddClinicianNote = () => {
     if (!newClinicianNote.trim()) return;
@@ -108,28 +153,6 @@ export default function PtImDashboard() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme with local storage & document element
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
   const handleBackToRoles = () => {
     setSelectedRole(null);
     router.push("/roles");
@@ -151,25 +174,34 @@ export default function PtImDashboard() {
           {/* Brand logo wrapper */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-855 dark:text-white uppercase font-sans">
                 PT/IM &middot; 23rd SFS
               </span>
             </div>
           </div>
 
-          {/* Navigation Title 1 */}
-          <div className="px-5 pt-6 pb-2 text-[10px] font-bold text-slate-400 tracking-widest uppercase font-sans">
-            Patients
+          {/* ============================================================ */}
+          {/* SECTION A — PERFORMANCE SUPPORT (non-clinical)                */}
+          {/* Req 4: must be visually unmistakable from the clinical block  */}
+          {/* below. Never allow these two workflows to blur together.     */}
+          {/* ============================================================ */}
+          <div className="px-5 pt-6 pb-2 flex items-center gap-1.5">
+            <Dumbbell className="size-3 text-slate-400" />
+            <span className="text-[10px] font-bold text-slate-400 tracking-widest uppercase font-sans">
+              Performance Support
+            </span>
+          </div>
+          <div className="px-5 pb-2 -mt-1">
+            <span className="text-[8px] text-slate-400 dark:text-slate-550 font-mono">Non-clinical · reconditioning &amp; readiness</span>
           </div>
 
-          {/* Navigation Items 1 */}
           <nav className="px-3 space-y-1">
             <button
               onClick={() => setActiveTab("dashboard")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard" && !reviewingAirmanId && !viewingRecordId
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -180,7 +212,7 @@ export default function PtImDashboard() {
               onClick={() => setActiveTab("injury")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 (activeTab === "injury" || reviewingAirmanId) && !viewingRecordId
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -188,59 +220,77 @@ export default function PtImDashboard() {
               Injury queue
             </button>
             <button
-              onClick={() => setActiveTab("records")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
-                activeTab === "records" || viewingRecordId
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
-              }`}
-            >
-              <FileText className="size-4" />
-              Medical Records
-            </button>
-            <button
-              onClick={() => setActiveTab("quarterly")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
-                activeTab === "quarterly"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
-              }`}
-            >
-              <Calendar className="size-4" />
-              Quarterly
-            </button>
-          </nav>
-
-          {/* Navigation Title 2 */}
-          <div className="px-5 pt-6 pb-2 text-[10px] font-bold text-slate-400 tracking-widest uppercase font-sans">
-            Coordination
-          </div>
-
-          {/* Navigation Items 2 */}
-          <nav className="px-3 space-y-1">
-            <button
               onClick={() => setActiveTab("scs")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "scs"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <ArrowLeftRight className="size-4" />
               SCS coordination
             </button>
-            <button
-              onClick={() => setActiveTab("handoff")}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
-                activeTab === "handoff"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
-              }`}
-            >
-              <Send className="size-4" />
-              IDMT handoff (export)
-            </button>
           </nav>
+
+          {/* ============================================================ */}
+          {/* VISUAL DIVIDER — hard boundary between non-clinical and       */}
+          {/* clinical workflows. Distinct header color + tinted panel so   */}
+          {/* the two sections can never be mistaken for one another.      */}
+          {/* ============================================================ */}
+          <div className="mt-6 border-t-2 border-amber-500/30 dark:border-amber-500/20" />
+
+          {/* ============================================================ */}
+          {/* SECTION B — CLINICAL / REHABILITATION                        */}
+          {/* Req 4 + Req 7: rehab cases, medical docs, restrictions,      */}
+          {/* authorizations, RTD. Privacy-sensitive — tinted panel.       */}
+          {/* ============================================================ */}
+          <div className="bg-amber-500/5 dark:bg-amber-500/[0.04] pb-3 border-b border-amber-500/10 dark:border-amber-500/10">
+            <div className="px-5 pt-4 pb-2 flex items-center gap-1.5">
+              <Stethoscope className="size-3 text-amber-600 dark:text-amber-500" />
+              <span className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-widest uppercase font-sans">
+                Clinical / Rehabilitation
+              </span>
+            </div>
+            <div className="px-5 pb-2 -mt-1">
+              <span className="text-[8px] text-amber-700/70 dark:text-amber-500/60 font-mono">Medical record scope · access is logged</span>
+            </div>
+
+            <nav className="px-3 space-y-1">
+              <button
+                onClick={() => setActiveTab("records")}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
+                  activeTab === "records" || viewingRecordId
+                    ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-900/60"
+                }`}
+              >
+                <FileText className="size-4" />
+                Medical Records
+              </button>
+              <button
+                onClick={() => setActiveTab("quarterly")}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
+                  activeTab === "quarterly"
+                    ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-900/60"
+                }`}
+              >
+                <Calendar className="size-4" />
+                Quarterly
+              </button>
+              <button
+                onClick={() => setActiveTab("handoff")}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
+                  activeTab === "handoff"
+                    ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
+                    : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-white/60 dark:hover:bg-slate-900/60"
+                }`}
+              >
+                <Send className="size-4" />
+                IDMT handoff (export)
+              </button>
+            </nav>
+          </div>
         </div>
 
         {/* User Session Controls */}
@@ -271,14 +321,14 @@ export default function PtImDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">PT/IM clinical workspace</span>
+            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">PT/IM workspace</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
               <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
                 <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0da2b3] ring-2 ring-white dark:ring-[#0e1628]"></span>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-[var(--brand-color)] ring-2 ring-white dark:ring-[#0e1628]"></span>
               </button>
               <button
                 onClick={toggleTheme}
@@ -291,11 +341,11 @@ export default function PtImDashboard() {
             {/* Profile context */}
             <div className="flex items-center gap-3">
               <div className="text-right flex flex-col items-end">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">TSgt Marcus Lee</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">Senior SCS &middot; 23rd SFS</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">Capt Chen</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">PT/IM &middot; 23rd SFS</span>
               </div>
               <div className="size-8 rounded-full bg-emerald-500 text-white font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
-                ML
+                CC
               </div>
             </div>
           </div>
@@ -303,7 +353,7 @@ export default function PtImDashboard() {
 
         {/* 2. CUI ALERT STRIP */}
         <div className="h-6 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-center px-6 text-[9px] font-mono tracking-wider text-slate-455 flex-shrink-0 select-none z-10 font-sans">
-          <span className="text-[#0da2b3] mr-2 font-black">•</span>
+          <span className="text-[var(--brand-color)] mr-2 font-black">•</span>
           {viewingRecordId && "CUI // OPSEC · Records · access reason required · access logged"}
           {!viewingRecordId && reviewingAirmanId && "CUI // OPSEC · PT/IM · case details · access logged"}
           {!viewingRecordId && !reviewingAirmanId && `CUI // OPSEC · PT/IM · access logged`}
@@ -319,7 +369,11 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-mono">PT/IM · RECORDS</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-wider font-mono">PT/IM · CLINICAL / REHABILITATION · RECORDS</p>
+                    <PopulationBadge level={POPULATION_LEVELS.INDIVIDUAL} />
+                    <PrivacyStateBadge state={PRIVACY_STATES.RESTRICTED} />
+                  </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Medical History Performance Summary</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-450 mt-1 leading-relaxed">
                     Human-approved · minimum-necessary · versioned · time-limited · named audiences. Each event logs to operator profile, SCS handoff chain, and Admin audit (7-yr retention).
@@ -421,7 +475,7 @@ export default function PtImDashboard() {
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Last access event</span>
-                    <span className="font-bold text-[#0da2b3]">27 Jul 14:02 · Capt Chen</span>
+                    <span className="font-bold text-[var(--brand-color)]">27 Jul 14:02 · Capt Chen</span>
                   </div>
                 </div>
               </div>
@@ -440,7 +494,7 @@ export default function PtImDashboard() {
                         {["Full", "Visit only", "Clearance"].map((recFilter, i) => (
                           <span key={i} className={`px-2 py-0.5 text-[8px] font-bold rounded-full uppercase cursor-pointer transition ${
                             recFilter === "Full"
-                              ? "bg-[#0da2b3]/15 text-[#0da2b3]"
+                              ? "bg-[var(--brand-color)/15] text-[var(--brand-color)]"
                               : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                           }`}>
                             {recFilter}
@@ -568,7 +622,7 @@ export default function PtImDashboard() {
                           onClick={() => triggerToast(`Restrict criteria: ${visRow.label}`)}
                           className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
                             visRow.active 
-                              ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]" 
+                              ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]" 
                               : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350"
                           }`}
                         >
@@ -654,12 +708,13 @@ export default function PtImDashboard() {
               
               {/* Back navigation */}
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-white/5 pb-4">
-                <button 
+                <button
                   onClick={() => setReviewingAirmanId(null)}
                   className="inline-flex items-center gap-2 text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white transition cursor-pointer"
                 >
                   <ArrowLeft className="size-4" /> Back to injury queue
                 </button>
+                <PopulationBadge level={POPULATION_LEVELS.INDIVIDUAL} />
               </div>
 
               {/* Patient header card */}
@@ -679,7 +734,7 @@ export default function PtImDashboard() {
 
                   <div className="flex flex-wrap gap-2">
                     <span className="px-2.5 py-0.5 bg-rose-500/15 text-rose-500 text-[9px] font-bold rounded-full uppercase">Post-OFT</span>
-                    <span className="px-2.5 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] text-[9px] font-bold rounded-full uppercase">Limited duty</span>
+                    <span className="px-2.5 py-0.5 bg-[var(--brand-color)/15] text-[var(--brand-color)] text-[9px] font-bold rounded-full uppercase">Limited duty</span>
                     <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-400 text-[9px] font-bold rounded-full uppercase">Audit - 4 views today</span>
                     <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-450 text-[9px] font-bold rounded-full uppercase">M54.5 - lumbar sub-acute</span>
                   </div>
@@ -731,12 +786,12 @@ export default function PtImDashboard() {
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Linked action</span>
-                    <span className="font-bold text-[#0da2b3] block">Rehab Block 2</span>
+                    <span className="font-bold text-[var(--brand-color)] block">Rehab Block 2</span>
                     <span className="text-[10px] text-slate-455 block">SCS + PT/IM · 22 Jul \u2014 8 Aug</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Authorized records</span>
-                    <span className="font-bold text-[#0da2b3] block cursor-pointer hover:underline" onClick={() => setViewingRecordId("J. Reyes")}>Medical History Summary</span>
+                    <span className="font-bold text-[var(--brand-color)] block cursor-pointer hover:underline" onClick={() => setViewingRecordId("J. Reyes")}>Medical History Summary</span>
                     <span className="text-[10px] text-slate-455 block">PT/IM-approved · restricted</span>
                   </div>
                   <div className="space-y-0.5">
@@ -757,7 +812,7 @@ export default function PtImDashboard() {
                 <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px]">RTP + RTD &mdash; separate paths</span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <span className="font-bold text-[#0da2b3] block">Return to Performance (RTP)</span>
+                    <span className="font-bold text-[var(--brand-color)] block">Return to Performance (RTP)</span>
                     <p className="text-slate-500 leading-normal font-normal">
                       Managed in Ascend: PT/IM + SCS coordinate reconditioning, training load, and progression. Current case: Phase 2 active, Phase 3 pending.
                     </p>
@@ -779,7 +834,7 @@ export default function PtImDashboard() {
                     onClick={() => triggerToast(`Displaying ${st} details panel below`)}
                     className={`cursor-pointer pb-1 border-b-2 transition ${
                       st === "Overview" 
-                        ? "border-[#0da2b3] text-[#0da2b3]" 
+                        ? "border-[var(--brand-color)] text-[var(--brand-color)]" 
                         : "border-transparent text-slate-400 hover:text-slate-655 dark:hover:text-white"
                     }`}
                   >
@@ -824,10 +879,10 @@ export default function PtImDashboard() {
                           {["SLR", "All", "Flex"].map((btn) => (
                             <button
                               key={btn}
-                              onClick={() => setRomFilter(btn as any)}
+                              onClick={() => setRomFilter(btn as "SLR" | "All" | "Flex")}
                               className={`px-1.5 py-0.5 rounded transition cursor-pointer border ${
                                 romFilter === btn 
-                                  ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]" 
+                                  ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]" 
                                   : "bg-white dark:bg-slate-900 border-slate-200 text-slate-400"
                               }`}
                             >
@@ -953,7 +1008,7 @@ export default function PtImDashboard() {
                         <div key={idx} className="flex gap-3">
                           <div className="flex flex-col items-center">
                             <div className={`size-5 rounded-full flex items-center justify-center font-bold text-[10px] text-white ${
-                              step.active ? "bg-[#0da2b3]" : step.done ? "bg-emerald-500" : "bg-slate-250 dark:bg-slate-850"
+                              step.active ? "bg-[var(--brand-color)]" : step.done ? "bg-emerald-500" : "bg-slate-250 dark:bg-slate-850"
                             }`}>
                               {idx + 1}
                             </div>
@@ -961,7 +1016,7 @@ export default function PtImDashboard() {
                           </div>
                           <div className="space-y-1 text-left">
                             <span className={`text-[9px] font-bold font-mono tracking-wider block ${
-                              step.active ? "text-[#0da2b3]" : step.done ? "text-emerald-500" : "text-slate-400"
+                              step.active ? "text-[var(--brand-color)]" : step.done ? "text-emerald-500" : "text-slate-400"
                             }`}>{step.title}</span>
                             <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight font-sans">{step.body}</h4>
                             <p className="text-[10px] text-slate-500 leading-normal">{step.desc}</p>
@@ -980,7 +1035,7 @@ export default function PtImDashboard() {
                       </div>
                       <button 
                         onClick={handleAddClinicianNote}
-                        className="px-2.5 py-1 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                        className="px-2.5 py-1 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                       >
                         + New note
                       </button>
@@ -994,7 +1049,7 @@ export default function PtImDashboard() {
                           value={newClinicianNote}
                           onChange={(e) => setNewClinicianNote(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleAddClinicianNote()}
-                          className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white placeholder-slate-400"
+                          className="flex-1 px-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white placeholder-slate-400"
                         />
                       </div>
 
@@ -1035,7 +1090,7 @@ export default function PtImDashboard() {
                             <span className="font-mono text-slate-800 dark:text-white">{snapshot.val}</span>
                           </div>
                           <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#0da2b3] rounded-full" style={{ width: `${snapshot.pct}%` }}></div>
+                            <div className="h-full bg-[var(--brand-color)] rounded-full" style={{ width: `${snapshot.pct}%` }}></div>
                           </div>
                         </div>
                       ))}
@@ -1125,7 +1180,7 @@ export default function PtImDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Cleared status updated")}
-                    className="px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Update clearance
                   </button>
@@ -1147,52 +1202,63 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · CLINICAL</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Today's clinical queue</h1>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT</p>
+                    <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
+                  </div>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Today&apos;s PT/IM queue</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                    12 active injuries &middot; 9 OFT clearances due &middot; 3 L4+ open cases. Reviewed by Capt Chen.
+                    12 active injuries &middot; 9 follow-ups due &middot; 3 L4+ open cases. Reviewed by Capt Chen.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => setActiveTab("records")}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
-                  <button 
+                  <button
                     onClick={() => triggerToast("New IDMT handoff export package generated")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New IDMT handoff
                   </button>
                 </div>
               </div>
 
-              {/* 4 Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {[
-                  { name: "Active patients", count: "87", desc: "+3 this week", icon: "green" },
-                  { name: "Injury queue", count: "12", desc: "+2 · 3 high-priority", icon: "teal" },
-                  { name: "OFT clearance due", count: "9", desc: "-3 cleared this week", icon: "red" },
-                  { name: "Quarterly review items", count: "4", desc: "2 L4+ · 1 trended cohort", icon: "slate" }
-                ].map((card, i) => (
-                  <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
-                    <div className="flex items-baseline gap-2">
-                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
-                      <span className={`text-[10px] font-bold ${
-                        card.icon === "green" ? "text-emerald-500" :
-                        card.icon === "teal" ? "text-[#0da2b3]" :
-                        card.icon === "red" ? "text-rose-500" : "text-slate-450"
-                      }`}>
-                        {card.desc.split(" · ")[0]}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
-                  </div>
-                ))}
+              {/* Actionable work queues (Req 3) — priority work first, clickable, opens the filtered record set. Analytics is pushed below this section. */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-sans">Action queues</h2>
+                  <span className="text-[9px] text-slate-400 font-mono">Click a queue to open its filtered list</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+                  {[
+                    { name: "New injury cases", count: "4", desc: "Opened in last 24h", icon: "red", tab: "injury" as TabType, toast: "Filtered injury queue: new cases" },
+                    { name: "Follow-ups due", count: "9", desc: "Before 1 Aug", icon: "orange", tab: "injury" as TabType, toast: "Filtered injury queue: follow-ups due" },
+                    { name: "Overdue actions", count: "3", desc: "Past due · needs action", icon: "red", tab: "injury" as TabType, toast: "Filtered injury queue: overdue actions" },
+                    { name: "Unread communications", count: "5", desc: "SCS + IDMT threads", icon: "teal", tab: "scs" as TabType, toast: "Filtered SCS coordination: unread items" },
+                    { name: "Plans requiring review", count: "4", desc: "2 L4+ · 1 trended cohort", icon: "slate", tab: "quarterly" as TabType, toast: "Opening quarterly review items" },
+                  ].map((card, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setActiveTab(card.tab); triggerToast(card.toast); }}
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left hover:border-[var(--brand-color)/40] hover:shadow-md transition cursor-pointer"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                      </div>
+                      <p className={`text-[10px] font-mono ${
+                        card.icon === "red" ? "text-rose-500" :
+                        card.icon === "orange" ? "text-amber-500" :
+                        card.icon === "teal" ? "text-[var(--brand-color)]" : "text-slate-450"
+                      }`}>{card.desc}</p>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* RTP + RTD Paths details box */}
@@ -1200,7 +1266,7 @@ export default function PtImDashboard() {
                 <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px]">RTP + RTD &mdash; separate paths</span>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1">
-                    <span className="font-bold text-[#0da2b3] block">Return to Performance (RTP)</span>
+                    <span className="font-bold text-[var(--brand-color)] block">Return to Performance (RTP)</span>
                     <p className="text-slate-500 leading-normal font-normal">
                       Is managed in Ascend: PT/IM + SCS coordinate reconditioning, training load, and progression.
                     </p>
@@ -1228,7 +1294,7 @@ export default function PtImDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           fPill === "All"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -1279,11 +1345,11 @@ export default function PtImDashboard() {
                           <td className="py-3.5">
                             <span className={`inline-flex items-center gap-1.5 font-bold ${
                               row.prioCol === "red" ? "text-rose-500" :
-                              row.prioCol === "orange" ? "text-amber-500" : "text-[#0da2b3]"
+                              row.prioCol === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
                             }`}>
                               <span className={`size-1.5 rounded-full ${
                                 row.prioCol === "red" ? "bg-rose-500" :
-                                row.prioCol === "orange" ? "bg-amber-500" : "bg-[#0da2b3]"
+                                row.prioCol === "orange" ? "bg-amber-500" : "bg-[var(--brand-color)]"
                               }`}></span>
                               {row.prio}
                             </span>
@@ -1292,7 +1358,7 @@ export default function PtImDashboard() {
                           <td className="py-3.5 font-bold">
                             <span className={
                               row.sevCol === "red" ? "text-rose-500" :
-                              row.sevCol === "orange" ? "text-amber-500" : "text-[#0da2b3]"
+                              row.sevCol === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
                             }>{row.sev}</span>
                           </td>
                           <td className="py-3.5 font-mono text-[10px] text-slate-500">{row.days}</td>
@@ -1326,13 +1392,14 @@ export default function PtImDashboard() {
 
                 <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono">
                   <span className="text-slate-455">Showing 5 of 12</span>
-                  <span className="text-[#0da2b3] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>View all &rarr;</span>
+                  <span className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>View all &rarr;</span>
                 </div>
               </div>
 
-              {/* Bottom splits grid */}
+              {/* Analytics — pushed below the action queues per Req 3 */}
+              <h2 className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider font-sans">Analytics</h2>
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-                
+
                 {/* Trending injury types bar chart */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
@@ -1374,7 +1441,7 @@ export default function PtImDashboard() {
                             {/* Bar block */}
                             <div 
                               style={{ height: bar.pct }}
-                              className="w-8 sm:w-10 bg-[#0da2b3] dark:bg-[#0c8a99] hover:bg-[#0b7a87] rounded-t-md transition-all duration-300 relative"
+                              className="w-8 sm:w-10 bg-[var(--brand-color)] dark:bg-[#0c8a99] hover:bg-[#0b7a87] rounded-t-md transition-all duration-300 relative"
                             >
                               {/* Hover tooltip */}
                               <span className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-[9px] font-mono py-0.5 px-1.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap z-20">
@@ -1461,7 +1528,7 @@ export default function PtImDashboard() {
                         <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recent handoffs</h3>
                         <p className="text-[9px] text-slate-455">Read-receipted IDMT channel</p>
                       </div>
-                      <span className="text-[#0da2b3] hover:underline text-[10px] font-bold cursor-pointer font-mono" onClick={() => setActiveTab("handoff")}>
+                      <span className="text-[var(--brand-color)] hover:underline text-[10px] font-bold cursor-pointer font-mono" onClick={() => setActiveTab("handoff")}>
                         All &rarr;
                       </span>
                     </div>
@@ -1508,7 +1575,10 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · INJURY QUEUE</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT · INJURY QUEUE</p>
+                    <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
+                  </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Injury queue</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     12 active cases across 23 SFS, sorted by priority then functional status. Opening a case is audit logged.
@@ -1524,7 +1594,7 @@ export default function PtImDashboard() {
                   </button>
                   <button 
                     onClick={() => { setReviewingAirmanId("J. Reyes"); triggerToast("Opening next priority case: J. Reyes"); }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Open next case
                   </button>
@@ -1545,7 +1615,7 @@ export default function PtImDashboard() {
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
-                        card.icon === "teal" ? "text-[#0da2b3]" :
+                        card.icon === "teal" ? "text-[var(--brand-color)]" :
                         card.icon === "red" ? "text-rose-500" : "text-slate-455"
                       }`}>
                         {card.desc.split(" · ")[0]}
@@ -1571,7 +1641,7 @@ export default function PtImDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           fPill === "All"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -1627,11 +1697,11 @@ export default function PtImDashboard() {
                           <td className="py-3.5">
                             <span className={`inline-flex items-center gap-1.5 font-bold ${
                               row.prioCol === "red" ? "text-rose-500" :
-                              row.prioCol === "orange" ? "text-amber-500" : "text-[#0da2b3]"
+                              row.prioCol === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
                             }`}>
                               <span className={`size-1.5 rounded-full ${
                                 row.prioCol === "red" ? "bg-rose-500" :
-                                row.prioCol === "orange" ? "bg-amber-500" : "bg-[#0da2b3]"
+                                row.prioCol === "orange" ? "bg-amber-500" : "bg-[var(--brand-color)]"
                               }`}></span>
                               {row.prio}
                             </span>
@@ -1640,7 +1710,7 @@ export default function PtImDashboard() {
                           <td className="py-3.5 font-bold">
                             <span className={
                               row.sevCol === "red" ? "text-rose-500" :
-                              row.sevCol === "orange" ? "text-amber-500" : "text-[#0da2b3]"
+                              row.sevCol === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
                             }>{row.sev}</span>
                           </td>
                           <td className="py-3.5 font-mono text-[10px] text-slate-500">{row.days}</td>
@@ -1678,7 +1748,7 @@ export default function PtImDashboard() {
                   <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 12</span>
                   <div className="flex items-center gap-1">
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
+                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[var(--brand-color)] font-bold rounded bg-[var(--brand-color)/10]">1</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">2</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">&gt;</button>
                   </div>
@@ -1701,7 +1771,10 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM - RECORDS</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-wider">PT/IM · CLINICAL / REHABILITATION</p>
+                    <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
+                  </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Medical records</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-450 mt-1">
                     Records you are authorized to open, scoped to your PT/IM caseload. Opening a record requires a logged access reason and is minimum-necessary by default.
@@ -1709,7 +1782,7 @@ export default function PtImDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => setActiveTab("injury")}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
@@ -1722,16 +1795,16 @@ export default function PtImDashboard() {
               <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Shield className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-extrabold font-sans text-xs">PT/IM view &middot; clinical scope only</span>
+                  <span className="font-extrabold font-sans text-xs">Clinical / Rehabilitation &middot; PT/IM scope only</span>
                   <p className="mt-0.5 text-slate-600 dark:text-slate-400 font-normal">
-                    This list shows musculoskeletal and encounter history for airmen assigned to you. Mental-performance notes, nutrition logs and purpose reflections are held by their own roles and are not reachable from here.
+                    This list shows musculoskeletal and encounter history for airmen assigned to you. Mental-performance notes, nutrition logs and purpose reflections are held by their own roles and are not reachable from here. Every record shows a privacy state — access is never rendered blank, a reason is always given.
                   </p>
                 </div>
               </div>
 
               {/* Table */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
-                
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-855 dark:text-white">Authorized records &middot; 12</h3>
@@ -1744,7 +1817,7 @@ export default function PtImDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           recFilter === "My caseload"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -1762,24 +1835,26 @@ export default function PtImDashboard() {
                         <th className="pb-3">Last encounter</th>
                         <th className="pb-3">Record Type</th>
                         <th className="pb-3">Linked case</th>
-                        <th className="pb-3">Visibility</th>
+                        <th className="pb-3">Privacy state</th>
                         <th className="pb-3">Access expires</th>
                         <th className="pb-3 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", enc: "28 Jul", type: "MSK · lower back", case: "INJ-0142", vis: "Minimum-necessary", col: "orange", exp: "31 Jul 18:00" },
-                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", enc: "27 Jul", type: "MSK · ankle", case: "INJ-0139", vis: "Minimum-necessary", col: "orange", exp: "30 Jul 18:00" },
-                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", enc: "26 Jul", type: "MSK · knee", case: "INJ-0136", vis: "Minimum-necessary", col: "orange", exp: "29 Jul 18:00" },
-                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", enc: "26 Jul", type: "MSK · shoulder", case: "INJ-0134", vis: "Full - authorized", col: "green", exp: "2 Aug 18:00" },
-                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", enc: "25 Jul", type: "MSK · hamstring", case: "INJ-0131", vis: "Minimum-necessary", col: "orange", exp: "28 Jul 18:00" },
-                        { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", enc: "25 Jul", type: "MSK · lumbar", case: "INJ-0129", vis: "Minimum-necessary", col: "orange", exp: "28 Jul 18:00" },
-                        { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", enc: "24 Jul", type: "MSK · lateral ankle", case: "INJ-0127", vis: "Full - authorized", col: "green", exp: "1 Aug 18:00" },
-                        { code: "E. Vega", details: "SrA · 23 SFS · Flight C", enc: "24 Jul", type: "MSK · wrist", case: "INJ-0125", vis: "Minimum-necessary", col: "orange", exp: "27 Jul 18:00" },
-                        { code: "K. Park", details: "A1C · 23 SFS · Flight B", enc: "23 Jul", type: "MSK · achilles", case: "INJ-0122", vis: "Minimum-necessary", col: "orange", exp: "26 Jul 18:00" },
-                        { code: "L. Soto", details: "SrA · 23 SFS · Flight C", enc: "22 Jul", type: "MSK · calf", case: "INJ-0119", vis: "Full - authorized", col: "green", exp: "30 Jul 18:00" }
-                      ].map((row, idx) => (
+                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", enc: "28 Jul", type: "MSK · lower back", case: "INJ-0142", privacy: PRIVACY_STATES.RESTRICTED, exp: "31 Jul 18:00" },
+                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", enc: "27 Jul", type: "MSK · ankle", case: "INJ-0139", privacy: PRIVACY_STATES.AUTH_REQUIRED, exp: "30 Jul 18:00" },
+                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", enc: "26 Jul", type: "MSK · knee", case: "INJ-0136", privacy: PRIVACY_STATES.RESTRICTED, exp: "29 Jul 18:00" },
+                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", enc: "26 Jul", type: "MSK · shoulder", case: "INJ-0134", privacy: PRIVACY_STATES.RESTRICTED, exp: "2 Aug 18:00" },
+                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", enc: "25 Jul", type: "MSK · hamstring", case: "INJ-0131", privacy: PRIVACY_STATES.ACCESS_EXPIRED, exp: "24 Jul 18:00" },
+                        { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", enc: "25 Jul", type: "MSK · lumbar", case: "INJ-0129", privacy: PRIVACY_STATES.RESTRICTED, exp: "28 Jul 18:00" },
+                        { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", enc: "24 Jul", type: "MSK · lateral ankle", case: "INJ-0127", privacy: PRIVACY_STATES.CONSENT_REQUIRED, exp: "1 Aug 18:00" },
+                        { code: "E. Vega", details: "SrA · 23 SFS · Flight C", enc: "24 Jul", type: "MSK · wrist", case: "INJ-0125", privacy: PRIVACY_STATES.RESTRICTED, exp: "27 Jul 18:00" },
+                        { code: "K. Park", details: "A1C · 23 SFS · Flight B", enc: "23 Jul", type: "MSK · achilles", case: "INJ-0122", privacy: PRIVACY_STATES.CONSENT_WITHDRAWN, exp: "26 Jul 18:00" },
+                        { code: "L. Soto", details: "SrA · 23 SFS · Flight C", enc: "22 Jul", type: "MSK · calf", case: "INJ-0119", privacy: PRIVACY_STATES.ACCESS_DENIED, exp: "30 Jul 18:00" }
+                      ].map((row, idx) => {
+                        const openable = row.privacy === PRIVACY_STATES.RESTRICTED;
+                        return (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
@@ -1789,26 +1864,34 @@ export default function PtImDashboard() {
                           <td className="py-3 text-slate-500 font-medium">{row.type}</td>
                           <td className="py-3 font-mono text-slate-655 dark:text-slate-350">{row.case}</td>
                           <td className="py-3">
-                            <span className={`px-2 py-0.5 rounded text-[8px] font-bold font-sans uppercase ${
-                              row.col === "green" ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
-                            }`}>
-                              {row.vis}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <PrivacyStateBadge state={row.privacy} />
+                              <span className="text-[8px] text-slate-400 leading-tight max-w-[160px]">{PRIVACY_STATE_REASON[row.privacy]}</span>
+                            </div>
                           </td>
                           <td className="py-3 text-slate-550 font-mono">{row.exp}</td>
                           <td className="py-3 text-right">
                             <button
                               onClick={() => {
-                                setViewingRecordId(row.code);
-                                triggerToast(`Access audited: opening Performance Summary for ${row.code}`);
+                                if (openable) {
+                                  setViewingRecordId(row.code);
+                                  triggerToast(`Access audited: opening Performance Summary for ${row.code}`);
+                                } else {
+                                  triggerToast(`${row.privacy}: ${PRIVACY_STATE_REASON[row.privacy]}`);
+                                }
                               }}
-                              className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer ${
+                                openable
+                                  ? "bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white"
+                                  : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-500 hover:text-slate-800 dark:hover:text-white"
+                              }`}
                             >
-                              Open
+                              {openable ? "Open" : "Request access"}
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1818,7 +1901,7 @@ export default function PtImDashboard() {
                   <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 12</span>
                   <div className="flex items-center gap-1">
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
+                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[var(--brand-color)] font-bold rounded bg-[var(--brand-color)/10]">1</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">2</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">&gt;</button>
                   </div>
@@ -1840,7 +1923,11 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM - QUARTERLY REVIEW</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-wider">PT/IM · CLINICAL / REHABILITATION · QUARTERLY REVIEW</p>
+                    <PopulationBadge level={POPULATION_LEVELS.COHORT} />
+                    <PopulationBadge level={POPULATION_LEVELS.UNIT} />
+                  </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Q3 injury review</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     Aggregate injury trends &middot; no individual exposure &middot; k&ge;5 per cohort &middot; 23rd MSG, Apr&ndash;Jun 2026.
@@ -1897,7 +1984,7 @@ export default function PtImDashboard() {
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
-                        card.icon === "teal" ? "text-[#0da2b3]" :
+                        card.icon === "teal" ? "text-[var(--brand-color)]" :
                         card.icon === "red" ? "text-rose-500" : "text-slate-450"
                       }`}>
                         {card.desc.split(" vs ")[0]}
@@ -1952,8 +2039,8 @@ export default function PtImDashboard() {
                             style={{ height: bar.pct }}
                             className={`w-8 sm:w-10 rounded-t-md transition-all duration-300 relative ${
                               bar.suppressed 
-                                ? "bg-[#0da2b3]/30 dark:bg-[#0c8a99]/30" 
-                                : "bg-[#0da2b3] dark:bg-[#0c8a99] hover:bg-[#0b7a87]"
+                                ? "bg-[var(--brand-color)/30] dark:bg-[#0c8a99]/30" 
+                                : "bg-[var(--brand-color)] dark:bg-[#0c8a99] hover:bg-[#0b7a87]"
                             }`}
                           >
                             {/* Hover tooltip */}
@@ -2096,7 +2183,7 @@ export default function PtImDashboard() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{rec.body}</p>
-                        <p className="text-[9px] text-[#0da2b3] font-mono leading-none">{rec.sub}</p>
+                        <p className="text-[9px] text-[var(--brand-color)] font-mono leading-none">{rec.sub}</p>
                       </div>
                     ))}
                   </div>
@@ -2119,7 +2206,10 @@ export default function PtImDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM - COORDINATION</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT · COORDINATION</p>
+                    <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
+                  </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">SCS coordination</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     Joint items where pain, limitation, a failed OFT, or recovery decline affects a training plan decision. Held as its own record &mdash; kept separate from operator messages and from IDMT handoffs.
@@ -2129,7 +2219,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("New joint SCS reconditioning item created")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + Raise item
                   </button>
@@ -2138,7 +2228,7 @@ export default function PtImDashboard() {
 
               {/* Scope alert box */}
               <div className="bg-slate-50 dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
-                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold font-sans text-xs">Separate record &middot; training-decision scope only</span>
                   <p className="mt-0.5 text-slate-500 leading-normal font-normal font-sans">
@@ -2162,7 +2252,7 @@ export default function PtImDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           scsFilter === "Open"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -2187,16 +2277,18 @@ export default function PtImDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                      {[
-                        { code: "J. Reyes", details: "SrA · Flight A", item: "Load cap for Rehab Block 2", trig: "Pain · lower back", aff: "Training load", owner: "PT/IM", status: "Awaiting SCS", col: "orange", date: "28 Jul" },
-                        { code: "D. Mendez", details: "SSgt · Flight B", item: "No-run clearance until 1 Aug", trig: "Limitation · ankle", aff: "Session plan", owner: "PT/IM", status: "Acknowledged", col: "green", date: "27 Jul" },
-                        { code: "T. Cho", details: "A1C · Flight A", item: "OFT retest window", trig: "Failed OFT", aff: "Assessment", owner: "SCS", status: "Awaiting PT/IM", col: "orange", date: "27 Jul" },
-                        { code: "B. Ndiaye", details: "A1C · Flight C", item: "Overhead work restriction", trig: "Limitation · shoulder", aff: "Programming", owner: "PT/IM", status: "Acknowledged", col: "green", date: "26 Jul" },
-                        { code: "R. Patel", details: "SrA · Flight B", item: "Sprint cap - week 2", trig: "Recovery decline", aff: "Training load", owner: "SCS", status: "Awaiting PT/IM", col: "orange", date: "25 Jul" },
-                        { code: "S. Hayes", details: "SSgt · Flight D", item: "No-lift clearance", trig: "Limitation · lumbar", aff: "Session plan", owner: "PT/IM", status: "Acknowledged", col: "green", date: "25 Jul" },
-                        { code: "E. Vega", details: "SrA · Flight C", item: "No-pushup substitution", trig: "Limitation · wrist", aff: "Programming", owner: "PT/IM", status: "Closed", col: "slate", date: "24 Jul" },
-                        { code: "K. Park", details: "A1C · Flight B", item: "Run-volume cap - 5 Aug review", trig: "Pain · achilles", aff: "Training load", owner: "PT/IM", status: "Awaiting SCS", col: "orange", date: "23 Jul" }
-                      ].map((row, idx) => (
+                      {([
+                        { code: "J. Reyes", details: "SrA · Flight A", item: "Load cap for Rehab Block 2", trig: "Pain · lower back", aff: "Training load", owner: "PT/IM", status: FOLLOW_UP_STATUSES.DUE, detail: "Awaiting SCS response", date: "28 Jul" },
+                        { code: "D. Mendez", details: "SSgt · Flight B", item: "No-run clearance until 1 Aug", trig: "Limitation · ankle", aff: "Session plan", owner: "PT/IM", status: FOLLOW_UP_STATUSES.ASSIGNED, detail: "Acknowledged by SCS", date: "27 Jul" },
+                        { code: "T. Cho", details: "A1C · Flight A", item: "OFT retest window", trig: "Failed OFT", aff: "Assessment", owner: "SCS", status: FOLLOW_UP_STATUSES.DUE, detail: "Awaiting PT/IM response", date: "27 Jul" },
+                        { code: "B. Ndiaye", details: "A1C · Flight C", item: "Overhead work restriction", trig: "Limitation · shoulder", aff: "Programming", owner: "PT/IM", status: FOLLOW_UP_STATUSES.ASSIGNED, detail: "Acknowledged by PT/IM", date: "26 Jul" },
+                        { code: "R. Patel", details: "SrA · Flight B", item: "Sprint cap - week 2", trig: "Recovery decline", aff: "Training load", owner: "SCS", status: FOLLOW_UP_STATUSES.DUE, detail: "Awaiting PT/IM response", date: "25 Jul" },
+                        { code: "S. Hayes", details: "SSgt · Flight D", item: "No-lift clearance", trig: "Limitation · lumbar", aff: "Session plan", owner: "PT/IM", status: FOLLOW_UP_STATUSES.ASSIGNED, detail: "Acknowledged by SCS", date: "25 Jul" },
+                        { code: "E. Vega", details: "SrA · Flight C", item: "No-pushup substitution", trig: "Limitation · wrist", aff: "Programming", owner: "PT/IM", status: FOLLOW_UP_STATUSES.COMPLETED, detail: "Resolved 24 Jul", date: "24 Jul" },
+                        { code: "K. Park", details: "A1C · Flight B", item: "Run-volume cap - 5 Aug review", trig: "Pain · achilles", aff: "Training load", owner: "PT/IM", status: FOLLOW_UP_STATUSES.DUE, detail: "Awaiting SCS response", date: "23 Jul" }
+                      ] as { code: string; details: string; item: string; trig: string; aff: string; owner: string; status: string; detail: string; date: string }[]).map((row, idx) => {
+                        const col = row.status === FOLLOW_UP_STATUSES.ASSIGNED ? "green" : row.status === FOLLOW_UP_STATUSES.DUE ? "orange" : row.status === FOLLOW_UP_STATUSES.OVERDUE ? "red" : "slate";
+                        return (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
@@ -2207,14 +2299,18 @@ export default function PtImDashboard() {
                           <td className="py-3 text-slate-500">{row.aff}</td>
                           <td className="py-3 font-mono font-bold text-slate-655 dark:text-slate-400">{row.owner}</td>
                           <td className="py-3">
-                            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                              row.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
-                              row.col === "orange" ? "bg-amber-500/10 text-amber-500" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
-                            }`}>
-                              {row.col === "orange" && <span className="size-1 bg-amber-500 rounded-full"></span>}
-                              {row.col === "green" && <span className="size-1 bg-emerald-500 rounded-full"></span>}
-                              {row.status}
-                            </span>
+                            <div className="flex flex-col gap-0.5">
+                              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-bold uppercase w-fit ${
+                                col === "green" ? "bg-emerald-500/10 text-emerald-500" :
+                                col === "orange" ? "bg-amber-500/10 text-amber-500" :
+                                col === "red" ? "bg-rose-500/10 text-rose-500" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                              }`}>
+                                {col === "orange" && <span className="size-1 bg-amber-500 rounded-full"></span>}
+                                {col === "green" && <span className="size-1 bg-emerald-500 rounded-full"></span>}
+                                {row.status}
+                              </span>
+                              <span className="text-[8px] text-slate-400">{row.detail}</span>
+                            </div>
                           </td>
                           <td className="py-3 text-slate-550 font-mono">{row.date}</td>
                           <td className="py-3 text-right">
@@ -2223,20 +2319,21 @@ export default function PtImDashboard() {
                                 setReviewingAirmanId(row.code === "J. Reyes" ? "J. Reyes" : "J. Reyes");
                                 triggerToast(`Opening joint coordination sheet detail context`);
                               }}
-                              className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                              className="px-3.5 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                             >
                               Open
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono text-slate-400">
                   <span>Return to Performance only &middot; Return to Duty is decided outside Ascend</span>
-                  <span className="text-[#0da2b3] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>Injury queue &rarr;</span>
+                  <span className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>Injury queue &rarr;</span>
                 </div>
 
               </div>
@@ -2251,23 +2348,37 @@ export default function PtImDashboard() {
 
           {/* Tab 6: IDMT HANDOFF VIEW */}
           {activeTab === "handoff" && !reviewingAirmanId && !viewingRecordId && (
-            <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
-              <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
-                <Send className="size-7" />
+            <div className="space-y-6 animate-fade-in pb-16">
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-wider">PT/IM · CLINICAL / REHABILITATION · IDMT HANDOFF</p>
+                <PopulationBadge level={POPULATION_LEVELS.INDIVIDUAL} />
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">IDMT Handoff Channels</h3>
-                <p className="text-xs text-slate-555 leading-relaxed mt-1">
-                  Export structured, read-receipted clinical reconditioning statuses directly into the 23rd MSG Medical Operations corridor.
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => triggerToast("New export handoff session initialized")} className="px-4 py-2 bg-[#0da2b3] text-white rounded-xl text-xs font-bold hover:bg-[#0c8a99] transition cursor-pointer">
-                  New Handoff Packet
-                </button>
-              </div>
-              <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
-                Session access audited &middot; 7-yr compliance record retention.
+
+              <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 text-left">
+                <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[var(--brand-color)/15] text-[var(--brand-color)]">
+                  <Send className="size-7" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">IDMT Handoff Channels</h3>
+                  <p className="text-xs text-slate-555 leading-relaxed mt-1">
+                    Export structured, read-receipted clinical reconditioning statuses directly into the 23rd MSG Medical Operations corridor. This app is not an official medical record — exports are performance-informed summaries only.
+                  </p>
+                </div>
+
+                {/* Privacy state on export — never blank */}
+                <div className="flex items-center gap-3 p-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl">
+                  <PrivacyStateBadge state={PRIVACY_STATES.RESTRICTED} />
+                  <span className="text-[10px] text-slate-500 leading-snug">{PRIVACY_STATE_REASON[PRIVACY_STATES.RESTRICTED]} Named recipients only &middot; audience logged per packet.</span>
+                </div>
+
+                <div className="flex gap-3">
+                  <button onClick={() => triggerToast("New export handoff session initialized")} className="px-4 py-2 bg-[var(--brand-color)] text-white rounded-xl text-xs font-bold hover:bg-[#0c8a99] transition cursor-pointer">
+                    New Handoff Packet
+                  </button>
+                </div>
+                <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
+                  Session access audited &middot; 7-yr compliance record retention.
+                </div>
               </div>
             </div>
           )}

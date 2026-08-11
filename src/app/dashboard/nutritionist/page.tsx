@@ -3,45 +3,37 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
+import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
-  Apple,
   ChevronDown,
   Bell,
   Sun,
   Moon,
-  Shield,
-  Activity,
   ArrowLeft,
   LogOut,
-  Info,
   CheckCircle,
   AlertTriangle,
-  Download,
   Calendar,
   Plus,
-  Send,
   Search,
-  ClipboardList,
-  User,
-  Users,
   Lock,
   MessageSquare,
-  Sparkles,
   TrendingUp,
   FileText,
 } from "lucide-react";
 
 type TabType = "dashboard" | "consults" | "records" | "messages";
 
-export default function NutrotinishDashboard() {
+export default function NutritionistDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast(3500);
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hasMounted, setHasMounted] = useState(false);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
 
   const [nutritionChatMessage, setNutritionChatMessage] = useState("");
   const [nutritionMessagesList, setNutritionMessagesList] = useState([
@@ -65,16 +57,10 @@ export default function NutrotinishDashboard() {
     }, 100);
   };
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3500);
-  };
-
   const setActiveTab = (tab: TabType) => {
     setActiveTabInternal(tab);
     if (typeof window !== "undefined") {
-      localStorage.setItem("ascend_nutrotinish_active_tab", tab);
+      localStorage.setItem("ascend_nutritionist_active_tab", tab);
     }
   };
 
@@ -82,7 +68,7 @@ export default function NutrotinishDashboard() {
 
   // Load persistent active tab on client mount
   useEffect(() => {
-    const savedTab = localStorage.getItem("ascend_nutrotinish_active_tab") as TabType | null;
+    const savedTab = localStorage.getItem("ascend_nutritionist_active_tab") as TabType | null;
     if (savedTab && ["dashboard", "consults", "records", "messages"].includes(savedTab)) {
       setActiveTabInternal(savedTab);
     }
@@ -99,28 +85,6 @@ export default function NutrotinishDashboard() {
       router.push("/");
     }
   }, [isAuthenticated, hasMounted, router]);
-
-  // Sync theme with local storage & document element
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   const handleBackToRoles = () => {
     setSelectedRole(null);
@@ -143,16 +107,16 @@ export default function NutrotinishDashboard() {
           {/* Brand logo wrapper */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-800 dark:text-white uppercase font-sans">
-                Nutritionist &middot; 23rd SFS
+                Nutritionist
               </span>
             </div>
           </div>
 
           {/* Navigation Title */}
           <div className="px-5 pt-6 pb-2 text-[10px] font-bold text-slate-400 tracking-widest uppercase font-sans">
-            Caseload
+            {POPULATION_LEVELS.CASELOAD}
           </div>
 
           {/* Navigation Items */}
@@ -161,7 +125,7 @@ export default function NutrotinishDashboard() {
               onClick={() => setActiveTab("dashboard")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -172,7 +136,7 @@ export default function NutrotinishDashboard() {
               onClick={() => setActiveTab("consults")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "consults"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -183,7 +147,7 @@ export default function NutrotinishDashboard() {
               onClick={() => setActiveTab("records")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "records"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -194,7 +158,7 @@ export default function NutrotinishDashboard() {
               onClick={() => setActiveTab("messages")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "messages"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -280,8 +244,8 @@ export default function NutrotinishDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · TODAY'S CONSULT QUEUE</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Today's consult queue</h1>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · TODAY&apos;S CONSULT QUEUE</p>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Today&apos;s consult queue</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     6 consults today &middot; 38 active Nutrition Actions across 24 airmen &middot; k &ge; 5 cohort view.
                   </p>
@@ -296,7 +260,7 @@ export default function NutrotinishDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Active queue dashboard view refreshed")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Open consult queue
                   </button>
@@ -408,7 +372,7 @@ export default function NutrotinishDashboard() {
                       <h3 className="text-sm font-bold text-slate-855 dark:text-white">Macro distribution · cohort</h3>
                       <p className="text-[10px] text-slate-455 mt-0.5">Lagged macros vs. prescribed targets · 24 airmen · last 7 days</p>
                     </div>
-                    <span className="px-2 py-0.5 bg-[#0da2b3]/15 text-[#0c8a99] text-[9px] font-bold rounded">
+                    <span className="px-2 py-0.5 bg-[var(--brand-color)/15] text-[#0c8a99] text-[9px] font-bold rounded">
                       7d
                     </span>
                   </div>
@@ -424,7 +388,7 @@ export default function NutrotinishDashboard() {
                           cy="18"
                           r="15.915"
                           fill="transparent"
-                          stroke="#0da2b3"
+                          stroke="var(--brand-color)"
                           strokeWidth="3.5"
                           strokeDasharray="50 100"
                           strokeDashoffset="0"
@@ -491,7 +455,7 @@ export default function NutrotinishDashboard() {
                     </div>
                     <button 
                       onClick={() => triggerToast("Opening full consult records history")}
-                      className="text-[#0da2b3] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
+                      className="text-[var(--brand-color)] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
                     >
                       View all
                     </button>
@@ -510,9 +474,9 @@ export default function NutrotinishDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
-                          { initials: "AM", name: "A. Mendez", reason: "Sleep nutrition", time: "13:30", status: "Done", col: "green", out: "Notes" },
-                          { initials: "JR", name: "J. Reyes", reason: "Protein target", time: "12:20", status: "In progress", col: "orange", out: "Open" },
-                          { initials: "TC", name: "T. Cho", reason: "Carb checkup", time: "09:30", status: "Done", col: "green", out: "Notes" },
+                          { initials: "AM", name: "A. Mendez", reason: "Sleep nutrition", time: "13:30", status: "Completed", col: "green", out: "Notes" },
+                          { initials: "JR", name: "J. Reyes", reason: "Protein target", time: "12:20", status: "In Progress", col: "orange", out: "Open" },
+                          { initials: "TC", name: "T. Cho", reason: "Carb checkup", time: "09:30", status: "Completed", col: "green", out: "Notes" },
                           { initials: "KN", name: "K. Ndoye", reason: "Weight mgmt", time: "12:30", status: "Scheduled", col: "teal", out: "Prep" },
                           { initials: "RP", name: "R. Patel", reason: "Recovery nutrition", time: "15:00", status: "Scheduled", col: "teal", out: "Prep" }
                         ].map((c, i) => (
@@ -520,7 +484,7 @@ export default function NutrotinishDashboard() {
                             <td className="py-2.5">
                               <div className="flex items-center gap-2">
                                 <div className={`size-6 rounded-full font-bold text-[9px] flex items-center justify-center text-white ${
-                                  c.col === "green" ? "bg-[#0da2b3]" :
+                                  c.col === "green" ? "bg-[var(--brand-color)]" :
                                   c.col === "orange" ? "bg-amber-500" : "bg-indigo-500"
                                 }`}>
                                   {c.initials}
@@ -534,11 +498,11 @@ export default function NutrotinishDashboard() {
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                                 c.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
                                 c.col === "orange" ? "bg-amber-500/10 text-amber-500" :
-                                "bg-[#0da2b3]/15 text-[#0da2b3]"
+                                "bg-[var(--brand-color)]/15 text-[var(--brand-color)]"
                               }`}>
                                 <span className={`size-1 rounded-full ${
                                   c.col === "green" ? "bg-emerald-500" :
-                                  c.col === "orange" ? "bg-amber-500" : "bg-[#0da2b3]"
+                                  c.col === "orange" ? "bg-amber-500" : "bg-[var(--brand-color)]"
                                 }`}></span>
                                 {c.status}
                               </span>
@@ -565,7 +529,7 @@ export default function NutrotinishDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm text-left space-y-4 pt-4 border-t border-slate-200 dark:border-white/5">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-105/60 dark:border-white/5 pb-4">
                   <div>
-                    <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">TODAY'S FOOD LOG &middot; A. MENDEZ</span>
+                    <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">TODAY&apos;S FOOD LOG &middot; A. MENDEZ</span>
                     <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Meal consistency & logs</h3>
                     <p className="text-[10px] text-slate-455">Auto-ingested from operator capture · 5 entries · needs review. Flag on lunch.</p>
                   </div>
@@ -671,7 +635,7 @@ export default function NutrotinishDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Schedule consult wizard loaded")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> Schedule consult
                   </button>
@@ -784,7 +748,7 @@ export default function NutrotinishDashboard() {
                             { txt: "Protein adherence", sub: "1.6 g/kg target", sub2: "ready", done: true },
                             { txt: "Recovery macro split", sub: "C/P/F", sub2: "review", done: false, review: true }
                           ],
-                          status: "In progress",
+                          status: "In Progress",
                           statusCol: "teal",
                           act: "Resume",
                           actCol: "white"
@@ -870,7 +834,7 @@ export default function NutrotinishDashboard() {
                           <td className="py-4 align-top">
                             <div className="flex items-center gap-2.5">
                               <div className={`size-6 rounded-full font-bold text-[9px] flex items-center justify-center text-white ${
-                                c.statusCol === "green" ? "bg-[#0da2b3]" :
+                                c.statusCol === "green" ? "bg-[var(--brand-color)]" :
                                 c.statusCol === "orange" ? "bg-amber-500" : "bg-indigo-500"
                               }`}>
                                 {c.initials}
@@ -884,7 +848,7 @@ export default function NutrotinishDashboard() {
 
                           {/* Reason */}
                           <td className="py-4 align-top">
-                            <span className="px-2 py-0.5 bg-[#0da2b3]/10 text-[#0c8a99] font-bold rounded text-[9px] uppercase">
+                            <span className="px-2 py-0.5 bg-[var(--brand-color)]/10 text-[#0c8a99] font-bold rounded text-[9px] uppercase">
                               {c.reason}
                             </span>
                           </td>
@@ -902,7 +866,7 @@ export default function NutrotinishDashboard() {
                                   type="checkbox" 
                                   checked={item.done} 
                                   readOnly
-                                  className="mt-0.5 rounded border-slate-200 text-[#0da2b3] focus:ring-[#0da2b3]/40"
+                                  className="mt-0.5 rounded border-slate-200 text-[var(--brand-color)] focus:ring-[var(--brand-color)]/40"
                                 />
                                 <div className="text-left text-[11px] leading-snug">
                                   <span className={item.done ? "text-slate-550 line-through decoration-slate-300 dark:decoration-slate-800" : "text-slate-700 dark:text-slate-350"}>
@@ -911,13 +875,13 @@ export default function NutrotinishDashboard() {
                                   {item.sub && (
                                     <span className={`inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase font-mono ${
                                       ("review" in item && item.review) ? "bg-purple-500/10 text-purple-650" :
-                                      item.done ? "bg-[#0da2b3]/10 text-[#0da2b3]" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                                      item.done ? "bg-[var(--brand-color)]/10 text-[var(--brand-color)]" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                                     }`}>
                                       {item.sub}
                                     </span>
                                   )}
                                   {item.sub2 && (
-                                    <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.2 bg-[#0da2b3]/10 text-[#0da2b3] rounded text-[8px] font-bold uppercase font-mono">
+                                    <span className="inline-flex items-center gap-1 ml-1 px-1.5 py-0.2 bg-[var(--brand-color)]/10 text-[var(--brand-color)] rounded text-[8px] font-bold uppercase font-mono">
                                       {item.sub2}
                                     </span>
                                   )}
@@ -931,12 +895,12 @@ export default function NutrotinishDashboard() {
                             <span className={`inline-flex items-center gap-1.5 font-bold text-[9px] uppercase ${
                               c.statusCol === "green" ? "text-emerald-500" :
                               c.statusCol === "orange" ? "text-amber-500" :
-                              c.statusCol === "teal" ? "text-[#0da2b3]" : "text-slate-500"
+                              c.statusCol === "teal" ? "text-[var(--brand-color)]" : "text-slate-500"
                             }`}>
                               <span className={`size-1.5 rounded-full ${
                                 c.statusCol === "green" ? "bg-emerald-500" :
                                 c.statusCol === "orange" ? "bg-amber-500" :
-                                c.statusCol === "teal" ? "bg-[#0da2b3]" : "bg-slate-400"
+                                c.statusCol === "teal" ? "bg-[var(--brand-color)]" : "bg-slate-400"
                               }`}></span>
                               {c.status}
                             </span>
@@ -947,7 +911,7 @@ export default function NutrotinishDashboard() {
                             {c.actCol === "teal" ? (
                               <button 
                                 onClick={() => triggerToast(`Starting consult session for: ${c.name}`)}
-                                className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-lg transition cursor-pointer"
+                                className="px-3.5 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-lg transition cursor-pointer"
                               >
                                 {c.act}
                               </button>
@@ -999,8 +963,17 @@ export default function NutrotinishDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">RECORDS · NUTRITION · ACCESS</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">S. Ndiaye · nutrition record</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                    Caseload scoped to nutrition driver · opt-in required · access logged.
+                    {POPULATION_LEVELS.CASELOAD} scoped to nutrition driver · access logged.
                   </p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/10">
+                      {POPULATION_LEVELS.INDIVIDUAL}
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      <Lock className="size-2.5" />
+                      {PRIVACY_STATES.CONSENT_REQUIRED}
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -1012,7 +985,7 @@ export default function NutrotinishDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("New assessment note editor initialized")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New note
                   </button>
@@ -1025,7 +998,7 @@ export default function NutrotinishDashboard() {
                 {/* Left panel: Caseload */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Caseload · 8</h3>
+                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">{POPULATION_LEVELS.CASELOAD} · 8</h3>
                     <p className="text-[10px] text-slate-455">Active plans with targets</p>
                   </div>
 
@@ -1042,20 +1015,20 @@ export default function NutrotinishDashboard() {
                   <div className="space-y-1">
                     {[
                       { initials: "JR", name: "J. Reyes", desc: "Rehab - protein target", date: "22 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "AM", name: "A. Mendez", desc: "Sleep nutrition · Bravo", date: "26 Jul", col: "bg-[#0da2b3]", active: false },
+                      { initials: "AM", name: "A. Mendez", desc: "Sleep nutrition · Bravo", date: "26 Jul", col: "bg-[var(--brand-color)]", active: false },
                       { initials: "TC", name: "T. Cho", desc: "Performance · Charlie", date: "15 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "SN", name: "S. Ndoye", desc: "New referral · weight mgmt", date: "10:30 today", col: "bg-[#0da2b3]", active: true },
+                      { initials: "SN", name: "S. Ndoye", desc: "New referral · weight mgmt", date: "10:30 today", col: "bg-[var(--brand-color)]", active: true },
                       { initials: "RP", name: "R. Patel", desc: "Recovery - post-op", date: "22 Jul", col: "bg-indigo-500", active: false },
                       { initials: "CH", name: "C. Hayes", desc: "New referral · macro adj.", date: "—", col: "bg-emerald-500", active: false },
                       { initials: "MB", name: "M. Brooks", desc: "Performance · Foxtrot", date: "19 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "DV", name: "D. Vega", desc: "Hydration · Alpha", date: "20 Jul", col: "bg-[#0da2b3]", active: false }
+                      { initials: "DV", name: "D. Vega", desc: "Hydration · Alpha", date: "20 Jul", col: "bg-[var(--brand-color)]", active: false }
                     ].map((p, idx) => (
                       <div 
                         key={idx}
                         onClick={() => triggerToast(`Loaded record context for: ${p.name}`)}
                         className={`p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
                           p.active 
-                            ? "bg-[#0da2b3]/10 border border-[#0da2b3]/30" 
+                            ? "bg-[var(--brand-color)]/10 border border-[var(--brand-color)]/30" 
                             : "hover:bg-slate-50 dark:hover:bg-slate-900/60 border border-transparent"
                         }`}
                       >
@@ -1082,7 +1055,7 @@ export default function NutrotinishDashboard() {
                     
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                       <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-[#0da2b3] text-white font-bold text-sm flex items-center justify-center font-mono select-none">
+                        <div className="size-10 rounded-full bg-[var(--brand-color)] text-white font-bold text-sm flex items-center justify-center font-mono select-none">
                           SN
                         </div>
                         <div className="text-left space-y-0.5">
@@ -1132,7 +1105,7 @@ export default function NutrotinishDashboard() {
                           onClick={() => triggerToast(`Navigating to ${subTab.label} registry section below`)}
                           className={`cursor-pointer pb-1 border-b-2 transition ${
                             subTab.active 
-                              ? "border-[#0da2b3] text-[#0da2b3]" 
+                              ? "border-[var(--brand-color)] text-[var(--brand-color)]" 
                               : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white"
                           }`}
                         >
@@ -1214,7 +1187,7 @@ export default function NutrotinishDashboard() {
                       </div>
                       <button 
                         onClick={() => triggerToast("Schedule consult wizard initialized")}
-                        className="text-[#0da2b3] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
+                        className="text-[var(--brand-color)] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
                       >
                         Schedule consult &rarr;
                       </button>
@@ -1289,7 +1262,7 @@ export default function NutrotinishDashboard() {
                           meta: "22 Jul baseline · completed by Capt Patel",
                           text: "Patient reports 3-4 eating events per day with late-evening snacking. No supplement use. Goals: -15kg over 8 weeks, improve PRT run time, increase protein to 1.6 g/kg.",
                           badge: "Intake",
-                          badgeCol: "bg-[#0da2b3]/10 text-[#0da2b3]"
+                          badgeCol: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
                         },
                         {
                           title: "Consult note - 22 Jul",
@@ -1303,7 +1276,7 @@ export default function NutrotinishDashboard() {
                           meta: "22 Jul · k=8",
                           text: "BF 22.4% (DXA). Lean mass: 71.4 kg. Waist: 84 cm. Within healthy range for height; weight mgmt goal appropriate.",
                           badge: "Synced",
-                          badgeCol: "bg-[#0da2b3]/10 text-[#0da2b3]"
+                          badgeCol: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
                         },
                         {
                           title: "Open concern - late-night intake",
@@ -1396,7 +1369,7 @@ export default function NutrotinishDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("New caseload outreach message initiated")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New message
                   </button>
@@ -1410,8 +1383,8 @@ export default function NutrotinishDashboard() {
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Inbox</h3>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] rounded-full text-[9px] font-bold uppercase font-mono">
-                      <span className="size-1 bg-[#0da2b3] rounded-full"></span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[var(--brand-color)]/15 text-[var(--brand-color)] rounded-full text-[9px] font-bold uppercase font-mono">
+                      <span className="size-1 bg-[var(--brand-color)] rounded-full"></span>
                       3 unread
                     </span>
                   </div>
@@ -1439,12 +1412,12 @@ export default function NutrotinishDashboard() {
                         onClick={() => triggerToast(`Opened message history with: ${item.name}`)}
                         className={`py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
                           item.active 
-                            ? "bg-[#0da2b3]/10" 
+                            ? "bg-[var(--brand-color)]/10" 
                             : "hover:bg-[#f8fafc] dark:hover:bg-slate-900/60"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono select-none">
+                          <div className="size-8 rounded-full bg-[var(--brand-color)]/10 text-[var(--brand-color)] font-bold text-xs flex items-center justify-center font-mono select-none">
                             {item.initials}
                           </div>
                           <div className="space-y-0.5 text-left font-sans">
@@ -1456,7 +1429,7 @@ export default function NutrotinishDashboard() {
                         <div className="text-right flex flex-col items-end gap-1.5">
                           <span className="text-[9px] font-mono text-slate-400">{item.time}</span>
                           {item.unread > 0 && (
-                            <span className="size-4.5 rounded-full bg-[#0da2b3] text-white text-[9px] font-bold font-mono flex items-center justify-center">
+                            <span className="size-4.5 rounded-full bg-[var(--brand-color)] text-white text-[9px] font-bold font-mono flex items-center justify-center">
                               {item.unread}
                             </span>
                           )}
@@ -1471,7 +1444,7 @@ export default function NutrotinishDashboard() {
                   
                   <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-4 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono select-none">
+                      <div className="size-9 rounded-full bg-[var(--brand-color)]/10 text-[var(--brand-color)] font-bold text-xs flex items-center justify-center font-mono select-none">
                         AM
                       </div>
                       <div className="text-left space-y-0.5 font-sans">
@@ -1503,7 +1476,7 @@ export default function NutrotinishDashboard() {
                           <div className={`flex w-full ${msg.sender === "coach" ? "justify-end" : "justify-start"} text-left`}>
                             <div className={`max-w-md p-3.5 rounded-2xl relative shadow-sm ${
                               msg.sender === "coach" 
-                                ? "bg-[#0da2b3] text-white rounded-br-none" 
+                                ? "bg-[var(--brand-color)] text-white rounded-br-none" 
                                 : "bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-bl-none"
                             }`}>
                               <p className="text-xs leading-relaxed font-sans">{msg.text}</p>
@@ -1537,7 +1510,7 @@ export default function NutrotinishDashboard() {
                     />
                     <button 
                       onClick={handleSendNutritionMessage}
-                      className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
                     >
                       Send
                     </button>
@@ -1552,24 +1525,6 @@ export default function NutrotinishDashboard() {
                 Ascend &middot; Nutrition Workspace &middot; encrypted messages &middot; opt-in audit
               </div>
 
-            </div>
-          )}
-
-          {/* Placeholders for tabs 5 */}
-          {activeTab !== "dashboard" && activeTab !== "consults" && activeTab !== "records" && activeTab !== "messages" && (
-            <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-8 shadow-sm space-y-4 animate-fade-in text-left">
-              <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-[#0da2b3]/15 text-[#0da2b3]">
-                <Apple className="size-7" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">{activeTab} Directory</h3>
-                <p className="text-xs text-slate-550 leading-relaxed mt-1">
-                  This interface handles live {activeTab} information logs for registered cohort members. Access is restricted under $k \ge 5$ suppression governance.
-                </p>
-              </div>
-              <div className="border-t border-slate-100 dark:border-white/5 pt-4 text-[10px] text-slate-400 font-mono">
-                No active pending operations for role Capt Maya Patel.
-              </div>
             </div>
           )}
 

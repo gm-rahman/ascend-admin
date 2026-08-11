@@ -3,14 +3,14 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useTheme } from "@/hooks/use-theme";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Shield,
   Users,
   ClipboardList,
-  Laptop,
+  Compass,
   Apple,
-  Activity,
   Stethoscope,
   Landmark,
   Moon,
@@ -19,12 +19,15 @@ import {
   Brain,
 } from "lucide-react";
 
+// role.id doubles as the /dashboard/<id> route slug — keep it in sync with
+// the folder under src/app/dashboard/. role.name is display-only and must
+// never be used to derive a route (see handleSelectRole).
 const roles = [
   { id: "admin", name: "Admin", icon: Shield, description: "System administration and configuration" },
   { id: "leadership", name: "Leadership", icon: Users, description: "Executive oversight and command metrics" },
   { id: "plan", name: "Plan", icon: ClipboardList, description: "Strategic planning and scheduling" },
-  { id: "pc", name: "PC", icon: Laptop, description: "Personal computing and workspace configuration" },
-  { id: "nutrotinish", name: "Nutrotinish", icon: Apple, description: "Nutritional tracking and planning" },
+  { id: "pc", name: "Purpose Coach", icon: Compass, description: "Spiritual/purpose readiness — opt-in support pathway" },
+  { id: "nutritionist", name: "Nutritionist", icon: Apple, description: "Nutritional tracking and planning" },
   { id: "mp", name: "MP", icon: Brain, description: "Mental performance coaching and readiness" },
   { id: "pt-im", name: "PT/IM", icon: Stethoscope, description: "Physical therapy and readiness" },
   { id: "scs", name: "SCS", icon: Landmark, description: "Support command services" },
@@ -33,8 +36,8 @@ const roles = [
 export default function RolesPage() {
   const router = useRouter();
   const { isAuthenticated, setSelectedRole, logout } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
   const [hasMounted, setHasMounted] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     setHasMounted(true);
@@ -47,35 +50,12 @@ export default function RolesPage() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme with document class list
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
-  const handleSelectRole = (roleName: string) => {
-    setSelectedRole(roleName);
-    const route = roleName.toLowerCase().replace("/", "-");
-    router.push(`/dashboard/${route}`);
+  // Route by role.id (already the exact /dashboard/<id> slug), not
+  // role.name — display names like "Purpose Coach" are not URL-safe and
+  // must never be transformed into a route.
+  const handleSelectRole = (roleId: string) => {
+    setSelectedRole(roleId);
+    router.push(`/dashboard/${roleId}`);
   };
 
   const handleLogout = () => {
@@ -130,7 +110,7 @@ export default function RolesPage() {
       {/* 2. CUI / OPSEC NAVY BANNER */}
       <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none flex-shrink-0 z-10">
         <div className="flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-[#0da2b3]"></span>
+          <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
           <span>CUI // OPSEC · Not a Government System of Record</span>
         </div>
       </section>
@@ -141,7 +121,7 @@ export default function RolesPage() {
           
           {/* Title Area */}
           <div className="text-center space-y-2 mb-10">
-            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#0da2b3] select-none">
+            <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--brand-color)] select-none">
               SECURE ACCESS DIRECTORY
             </p>
             <h2 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white sm:text-4xl">
@@ -159,14 +139,14 @@ export default function RolesPage() {
               return (
                 <button
                   key={role.id}
-                  onClick={() => handleSelectRole(role.name)}
-                  className="group flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-[#0e1628] text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-[#0da2b3]/50 dark:hover:border-[#0da2b3]/50 transition-all duration-200 cursor-pointer"
+                  onClick={() => handleSelectRole(role.id)}
+                  className="group flex flex-col items-center justify-center p-6 rounded-2xl border border-slate-200 dark:border-white/5 bg-white dark:bg-[#0e1628] text-center shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:border-[var(--brand-color)/50] dark:hover:border-[var(--brand-color)/50] transition-all duration-200 cursor-pointer"
                   type="button"
                 >
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-slate-50 dark:bg-[#070a13] border border-slate-100 dark:border-white/5 text-[#0da2b3] mb-3 group-hover:scale-105 transition-transform duration-200">
-                    <Icon className="size-6 text-[#0da2b3]" />
+                  <div className="flex size-12 items-center justify-center rounded-xl bg-slate-50 dark:bg-[#070a13] border border-slate-100 dark:border-white/5 text-[var(--brand-color)] mb-3 group-hover:scale-105 transition-transform duration-200">
+                    <Icon className="size-6 text-[var(--brand-color)]" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-1 group-hover:text-[#0da2b3] dark:group-hover:text-[#0da2b3] transition-colors duration-200">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white mb-1 group-hover:text-[var(--brand-color)] dark:group-hover:text-[var(--brand-color)] transition-colors duration-200">
                     {role.name}
                   </h3>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">

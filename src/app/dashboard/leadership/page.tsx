@@ -3,7 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useTheme } from "@/hooks/use-theme";
+import { useToast } from "@/hooks/use-toast";
 import { AscendLogo } from "@/components/ascend-logo";
+import { POPULATION_LEVELS } from "@/lib/terminology";
 import {
   Home,
   Sliders,
@@ -34,8 +37,8 @@ export default function LeadershipDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("index");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [hasMounted, setHasMounted] = useState(false);
+  const { theme, mounted: hasMounted, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
 
   const setActiveTab = (tab: TabType) => {
     setActiveTabInternal(tab);
@@ -53,18 +56,6 @@ export default function LeadershipDashboard() {
       setActiveTabInternal(savedTab);
     }
   }, []);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
-  };
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
 
   // Protect the route: if not authenticated, redirect to /
   useEffect(() => {
@@ -72,26 +63,6 @@ export default function LeadershipDashboard() {
       router.push("/");
     }
   }, [isAuthenticated, hasMounted, router]);
-
-  // Sync theme with local storage & document element
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    setTheme(initialTheme);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   const handleBackToRoles = () => {
     setSelectedRole(null);
@@ -114,8 +85,8 @@ export default function LeadershipDashboard() {
           {/* Top Sidebar Header */}
           <div className="p-4 border-b border-slate-100 dark:border-white/5">
             <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-900/60 text-slate-800 dark:text-slate-200">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
-              <span className="text-xs font-bold font-sans">Leadership · 23rd SFS</span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
+              <span className="text-xs font-bold font-sans">Leadership</span>
             </div>
           </div>
 
@@ -130,7 +101,7 @@ export default function LeadershipDashboard() {
                   onClick={() => setActiveTab("index")}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                     activeTab === "index"
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                       : "hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400"
                   }`}
                 >
@@ -141,7 +112,7 @@ export default function LeadershipDashboard() {
                   onClick={() => setActiveTab("aggregate")}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                     activeTab === "aggregate"
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                       : "hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400"
                   }`}
                 >
@@ -152,7 +123,7 @@ export default function LeadershipDashboard() {
                   onClick={() => setActiveTab("trends")}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                     activeTab === "trends"
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                       : "hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400"
                   }`}
                 >
@@ -163,7 +134,7 @@ export default function LeadershipDashboard() {
                   onClick={() => setActiveTab("reports")}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                     activeTab === "reports"
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                       : "hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400"
                   }`}
                 >
@@ -174,7 +145,7 @@ export default function LeadershipDashboard() {
                   onClick={() => setActiveTab("briefings")}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold transition duration-150 cursor-pointer ${
                     activeTab === "briefings"
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                       : "hover:bg-slate-50 dark:hover:bg-slate-900/50 text-slate-600 dark:text-slate-400"
                   }`}
                 >
@@ -260,7 +231,7 @@ export default function LeadershipDashboard() {
         {/* 2. CUI BANNER */}
         <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none flex-shrink-0 z-10">
           <div className="flex items-center gap-2">
-            <span className="size-1.5 rounded-full bg-[#0da2b3]"></span>
+            <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
             <span>CUI // OPSEC · Not a Government System of Record</span>
           </div>
         </section>
@@ -272,7 +243,7 @@ export default function LeadershipDashboard() {
             <div className="space-y-8 animate-fade-in">
               {/* Privacy/Aggregate warning box */}
               <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed">
-                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Aggregate views enforce k &ge; 5 &mdash; no group smaller than 5 is shown</span>
                   <p className="mt-0.5 text-slate-400 dark:text-slate-455">
@@ -292,7 +263,7 @@ export default function LeadershipDashboard() {
                 </div>
                 <button
                   onClick={() => setActiveTab("aggregate")}
-                  className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer self-start md:self-center transition"
+                  className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer self-start md:self-center transition"
                 >
                   <Activity className="size-3.5" /> Open Aggregate
                 </button>
@@ -319,9 +290,9 @@ export default function LeadershipDashboard() {
                     onClick={() => setActiveTab("aggregate")}
                     className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
-                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[#0da2b3] transition-colors">01</span>
+                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">01</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[#0da2b3] transition-colors">Aggregate</h3>
+                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Aggregate</h3>
                       <p className="text-xs text-slate-500 leading-normal">Hero trend · driver tiles · by-flight comparison</p>
                     </div>
                   </div>
@@ -331,9 +302,9 @@ export default function LeadershipDashboard() {
                     onClick={() => setActiveTab("trends")}
                     className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
-                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[#0da2b3] transition-colors">02</span>
+                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">02</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[#0da2b3] transition-colors">Trends</h3>
+                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Trends</h3>
                       <p className="text-xs text-slate-500 leading-normal">7d / 30d / 3&ndash;12 mo · MoM · PvP comparison</p>
                     </div>
                   </div>
@@ -343,9 +314,9 @@ export default function LeadershipDashboard() {
                     onClick={() => setActiveTab("reports")}
                     className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
-                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[#0da2b3] transition-colors">03</span>
+                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">03</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[#0da2b3] transition-colors">Reports</h3>
+                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Reports</h3>
                       <p className="text-xs text-slate-500 leading-normal">Weekly · Monthly · Quarterly · Annual aggregate</p>
                     </div>
                   </div>
@@ -355,9 +326,9 @@ export default function LeadershipDashboard() {
                     onClick={() => setActiveTab("briefings")}
                     className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
-                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[#0da2b3] transition-colors">04</span>
+                    <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">04</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[#0da2b3] transition-colors">Briefings</h3>
+                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Briefings</h3>
                       <p className="text-xs text-slate-500 leading-normal">Mission · readiness · risk · recommendations</p>
                     </div>
                   </div>
@@ -393,7 +364,7 @@ export default function LeadershipDashboard() {
                   </button>
                   <button
                     onClick={() => setActiveTab("trends")}
-                    className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer transition"
+                    className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer transition"
                   >
                     <TrendingUp className="size-3.5" /> Open trends
                   </button>
@@ -408,6 +379,9 @@ export default function LeadershipDashboard() {
                     <h2 className="text-2xl font-black text-slate-850 dark:text-white mt-1">12-month readiness, lifted by recovery rollout</h2>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-slate-500">Cohort k = 125 · last 12 months</span>
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-500 uppercase">
+                        {POPULATION_LEVELS.ORGANIZATION}
+                      </span>
                       <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
                         <span className="size-1.5 rounded-full bg-emerald-500"></span>
                         High
@@ -464,15 +438,15 @@ export default function LeadershipDashboard() {
                         <path
                           d="M 0 65 L 9 60 L 18 55 L 27 50 L 36 53 L 45 48 L 54 44 L 63 42 L 72 38 L 81 33 L 90 28 L 100 24"
                           fill="none"
-                          stroke="#0da2b3"
+                          stroke="var(--brand-color)"
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                         <defs>
                           <linearGradient id="hero-gradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0da2b3" />
-                            <stop offset="100%" stopColor="#0da2b3" stopOpacity="0" />
+                            <stop offset="0%" stopColor="var(--brand-color)" />
+                            <stop offset="100%" stopColor="var(--brand-color)" stopOpacity="0" />
                           </linearGradient>
                         </defs>
                       </svg>
@@ -601,14 +575,14 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                      <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
                       <h3 className="text-sm font-bold text-slate-850 dark:text-white">By-flight comparison</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       6 flights · k &ge; 5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Readiness, MoM delta, confidence. Aggregate only &mdash; never individuals.</p>
+                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Readiness, MoM delta, confidence. Aggregate only &mdash; never individuals.</p>
 
                   <div className="overflow-x-auto text-[11px]">
                     <table className="w-full text-left">
@@ -636,7 +610,7 @@ export default function LeadershipDashboard() {
                               <div className="flex items-center gap-2">
                                 <span className="font-bold font-mono">{row.read}</span>
                                 <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                                  <div className="h-full bg-[#0da2b3] rounded-full" style={{ width: `${row.read}%` }}></div>
+                                  <div className="h-full bg-[var(--brand-color)] rounded-full" style={{ width: `${row.read}%` }}></div>
                                 </div>
                               </div>
                             </td>
@@ -657,7 +631,7 @@ export default function LeadershipDashboard() {
                                   setActiveTab("trends");
                                   triggerToast(`Viewing trend analysis for ${row.name} Flight.`);
                                 }}
-                                className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[#0da2b3] hover:text-white dark:hover:bg-[#0da2b3] rounded-lg text-[9px] font-bold cursor-pointer transition text-slate-600 dark:text-slate-400"
+                                className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[var(--brand-color)] hover:text-white dark:hover:bg-[var(--brand-color)] rounded-lg text-[9px] font-bold cursor-pointer transition text-slate-600 dark:text-slate-400"
                               >
                                 Trend
                               </button>
@@ -673,14 +647,14 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                      <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
                       <h3 className="text-sm font-bold text-slate-850 dark:text-white">Risk heatmap</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       No cells below k=5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Flight + driver signal &mdash; cohort-level only</p>
+                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Flight + driver signal &mdash; cohort-level only</p>
 
                   {/* Heatmap table */}
                   <div className="overflow-x-auto text-[10px] font-sans">
@@ -863,7 +837,7 @@ export default function LeadershipDashboard() {
                     <div className="space-y-1">
                       <span className="text-[8px] font-bold text-slate-400 block">NOT CURRENT</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white">17</p>
-                      <span className="text-[9px] text-[#0da2b3] block font-bold leading-normal uppercase">PASS RATE</span>
+                      <span className="text-[9px] text-[var(--brand-color)] block font-bold leading-normal uppercase">PASS RATE</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white mt-2">92%</p>
                     </div>
                     <div className="space-y-1">
@@ -927,7 +901,7 @@ export default function LeadershipDashboard() {
 
               {/* Trends Compare Cohorts Warning Box */}
               <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
-                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Trends compare cohorts &mdash; never individuals</span>
                   <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
@@ -943,7 +917,7 @@ export default function LeadershipDashboard() {
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">COMPOSITE OPS · 12 MONTH</span>
                     <h2 className="text-2xl font-black text-slate-850 dark:text-white mt-1">Composite OPS, with annotated material events</h2>
                     <p className="text-xs text-slate-500 mt-1 font-medium">
-                      Period: 12 months &middot; comparison: month over month &middot; cohort k = 125
+                      Period: 12 months &middot; comparison: month over month &middot; cohort k = 125 &middot; Scope: {POPULATION_LEVELS.ORGANIZATION}
                     </p>
                   </div>
 
@@ -996,15 +970,15 @@ export default function LeadershipDashboard() {
                         <path
                           d="M 0 65 L 9 60 L 18 55 L 27 50 L 36 53 L 45 48 L 54 44 L 63 42 L 72 38 L 81 33 L 90 28 L 100 24"
                           fill="none"
-                          stroke="#0da2b3"
+                          stroke="var(--brand-color)"
                           strokeWidth="2.5"
                           strokeLinecap="round"
                           strokeLinejoin="round"
                         />
                         <defs>
                           <linearGradient id="trends-gradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#0da2b3" />
-                            <stop offset="100%" stopColor="#0da2b3" stopOpacity="0" />
+                            <stop offset="0%" stopColor="var(--brand-color)" />
+                            <stop offset="100%" stopColor="var(--brand-color)" stopOpacity="0" />
                           </linearGradient>
                         </defs>
                       </svg>
@@ -1090,19 +1064,19 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                      <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
                       <h3 className="text-sm font-bold text-slate-855 dark:text-white">Cohort trend breakdown</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       3 cohorts · k &ge; 5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">By readiness band · cohort-level deltas</p>
+                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.COHORT} &middot; By readiness band · cohort-level deltas</p>
 
                   <div className="space-y-4 pt-2 font-sans text-xs">
                     {[
-                      { label: "High readiness", pct: 70, val: "+2.6", color: "bg-[#0da2b3]", textCol: "text-emerald-500" },
-                      { label: "Mid readiness", pct: 60, val: "+3.8", color: "bg-[#0da2b3]", textCol: "text-emerald-500" },
+                      { label: "High readiness", pct: 70, val: "+2.6", color: "bg-[var(--brand-color)]", textCol: "text-emerald-500" },
+                      { label: "Mid readiness", pct: 60, val: "+3.8", color: "bg-[var(--brand-color)]", textCol: "text-emerald-500" },
                       { label: "Watch band", pct: 25, val: "-1.2", color: "bg-amber-500", textCol: "text-red-500" },
                     ].map((band, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4">
@@ -1124,7 +1098,7 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                      <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
                       <h3 className="text-sm font-bold text-slate-855 dark:text-white">Annotated events</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded uppercase">
@@ -1165,7 +1139,7 @@ export default function LeadershipDashboard() {
                         {/* Timeline Bullet circle */}
                         <span className={`absolute -left-[31px] top-1.5 size-2.5 rounded-full border-2 border-white dark:border-[#0e1628] ${evt.dotCol}`}></span>
                         <div className="space-y-0.5">
-                          <span className="text-[8px] font-bold text-[#0da2b3] tracking-wide block uppercase">{evt.date}</span>
+                          <span className="text-[8px] font-bold text-[var(--brand-color)] tracking-wide block uppercase">{evt.date}</span>
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white">{evt.title}</h4>
                           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">{evt.desc}</p>
                         </div>
@@ -1213,7 +1187,7 @@ export default function LeadershipDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Initializing new custom report draft")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New report
                   </button>
@@ -1222,7 +1196,7 @@ export default function LeadershipDashboard() {
 
               {/* Warning Banner */}
               <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
-                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Reports are aggregate only &middot; k &ge; 5 enforced</span>
                   <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
@@ -1239,7 +1213,7 @@ export default function LeadershipDashboard() {
                       key={idx}
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
                         pill === "All"
-                          ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                          ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                           : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-850 dark:hover:text-white"
                       }`}
                     >
@@ -1253,7 +1227,7 @@ export default function LeadershipDashboard() {
                   <input
                     type="text"
                     placeholder="Search by title, flight, or cohort"
-                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[#0da2b3]/50 transition"
+                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[var(--brand-color)/50] transition"
                   />
                 </div>
               </div>
@@ -1279,6 +1253,7 @@ export default function LeadershipDashboard() {
                       <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-sans">
                         <th className="pb-3 w-1/3">Title</th>
                         <th className="pb-3">Type</th>
+                        <th className="pb-3">Scope</th>
                         <th className="pb-3">Period</th>
                         <th className="pb-3">Generated</th>
                         <th className="pb-3">Status</th>
@@ -1291,6 +1266,7 @@ export default function LeadershipDashboard() {
                           title: "Wing Weekly OPS",
                           subtext: "Composite + 5 drivers · 6 flights",
                           type: "Weekly",
+                          scope: POPULATION_LEVELS.ORGANIZATION,
                           period: "21 – 27 Jul 2025",
                           gen: "28 Jul · 06:00",
                           status: "Ready",
@@ -1300,6 +1276,7 @@ export default function LeadershipDashboard() {
                           title: "Monthly Cohort Review",
                           subtext: "High / mid / watch bands",
                           type: "Monthly",
+                          scope: POPULATION_LEVELS.COHORT,
                           period: "Jun 2025",
                           gen: "01 Jul · 09:14",
                           status: "Sent",
@@ -1309,6 +1286,7 @@ export default function LeadershipDashboard() {
                           title: "Q2 OFT Aggregate",
                           subtext: "Pass rate · by-flight · k=125",
                           type: "Quarterly",
+                          scope: POPULATION_LEVELS.ORGANIZATION,
                           period: "Apr – Jun 2025",
                           gen: "05 Jul · 12:02",
                           status: "Archived",
@@ -1318,6 +1296,7 @@ export default function LeadershipDashboard() {
                           title: "Annual Wing Readiness",
                           subtext: "FY 24 → FY 25 comparison",
                           type: "Annual",
+                          scope: POPULATION_LEVELS.ORGANIZATION,
                           period: "Aug 2024 – Jul 2025",
                           gen: "14 Jul · 16:30",
                           status: "In review",
@@ -1327,6 +1306,7 @@ export default function LeadershipDashboard() {
                           title: "Recovery Program Progress",
                           subtext: "3 flights · 12-week blocks",
                           type: "Ad-hoc",
+                          scope: POPULATION_LEVELS.UNIT,
                           period: "Mar – Jun 2025",
                           gen: "02 Jul · 10:00",
                           status: "Sent",
@@ -1336,6 +1316,7 @@ export default function LeadershipDashboard() {
                           title: "Sleep Watch Brief",
                           subtext: "Delta flight · driver context",
                           type: "Ad-hoc",
+                          scope: POPULATION_LEVELS.UNIT,
                           period: "Week of 14 Jul",
                           gen: "21 Jul · 07:55",
                           status: "Draft",
@@ -1352,6 +1333,7 @@ export default function LeadershipDashboard() {
                               {item.type}
                             </span>
                           </td>
+                          <td className="py-4 text-slate-655 dark:text-slate-400 text-[10px] font-bold uppercase">{item.scope}</td>
                           <td className="py-4 text-slate-700 dark:text-slate-300 font-mono text-[11px]">{item.period}</td>
                           <td className="py-4 text-slate-655 dark:text-slate-400 font-mono text-[11px]">{item.gen}</td>
                           <td className="py-4">
@@ -1468,7 +1450,7 @@ export default function LeadershipDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · BRIEFINGS BUILDER</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Briefings</h1>
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                    Compose the executive briefing from a structured outline. Every section pulls from aggregate data only.
+                    Compose the executive briefing from a structured outline. Every section pulls from aggregate data only. Scope: {POPULATION_LEVELS.ORGANIZATION}.
                   </p>
                 </div>
 
@@ -1481,7 +1463,7 @@ export default function LeadershipDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Executive briefing sent to squadron command channels")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Send className="size-3.5" /> Send briefing
                   </button>
@@ -1490,7 +1472,7 @@ export default function LeadershipDashboard() {
 
               {/* Warning Banner */}
               <div className="bg-slate-900 text-white dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-800 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
-                <Shield className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+                <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Briefing content is aggregate only &middot; k &ge; 5 enforced</span>
                   <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
@@ -1524,9 +1506,9 @@ export default function LeadershipDashboard() {
                     <div 
                       key={idx} 
                       onClick={() => triggerToast(`Selected template: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/50 rounded-2xl p-5 shadow-sm hover:shadow transition cursor-pointer text-left"
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/50] rounded-2xl p-5 shadow-sm hover:shadow transition cursor-pointer text-left"
                     >
-                      <h4 className="text-xs font-black text-[#0da2b3] uppercase tracking-wider">{tpl.title}</h4>
+                      <h4 className="text-xs font-black text-[var(--brand-color)] uppercase tracking-wider">{tpl.title}</h4>
                       <p className="text-[11px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
                     </div>
                   ))}
@@ -1548,7 +1530,7 @@ export default function LeadershipDashboard() {
                         onClick={() => triggerToast("Adding new outline section block")}
                         className="inline-flex items-center gap-1 px-2.5 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
                       >
-                        <Plus className="size-3 text-[#0da2b3]" /> Add section
+                        <Plus className="size-3 text-[var(--brand-color)]" /> Add section
                       </button>
                     </div>
 
@@ -1604,19 +1586,19 @@ export default function LeadershipDashboard() {
                     </div>
 
                     <ul className="space-y-3 pl-2 text-[11px] list-none">
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
                         Composite OPS lifted 8 points to 76 (Aug &rarr; Jul). Recovery program rollout in March is the dominant signal.
                       </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
                         Drivers &mdash; Physical 78 (+2), Mental 73 (+3), Purpose 75 (+2). Sleep 71 (-1, watch).
                       </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
                         By flight &mdash; Alpha, Bravo, Charlie, Echo, Foxtrot all high confidence. Delta flight flagged at cohort level (sleep watch).
                       </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
                         Risk &mdash; Sleep watch open, L2 advisory. No L4+ at the cohort level.
                       </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[#0da2b3] before:rounded-full">
+                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
                         Recommendation &mdash; Continue recovery program &middot; Sleep intervention in Delta &middot; No operational gate changes.
                       </li>
                     </ul>

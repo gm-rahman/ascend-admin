@@ -4,6 +4,14 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { AscendLogo } from "@/components/ascend-logo";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
+import {
+  POPULATION_LEVELS,
+  PRIVACY_STATES,
+  ALERT_TYPES,
+  PLAN_STATUSES,
+} from "@/lib/terminology";
 import {
   Landmark,
   Bell,
@@ -48,10 +56,8 @@ export default function ScsDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("messages");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [hasMounted, setHasMounted] = useState(false);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
+  const { theme, mounted: hasMounted, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
 
   // Roster tracking
   const [reviewingAirmanId, setReviewingAirmanId] = useState<string | null>(null);
@@ -88,12 +94,6 @@ export default function ScsDashboard() {
   const [assignWindow, setAssignWindow] = useState("28 Jul - 25 Aug");
   const [assignCoOwner, setAssignCoOwner] = useState("SCS + PT/IM");
 
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
-  };
-
   const handleSendMessage = () => {
     if (!typedMessage.trim()) return;
     const currentThread = chatThreads[selectedChatId] || [];
@@ -108,7 +108,7 @@ export default function ScsDashboard() {
     triggerToast("Message sent and audit-logged");
   };
 
-  const handleAssignPlanSubmit = (e: React.FormEvent) => {
+  const handleAssignPlanSubmit = (e: React.SubmitEvent) => {
     e.preventDefault();
     triggerToast(`Plan "${assignPlan}" assigned successfully to ${assignAirman}`);
   };
@@ -131,37 +131,12 @@ export default function ScsDashboard() {
     }
   }, []);
 
-  // Sync mount and auth checks
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
+  // Sync auth check (mount state now comes from useTheme())
   useEffect(() => {
     if (hasMounted && !isAuthenticated) {
       router.push("/");
     }
   }, [isAuthenticated, hasMounted, router]);
-
-  // Handle theme
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   const handleBackToRoles = () => {
     setSelectedRole(null);
@@ -184,7 +159,7 @@ export default function ScsDashboard() {
           {/* Brand header */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-855 dark:text-white uppercase font-sans">
                 SCS &middot; 23rd SFS
               </span>
@@ -209,7 +184,7 @@ export default function ScsDashboard() {
                   onClick={() => setActiveTab(item.id as TabType)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                     activeTab === item.id && !reviewingAirmanId
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
                   }`}
                 >
@@ -238,7 +213,7 @@ export default function ScsDashboard() {
                   onClick={() => setActiveTab(item.id as TabType)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                     (activeTab === item.id || (item.id === "people" && reviewingAirmanId))
-                      ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                      ? "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
                       : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
                   }`}
                 >
@@ -285,7 +260,7 @@ export default function ScsDashboard() {
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
               <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
                 <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-[#0da2b3] ring-2 ring-white dark:ring-[#0e1628]"></span>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-[var(--brand-color)] ring-2 ring-white dark:ring-[#0e1628]"></span>
               </button>
               <button
                 onClick={toggleTheme}
@@ -310,7 +285,7 @@ export default function ScsDashboard() {
 
         {/* CUI BANNER */}
         <div className="h-6 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-center px-6 text-[9px] font-mono tracking-wider text-slate-455 flex-shrink-0 select-none z-10 font-sans">
-          <span className="text-[#0da2b3] mr-2 font-black">•</span>
+          <span className="text-[var(--brand-color)] mr-2 font-black">•</span>
           {reviewingAirmanId ? `CUI // OPSEC · Roster view · J. Reyes drill-in · audit logged` : `CUI // OPSEC · Messages are audit-logged · SCS flight`}
         </div>
 
@@ -345,7 +320,7 @@ export default function ScsDashboard() {
                   </button>
                   <button 
                     onClick={() => { setActiveTab("plans"); setReviewingAirmanId(null); }}
-                    className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="px-3.5 py-1.5 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Assign plan
                   </button>
@@ -363,7 +338,7 @@ export default function ScsDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-555 dark:text-slate-450 leading-relaxed font-sans">
-                      SrA &middot; 23 SFS &middot; L4 lower back pain &middot; clearance: limited duty &middot; 4 yr TIS &middot; k=1 view (not cohort eligible)
+                      SrA &middot; 23 SFS &middot; L4 lower back pain &middot; PT/IM duty restriction: limited duty &middot; 4 yr TIS &middot; k=1 view &middot; {POPULATION_LEVELS.INDIVIDUAL} (not cohort eligible)
                     </p>
                   </div>
                 </div>
@@ -376,7 +351,7 @@ export default function ScsDashboard() {
                     <div className="relative size-20 flex items-center justify-center">
                       <svg className="size-full" viewBox="0 0 36 36">
                         <path className="text-slate-100 dark:text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path className="text-[#0da2b3]" strokeWidth="3" strokeDasharray="77, 100" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-[var(--brand-color)]" strokeWidth="3" strokeDasharray="77, 100" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
                       </svg>
                       <div className="absolute flex flex-col items-center">
                         <span className="text-xl font-black text-slate-800 dark:text-white">54</span>
@@ -400,7 +375,7 @@ export default function ScsDashboard() {
                       Confidence score: <span className="font-bold text-emerald-500">High</span> (11 of last 14 days). PT/IM clinical visits: last 30d: 2.
                     </p>
                     <p className="text-[10px] text-slate-500">
-                      Reconditioning: <span className="font-bold text-[#0da2b3]">Rehab Block 2</span> &middot; ends 8 Aug. Primary dx: L4 lumbar pain.
+                      Reconditioning: <span className="font-bold text-[var(--brand-color)]">Rehab Block 2</span> &middot; ends 8 Aug. PT/IM diagnosis: L4 lumbar pain (PT/IM-owned).
                     </p>
                   </div>
 
@@ -415,7 +390,7 @@ export default function ScsDashboard() {
                     onClick={() => triggerToast(`Displaying J. Reyes ${tabName} records`)}
                     className={`cursor-pointer pb-1 border-b-2 transition ${
                       tabName === "Overview" 
-                        ? "border-[#0da2b3] text-[#0da2b3]" 
+                        ? "border-[var(--brand-color)] text-[var(--brand-color)]" 
                         : "border-transparent text-slate-400 hover:text-slate-655"
                     }`}
                   >
@@ -441,18 +416,30 @@ export default function ScsDashboard() {
                       {[
                         { label: "Physical", val: "63.6", fill: "65%", col: "bg-cyan-500" },
                         { label: "Sleep", val: "55.2", fill: "55%", col: "bg-cyan-500" },
-                        { label: "Mental", val: "52.1", fill: "50%", col: "bg-blue-500" },
+                        { label: "Mental", val: "52.1", fill: "50%", col: "bg-blue-500", gated: PRIVACY_STATES.AUTH_REQUIRED },
                         { label: "Nutritional", val: "69.2", fill: "70%", col: "bg-amber-500" },
-                        { label: "Spiritual", val: "74.0", fill: "75%", col: "bg-yellow-500" }
+                        { label: "Spiritual", val: "74.0", fill: "75%", col: "bg-yellow-500", gated: PRIVACY_STATES.CONSENT_REQUIRED }
                       ].map((dr, idx) => (
                         <div key={idx} className="space-y-1.5">
                           <div className="flex justify-between items-baseline font-mono text-[10px]">
                             <span className="font-bold text-slate-700 dark:text-slate-350 font-sans">{dr.label}</span>
-                            <span>{dr.val}</span>
+                            {dr.gated ? (
+                              <span className="px-1.5 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-bold rounded uppercase tracking-wider">
+                                {dr.gated}
+                              </span>
+                            ) : (
+                              <span>{dr.val}</span>
+                            )}
                           </div>
-                          <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full ${dr.col}`} style={{ width: dr.fill }}></div>
-                          </div>
+                          {dr.gated ? (
+                            <p className="text-[9px] text-slate-450 leading-relaxed font-sans">
+                              MP/PC authorized-pathway data &mdash; not visible to SCS until authorized.
+                            </p>
+                          ) : (
+                            <div className="w-full h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${dr.col}`} style={{ width: dr.fill }}></div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -467,7 +454,7 @@ export default function ScsDashboard() {
                       </div>
                       <button 
                         onClick={() => triggerToast("Add new joint clinical recommendation wizard opened")}
-                        className="px-2 py-0.5 bg-[#0da2b3] text-white rounded text-[10px] font-bold transition hover:bg-[#0c8a99]"
+                        className="px-2 py-0.5 bg-[var(--brand-color)] text-white rounded text-[10px] font-bold transition hover:bg-[var(--brand-color-hover)]"
                       >
                         + Plan
                       </button>
@@ -487,7 +474,7 @@ export default function ScsDashboard() {
                             {rec.title}
                           </h4>
                           <p className="text-[11px] text-slate-655 dark:text-slate-400 leading-relaxed font-sans">{rec.body}</p>
-                          {rec.link && <span className="text-[#0da2b3] font-bold block mt-1 hover:underline cursor-pointer">{rec.link}</span>}
+                          {rec.link && <span className="text-[var(--brand-color)] font-bold block mt-1 hover:underline cursor-pointer">{rec.link}</span>}
                         </div>
                       ))}
                     </div>
@@ -506,7 +493,7 @@ export default function ScsDashboard() {
                         <p className="text-[9px] text-slate-455">SCS + PT/IM &middot; 22 Jul - 8 Aug &middot; week 1 of 3</p>
                       </div>
                       <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded-full uppercase">
-                        In review
+                        {PLAN_STATUSES.PENDING_REVIEW}
                       </span>
                     </div>
 
@@ -539,8 +526,8 @@ export default function ScsDashboard() {
                       <button onClick={() => triggerToast("Edit Rehab Block 2 wizard opened")} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-350 transition">
                         Edit plan
                       </button>
-                      <button onClick={() => triggerToast("New clinician SOAP session note initialized")} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-350 transition">
-                        Add note
+                      <button onClick={() => triggerToast("New performance note initialized")} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-350 transition">
+                        Add performance note
                       </button>
                     </div>
                   </div>
@@ -656,7 +643,7 @@ export default function ScsDashboard() {
                     <div className="space-y-0.5">
                       <span className="text-[9px] font-bold text-slate-400 uppercase block">Last PT visit</span>
                       <span className="font-bold text-slate-700 dark:text-slate-300 block">27 Jul &middot; Capt Shah</span>
-                      <span className="text-[10px] text-[#0da2b3] block">clinical review</span>
+                      <span className="text-[10px] text-[var(--brand-color)] block">clinical review</span>
                     </div>
                     <div className="space-y-0.5">
                       <span className="text-[9px] font-bold text-slate-400 uppercase block">Leave next 30d</span>
@@ -676,7 +663,7 @@ export default function ScsDashboard() {
                   <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px]">RTP + RTD &mdash; separate paths</span>
                   <div className="space-y-2">
                     <div className="space-y-0.5">
-                      <span className="font-bold text-[#0da2b3] block">RTP (Return to Performance)</span>
+                      <span className="font-bold text-[var(--brand-color)] block">RTP (Return to Performance)</span>
                       <p className="text-slate-500 leading-normal font-normal">
                         Managed in Ascend: SCS adjusts training load + reconditioning only.
                       </p>
@@ -752,7 +739,10 @@ export default function ScsDashboard() {
                   <h4 className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
                     View Authorized Performance Summary
                     <span className="px-2 py-0.2 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
-                      Authorized access
+                      Summary: Authorized access
+                    </span>
+                    <span className="px-2 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-bold rounded">
+                      Raw record: {PRIVACY_STATES.RESTRICTED}
                     </span>
                   </h4>
                   <p className="text-slate-500 leading-normal">
@@ -763,7 +753,7 @@ export default function ScsDashboard() {
                   </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => triggerToast("Authorized Performance Summary loaded")} className="px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl font-bold transition">
+                  <button onClick={() => triggerToast("Authorized Performance Summary loaded")} className="px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl font-bold transition">
                     View Summary
                   </button>
                   <button onClick={() => triggerToast("Compliance audit logs loaded")} className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 font-bold transition hover:bg-slate-50">
@@ -795,47 +785,85 @@ export default function ScsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <span className="px-3.5 py-1.5 bg-[#0da2b3]/10 text-[#0da2b3] border border-cyan-500/20 rounded-xl text-xs font-mono font-bold">
-                    Inbox &middot; 3
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.CASELOAD}
                   </span>
-                  <button 
+                  <button
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Open queue &rarr;
                   </button>
                 </div>
               </div>
 
-              {/* 4 Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {[
-                  { name: "Active airmen", count: "112", desc: "+4 this month", col: "green" },
-                  { name: "Needs review", count: "14", desc: "+3 since Mon", col: "orange" },
-                  { name: "OFT clearance queue", count: "7", desc: "3 cleared today", col: "teal" },
-                  { name: "Reconditioning", count: "5", desc: "2 awaiting review", col: "slate" }
-                ].map((card, i) => (
-                  <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
-                    <div className="flex items-baseline gap-2">
-                      <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
-                      <span className={`text-[10px] font-bold ${
-                        card.col === "green" ? "text-emerald-500" :
-                        card.col === "orange" ? "text-amber-500" :
-                        card.col === "teal" ? "text-[#0da2b3]" : "text-slate-500"
-                      }`}>
-                        {card.desc.split(" since ")[0].split(" this ")[0].split(" cleared ")[0].split(" awaiting ")[0]}
-                      </span>
+              {/* ACTIONABLE WORK QUEUE — priority items first, clickable, opens filtered records (Req 3) */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-855 dark:text-white uppercase tracking-wider">Work Queue &middot; requires your action</h3>
+                  <span className="text-[9px] text-slate-450 font-mono">{POPULATION_LEVELS.CASELOAD} &middot; 23 SFS</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {[
+                    { name: ALERT_TYPES.NEW_ASSIGNMENT, count: "4", desc: "New to your caseload this week", tab: "people" as TabType, col: "teal" },
+                    { name: ALERT_TYPES.FOLLOW_UP_DUE, count: "6", desc: "Follow-up check due within 48h", tab: "people" as TabType, col: "orange" },
+                    { name: ALERT_TYPES.OVERDUE_ACTION, count: "3", desc: "Past due &mdash; review before 11:00", tab: "people" as TabType, col: "red" },
+                    { name: ALERT_TYPES.UNREAD_MESSAGE, count: "7", desc: "Unread in Messages", tab: "messages" as TabType, col: "teal" },
+                    { name: ALERT_TYPES.PLAN_REVIEW, count: "2", desc: "Awaiting PT/IM sign-off", tab: "plans" as TabType, col: "orange" }
+                  ].map((card, i) => (
+                    <button
+                      key={i}
+                      onClick={() => { setActiveTab(card.tab); triggerToast(`Opening ${card.name.toLowerCase()} queue`); }}
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 text-left transition cursor-pointer"
+                    >
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                        <span className={`text-[10px] font-bold ${
+                          card.col === "red" ? "text-rose-500" :
+                          card.col === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
+                        }`}>
+                          &rarr; open
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Flight snapshot — analytics, secondary to the work queue above */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase font-mono block">Flight snapshot &middot; analytics</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {[
+                    { name: "Active airmen", count: "112", desc: "+4 this month", col: "green" },
+                    { name: "Needs review", count: "14", desc: "+3 since Mon", col: "orange" },
+                    { name: "OFT clearance queue", count: "7", desc: "3 cleared today", col: "teal" },
+                    { name: "Reconditioning", count: "5", desc: "2 awaiting review", col: "slate" }
+                  ].map((card, i) => (
+                    <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                      <div className="flex items-baseline gap-2">
+                        <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
+                        <span className={`text-[10px] font-bold ${
+                          card.col === "green" ? "text-emerald-500" :
+                          card.col === "orange" ? "text-amber-500" :
+                          card.col === "teal" ? "text-[var(--brand-color)]" : "text-slate-500"
+                        }`}>
+                          {card.desc.split(" since ")[0].split(" this ")[0].split(" cleared ")[0].split(" awaiting ")[0]}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
                     </div>
-                    <p className="text-[10px] text-slate-500 font-mono">{card.desc}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
               {/* Surfaces section header */}
               <div className="text-left space-y-1">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-widest uppercase font-mono block">Surfaces</span>
-                <h3 className="text-lg font-bold text-slate-855 dark:text-white">6 surfaces</h3>
+                <h3 className="text-lg font-bold text-slate-855 dark:text-white">5 surfaces</h3>
                 <p className="text-xs text-slate-500 leading-normal">
                   Last sync 06:42 &middot; all surfaces share one design system.
                 </p>
@@ -864,12 +892,12 @@ export default function ScsDashboard() {
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+                        <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
                         <h4 className="text-sm font-black text-slate-800 dark:text-white leading-none">{sfc.title}</h4>
                       </div>
                       <ChevronRight className="size-4 text-slate-400" />
                     </div>
-                    <span className="text-[10px] text-[#0da2b3] font-bold block leading-tight font-mono">{sfc.sub}</span>
+                    <span className="text-[10px] text-[var(--brand-color)] font-bold block leading-tight font-mono">{sfc.sub}</span>
                     <p className="text-xs text-slate-500 leading-relaxed font-sans">{sfc.body}</p>
                   </div>
                 ))}
@@ -889,7 +917,7 @@ export default function ScsDashboard() {
                     
                     {/* Item 1 */}
                     <div className="relative">
-                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#0da2b3] border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[var(--brand-color)] border-2 border-white dark:border-[#0e1628]"></span>
                       <span className="font-mono text-slate-400 text-[10px] block">06:42</span>
                       <span className="font-bold text-slate-800 dark:text-white block mt-0.5">OFT clearance run</span>
                       <span className="text-[10px] text-emerald-500 block leading-tight font-mono">3 cleared</span>
@@ -897,7 +925,7 @@ export default function ScsDashboard() {
 
                     {/* Item 2 */}
                     <div className="relative">
-                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[#0da2b3] border-2 border-white dark:border-[#0e1628]"></span>
+                      <span className="absolute -left-[30px] top-1 size-3 rounded-full bg-[var(--brand-color)] border-2 border-white dark:border-[#0e1628]"></span>
                       <span className="font-mono text-slate-400 text-[10px] block">07:00</span>
                       <span className="font-bold text-slate-750 dark:text-slate-350 block mt-0.5">PT session &middot; Alpha flight</span>
                     </div>
@@ -952,14 +980,17 @@ export default function ScsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.CASELOAD}
+                  </span>
                   <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/5 p-1 bg-white dark:bg-slate-900 text-[10px] font-bold font-mono">
                     {["Today", "Week", "Month"].map((opt) => (
                       <button
                         key={opt}
                         onClick={() => triggerToast(`Filtering dashboard queue by: ${opt}`)}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "Today" 
-                            ? "bg-slate-100 dark:bg-slate-855 text-slate-800 dark:text-white font-bold" 
+                          opt === "Today"
+                            ? "bg-slate-100 dark:bg-slate-855 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-655"
                         }`}
                       >
@@ -967,9 +998,9 @@ export default function ScsDashboard() {
                       </button>
                     ))}
                   </div>
-                  <button 
+                  <button
                     onClick={() => { setActiveTab("plans"); triggerToast("Assign new plan process initialized"); }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New plan
                   </button>
@@ -991,7 +1022,7 @@ export default function ScsDashboard() {
                       <span className={`text-[10px] font-bold ${
                         card.col === "green" ? "text-emerald-500" :
                         card.col === "orange" ? "text-amber-500" :
-                        card.col === "teal" ? "text-[#0da2b3]" : "text-slate-500"
+                        card.col === "teal" ? "text-[var(--brand-color)]" : "text-slate-500"
                       }`}>
                         {card.desc.split(" since ")[0].split(" this ")[0].split(" cleared ")[0].split(" awaiting ")[0]}
                       </span>
@@ -1032,7 +1063,7 @@ export default function ScsDashboard() {
                             key={idx}
                             className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                               fPill === "Needs review"
-                                ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                                ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                                 : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                             }`}
                           >
@@ -1094,7 +1125,7 @@ export default function ScsDashboard() {
                               <td className="py-2.5 text-right">
                                 <button
                                   onClick={() => { setReviewingAirmanId(row.code); triggerToast(`Opened chart view context: ${row.code}`); }}
-                                  className="px-3 py-1 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                                  className="px-3 py-1 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                                 >
                                   Open
                                 </button>
@@ -1107,7 +1138,7 @@ export default function ScsDashboard() {
 
                     <div className="pt-3 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono">
                       <span className="text-slate-400">Showing 7 of 14 airmen</span>
-                      <span onClick={() => setActiveTab("people")} className="text-[#0da2b3] font-bold cursor-pointer hover:underline">
+                      <span onClick={() => setActiveTab("people")} className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline">
                         View all &rarr;
                       </span>
                     </div>
@@ -1177,14 +1208,14 @@ export default function ScsDashboard() {
                         <path 
                           d="M 0,85 C 20,80 30,70 50,60 C 70,50 80,55 100,45 C 120,35 130,42 150,30 C 170,18 180,22 200,10" 
                           fill="none" 
-                          stroke="#0da2b3" 
+                          stroke="var(--brand-color)" 
                           strokeWidth="2.5" 
                           strokeLinecap="round" 
                           strokeLinejoin="round"
                         />
                         {/* Dots markers */}
-                        <circle cx="100" cy="45" r="3" fill="#0da2b3" />
-                        <circle cx="200" cy="10" r="3.5" fill="#0da2b3" />
+                        <circle cx="100" cy="45" r="3" fill="var(--brand-color)" />
+                        <circle cx="200" cy="10" r="3.5" fill="var(--brand-color)" />
                       </svg>
                     </div>
 
@@ -1202,7 +1233,7 @@ export default function ScsDashboard() {
                         <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recommendations</h3>
                         <p className="text-[9px] text-slate-455">3 actions &middot; 1 due before 11:00</p>
                       </div>
-                      <span className="px-2 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] text-[8px] font-bold rounded uppercase tracking-wider font-mono">
+                      <span className="px-2 py-0.5 bg-[var(--brand-color)]/15 text-[var(--brand-color)] text-[8px] font-bold rounded uppercase tracking-wider font-mono">
                         3 due
                       </span>
                     </div>
@@ -1324,7 +1355,7 @@ export default function ScsDashboard() {
 
                 <div className="pt-2 flex justify-between items-center text-[9px] font-mono text-slate-400">
                   <span>Exemption reason recordable audit log &middot; Score entry via OFT lead</span>
-                  <span onClick={() => setActiveTab("coverage")} className="text-[#0da2b3] font-bold cursor-pointer hover:underline">Coverage &rarr;</span>
+                  <span onClick={() => setActiveTab("coverage")} className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline">Coverage &rarr;</span>
                 </div>
               </div>
 
@@ -1338,7 +1369,7 @@ export default function ScsDashboard() {
                       <h3 className="text-xs font-bold text-slate-855 dark:text-white">SCS hours coverage</h3>
                       <p className="text-[9px] text-slate-455 font-mono">Scheduled + worked &middot; progress toward 2,080 annual</p>
                     </div>
-                    <span className="px-2 py-0.2 bg-[#0da2b3]/15 text-[#0da2b3] text-[8px] font-bold rounded uppercase font-mono">
+                    <span className="px-2 py-0.2 bg-[var(--brand-color)]/15 text-[var(--brand-color)] text-[8px] font-bold rounded uppercase font-mono">
                       95% target
                     </span>
                   </div>
@@ -1380,7 +1411,7 @@ export default function ScsDashboard() {
                   <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px] font-mono">RTP + RTD &mdash; they are not the same</span>
                   <div className="space-y-2">
                     <div className="space-y-0.5">
-                      <span className="font-bold text-[#0da2b3] block">RTP (Return to Performance)</span>
+                      <span className="font-bold text-[var(--brand-color)] block">RTP (Return to Performance)</span>
                       <p className="text-slate-555 leading-normal font-normal font-sans">
                         is managed in Ascend: SCS + PT/IM coordinate reconditioning, training load, and progression.
                       </p>
@@ -1406,7 +1437,7 @@ export default function ScsDashboard() {
                     <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recent workouts &middot; 7 events</h3>
                     <p className="text-[9px] text-slate-455 font-mono">Status · date · type · duration · RPE · linked plan · applied limitation · review</p>
                   </div>
-                  <span onClick={() => triggerToast("Displaying all trailing workouts")} className="text-[10px] text-[#0da2b3] font-bold cursor-pointer hover:underline font-mono">
+                  <span onClick={() => triggerToast("Displaying all trailing workouts")} className="text-[10px] text-[var(--brand-color)] font-bold cursor-pointer hover:underline font-mono">
                     All workouts &rarr;
                   </span>
                 </div>
@@ -1464,7 +1495,10 @@ export default function ScsDashboard() {
                   <h4 className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
                     View Authorized Performance Summary
                     <span className="px-2 py-0.2 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
-                      Authorized access
+                      Summary: Authorized access
+                    </span>
+                    <span className="px-2 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-bold rounded">
+                      Raw record: {PRIVACY_STATES.RESTRICTED}
                     </span>
                   </h4>
                   <p className="text-slate-555 leading-normal font-sans">
@@ -1475,7 +1509,7 @@ export default function ScsDashboard() {
                   </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => { setReviewingAirmanId("J. Reyes"); triggerToast("Displaying J. Reyes Performance summary record"); }} className="px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl font-bold transition">
+                  <button onClick={() => { setReviewingAirmanId("J. Reyes"); triggerToast("Displaying J. Reyes Performance summary record"); }} className="px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl font-bold transition">
                     View J. Reyes Summary
                   </button>
                   <button onClick={() => triggerToast("Dossier plan guidelines opened")} className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 font-bold transition hover:bg-slate-50">
@@ -1502,20 +1536,23 @@ export default function ScsDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">SCS - PEOPLE</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">People</h1>
                   <p className="text-xs text-slate-555 dark:text-slate-450 mt-1">
-                    112 airmen &middot; 23 SFS. Sorted by severity then confidence. Opening a row is a k=1 drill-in and is audit logged.
+                    112 airmen &middot; 23 SFS &middot; {POPULATION_LEVELS.CASELOAD}. Sorted by severity then confidence. Opening a row is a {POPULATION_LEVELS.INDIVIDUAL} (k=1) drill-in and is audit logged.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.CASELOAD}
+                  </span>
+                  <button
                     onClick={() => setActiveTab("coverage")}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-850 transition cursor-pointer"
                   >
                     Coverage
                   </button>
-                  <button 
+                  <button
                     onClick={() => setActiveTab("plans")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Assign plan
                   </button>
@@ -1537,7 +1574,7 @@ export default function ScsDashboard() {
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
                         card.icon === "orange" ? "text-amber-500" :
-                        card.icon === "red" ? "text-rose-500" : "text-[#0da2b3]"
+                        card.icon === "red" ? "text-rose-500" : "text-[var(--brand-color)]"
                       }`}>
                         {card.desc.split(" since ")[0].split(" this ")[0].split(" before ")[0].split(" awaiting ")[0]}
                       </span>
@@ -1562,7 +1599,7 @@ export default function ScsDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           fPill === "Needs review"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -1635,7 +1672,7 @@ export default function ScsDashboard() {
                                 setReviewingAirmanId(row.code);
                                 triggerToast(`Opening roster file context for ${row.code}`);
                               }}
-                              className="px-3.5 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                              className="px-3.5 py-1.5 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                             >
                               Open
                             </button>
@@ -1651,7 +1688,7 @@ export default function ScsDashboard() {
                   <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 14</span>
                   <div className="flex items-center gap-1">
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
+                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[var(--brand-color)] font-bold rounded bg-[var(--brand-color)]/10">1</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">2</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-500 rounded hover:bg-slate-50">&gt;</button>
                   </div>
@@ -1662,7 +1699,7 @@ export default function ScsDashboard() {
               {/* Footer */}
               <div className="pt-2 flex justify-between items-center text-[10px] font-mono text-slate-400">
                 <span>14 flagged of 112 assigned &middot; k=1 drill-in is audit logged</span>
-                <span className="text-[#0da2b3] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("coverage")}>Coverage &rarr;</span>
+                <span className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("coverage")}>Coverage &rarr;</span>
               </div>
 
             </div>
@@ -1683,14 +1720,17 @@ export default function ScsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.CASELOAD}
+                  </span>
                   <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/5 p-1 bg-white dark:bg-slate-900 text-[10px] font-bold font-mono">
                     {["Templates", "Active", "History"].map((opt) => (
                       <button
                         key={opt}
                         onClick={() => triggerToast(`Filtering plans by: ${opt}`)}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "Templates" 
-                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold" 
+                          opt === "Templates"
+                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-655"
                         }`}
                       >
@@ -1698,9 +1738,9 @@ export default function ScsDashboard() {
                       </button>
                     ))}
                   </div>
-                  <button 
+                  <button
                     onClick={() => triggerToast("Create new reconditioning plan template form opened")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New plan
                   </button>
@@ -1710,7 +1750,7 @@ export default function ScsDashboard() {
               {/* 6 Plan Template Cards Grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-left font-sans">
                 {[
-                  { title: "4-week reconditioning", badge: "Reconditioning · Live study", star: true, desc: "Lower back, post-OFT mobility focus · 12 sessions", details: "BLOCK 1 - WEEKS 1-2: Daily mobility reset - 12 min · Sub-60% 1RM deadlift x 3 · Mobility 3 x 4 sets · Loaded carry progression. BLOCK 2 - WEEKS 3-4: Tempo runs x 4 · Box squat progression · Mobility work - 8 min.", cad: "3x/wk · 45 min", win: "28 days · 3 blocks", owner: "SCS + PT/IM · Sign-off: Capt Shah" },
+                  { title: "4-week reconditioning", badge: `Reconditioning · ${PLAN_STATUSES.ACTIVE}`, star: true, desc: "Lower back, post-OFT mobility focus · 12 sessions", details: "BLOCK 1 - WEEKS 1-2: Daily mobility reset - 12 min · Sub-60% 1RM deadlift x 3 · Mobility 3 x 4 sets · Loaded carry progression. BLOCK 2 - WEEKS 3-4: Tempo runs x 4 · Box squat progression · Mobility work - 8 min.", cad: "3x/wk · 45 min", win: "28 days · 3 blocks", owner: "SCS + PT/IM · Sign-off: Capt Shah" },
                   { title: "Cycle 4 performance", badge: "Performance · Active", star: false, desc: "Strength + endurance · 16 sessions", details: "3+5 back squat progression · 4x8 bench press · Tempo intervals: 4x 5 min · Mobility cooldown: 8 min.", cad: "4x/wk · 60 min", win: "28 days · 4 blocks", owner: "SCS · Plan design" },
                   { title: "Sleep reset - 7 day", badge: "Recovery · Draft", star: false, desc: "Anchor sleep + evening cell phone cutoff", details: "Lights-out anchor - 22:30 · Caffeine cutoff - 14:00 · Dim-evening - 21:00 · Morning light - 10 min.", cad: "Daily · ~10 min", win: "7 days · 1 block", owner: "SCS · Self-reported" },
                   { title: "Mobility reset - 12 min", badge: "Mobility · Active", star: false, desc: "Hip, T-spine, ankle · daily routine", details: "90/90 hip - 4 min · T-spine rotations - 3 min · Calf stretches - 35 s/side · Ankle/dorsi - 90 s/side.", cad: "Daily · 12 min", win: "14 days · Daily", owner: "SCS · Self-reported" },
@@ -1740,7 +1780,7 @@ export default function ScsDashboard() {
                         </div>
                         <div>
                           <span className="text-[8px] text-slate-400 block uppercase font-mono">Owner</span>
-                          <span className="font-bold text-[#0da2b3] truncate block">{tpl.owner.split(" · ")[0]}</span>
+                          <span className="font-bold text-[var(--brand-color)] truncate block">{tpl.owner.split(" · ")[0]}</span>
                         </div>
                       </div>
 
@@ -1750,7 +1790,7 @@ export default function ScsDashboard() {
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
                       <button 
                         onClick={() => { setAssignPlan(tpl.title); triggerToast(`Selected plan template: ${tpl.title}`); }}
-                        className="py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white text-[10px] font-bold rounded-lg transition"
+                        className="py-1.5 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white text-[10px] font-bold rounded-lg transition"
                       >
                         Use template
                       </button>
@@ -1775,12 +1815,12 @@ export default function ScsDashboard() {
                   </div>
 
                   <div className="flex gap-2">
-                    {["Active", "Rehab", "Performance", "Reconditioning", "Drafted"].map((pill, idx) => (
+                    {[PLAN_STATUSES.ACTIVE, "Rehab", "Performance", "Reconditioning", PLAN_STATUSES.DRAFT].map((pill, idx) => (
                       <button
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           pill === "Active"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
                         }`}
                       >
@@ -1806,11 +1846,11 @@ export default function ScsDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { status: "Inactive", plan: "Rehab Block 2 · Lower back focus", air: "J. Reyes", airUnit: "SrA · Alpha", win: "22 Jul - 8 Aug", owner: "SCS + PT/IM", comp: "71%", col: "slate", sign: "Capt Shah", signBold: true },
-                        { status: "Active", plan: "Cycle 4 Performance · Strength", air: "T. Cho", airUnit: "SSgt · Alpha", win: "14 Jul - 10 Aug", owner: "SCS", comp: "88%", col: "green", sign: "SCS lead" },
-                        { status: "Drafted", plan: "Sleep Reset · Sleep focus", air: "D. Mendez", airUnit: "SSgt · Alpha", win: "30 Jul - 6 Aug", owner: "SCS", comp: "0%", col: "slate", sign: "\u2014" },
-                        { status: "Awaiting sign-off", plan: "Reconditioning · Chest/T-block", air: "B. Ndiaye", airUnit: "A1C · Bravo", win: "1 Aug - 22 Aug", owner: "SCS + PT/IM", comp: "\u2014", col: "orange", sign: "PT/IM lead" },
-                        { status: "Active", plan: "OFT Tempo Prep · High intensity", air: "K. Patel", airUnit: "A1C · Charlie", win: "20 Jul - 12 Aug", owner: "SCS + OFT", comp: "52%", col: "green", sign: "OFT Lead" }
+                        { status: PLAN_STATUSES.PENDING_REVIEW, plan: "Rehab Block 2 · Lower back focus", air: "J. Reyes", airUnit: "SrA · Alpha", win: "22 Jul - 8 Aug", owner: "SCS + PT/IM", comp: "71%", col: "orange", sign: "Capt Shah", signBold: true },
+                        { status: PLAN_STATUSES.ACTIVE, plan: "Cycle 4 Performance · Strength", air: "T. Cho", airUnit: "SSgt · Alpha", win: "14 Jul - 10 Aug", owner: "SCS", comp: "88%", col: "green", sign: "SCS lead" },
+                        { status: PLAN_STATUSES.DRAFT, plan: "Sleep Reset · Sleep focus", air: "D. Mendez", airUnit: "SSgt · Alpha", win: "30 Jul - 6 Aug", owner: "SCS", comp: "0%", col: "slate", sign: "\u2014" },
+                        { status: PLAN_STATUSES.PENDING_REVIEW, plan: "Reconditioning · Chest/T-block", air: "B. Ndiaye", airUnit: "A1C · Bravo", win: "1 Aug - 22 Aug", owner: "SCS + PT/IM", comp: "\u2014", col: "orange", sign: "PT/IM lead" },
+                        { status: PLAN_STATUSES.ACTIVE, plan: "OFT Tempo Prep · High intensity", air: "K. Patel", airUnit: "A1C · Charlie", win: "20 Jul - 12 Aug", owner: "SCS + OFT", comp: "52%", col: "green", sign: "OFT Lead" }
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-2.5">
@@ -1836,7 +1876,7 @@ export default function ScsDashboard() {
                               <span>{row.comp}</span>
                               {row.comp !== "\u2014" && (
                                 <div className="w-12 h-1 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                                  <div className="h-full bg-[#0da2b3]" style={{ width: row.comp }}></div>
+                                  <div className="h-full bg-[var(--brand-color)]" style={{ width: row.comp }}></div>
                                 </div>
                               )}
                             </div>
@@ -1917,7 +1957,10 @@ export default function ScsDashboard() {
                   <h4 className="font-extrabold text-slate-800 dark:text-white flex items-center gap-1.5">
                     View Authorized Performance Summary
                     <span className="px-2 py-0.2 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
-                      Authorized access
+                      Summary: Authorized access
+                    </span>
+                    <span className="px-2 py-0.2 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-[8px] font-bold rounded">
+                      Raw record: {PRIVACY_STATES.RESTRICTED}
                     </span>
                   </h4>
                   <p className="text-slate-555 leading-normal">
@@ -1928,7 +1971,7 @@ export default function ScsDashboard() {
                   </p>
                 </div>
                 <div className="flex gap-2 flex-shrink-0">
-                  <button onClick={() => triggerToast("Authorized Performance Summary dossier loaded")} className="px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl font-bold transition">
+                  <button onClick={() => triggerToast("Authorized Performance Summary dossier loaded")} className="px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl font-bold transition">
                     View Summary
                   </button>
                   <button onClick={() => triggerToast("Audit logs loaded")} className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-slate-700 dark:text-slate-300 font-bold transition hover:bg-slate-50">
@@ -1945,7 +1988,7 @@ export default function ScsDashboard() {
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                     <h3 className="text-xs font-bold text-slate-855 dark:text-white">Assign to one airman</h3>
                     <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded uppercase">
-                      Individual workflow
+                      Population: {POPULATION_LEVELS.INDIVIDUAL}
                     </span>
                   </div>
 
@@ -1960,7 +2003,7 @@ export default function ScsDashboard() {
                         <select 
                           value={assignAirman} 
                           onChange={(e) => setAssignAirman(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white"
                         >
                           <option value="J. Reyes">J. Reyes (SrA · Alpha flight)</option>
                           <option value="D. Mendez">D. Mendez (SSgt · Bravo flight)</option>
@@ -1973,7 +2016,7 @@ export default function ScsDashboard() {
                         <select 
                           value={assignPlan} 
                           onChange={(e) => setAssignPlan(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white"
                         >
                           <option value="Rehab Block 2">Rehab Block 2</option>
                           <option value="Cycle 4 performance">Cycle 4 performance</option>
@@ -1987,7 +2030,7 @@ export default function ScsDashboard() {
                           type="text" 
                           value={assignWindow}
                           onChange={(e) => setAssignWindow(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white font-mono"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white font-mono"
                         />
                       </div>
 
@@ -1997,7 +2040,7 @@ export default function ScsDashboard() {
                           type="text" 
                           value={assignCoOwner}
                           onChange={(e) => setAssignCoOwner(e.target.value)}
-                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white font-sans"
+                          className="w-full px-3 py-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white font-sans"
                         />
                       </div>
                     </div>
@@ -2012,7 +2055,7 @@ export default function ScsDashboard() {
                       </button>
                       <button 
                         type="submit" 
-                        className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl font-bold transition cursor-pointer"
+                        className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl font-bold transition cursor-pointer"
                       >
                         Push to airman
                       </button>
@@ -2029,14 +2072,14 @@ export default function ScsDashboard() {
 
                   <div className="space-y-3">
                     {[
-                      { name: "B. Ndiaye", status: "Awaiting sign-off", details: "Reconditioning · 1 Aug - 22 Aug · SCS + Plan" },
-                      { name: "D. Okafor", status: "Awaiting sign-off", details: "Hip reconditioning · 30 Jul - 27 Aug · SCS + PT/IM" }
+                      { name: "B. Ndiaye", status: PLAN_STATUSES.PENDING_REVIEW, details: "Reconditioning · 1 Aug - 22 Aug · SCS + Plan" },
+                      { name: "D. Okafor", status: PLAN_STATUSES.PENDING_REVIEW, details: "Hip reconditioning · 30 Jul - 27 Aug · SCS + PT/IM" }
                     ].map((queItem, idx) => (
                       <div key={idx} className="p-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1.5 text-left">
                         <div className="flex items-center justify-between">
                           <span className="font-extrabold text-slate-800 dark:text-white">{queItem.name}</span>
                           <span className="px-1.5 py-0.2 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded uppercase">
-                            {queItem.status.split(" ")[0]}
+                            {queItem.status}
                           </span>
                         </div>
                         <p className="text-[10px] text-slate-500 leading-normal">{queItem.details}</p>
@@ -2075,14 +2118,17 @@ export default function ScsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.UNIT}
+                  </span>
                   <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/5 p-1 bg-white dark:bg-slate-900 text-[10px] font-bold font-mono">
                     {["This week", "Next week", "Month"].map((opt) => (
                       <button
                         key={opt}
                         onClick={() => triggerToast(`Displaying coverage for: ${opt}`)}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "This week" 
-                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold" 
+                          opt === "This week"
+                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-655"
                         }`}
                       >
@@ -2107,7 +2153,7 @@ export default function ScsDashboard() {
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
-                        card.icon === "teal" ? "text-[#0da2b3]" :
+                        card.icon === "teal" ? "text-[var(--brand-color)]" :
                         card.icon === "red" ? "text-rose-500" : "text-amber-500"
                       }`}>
                         {card.desc.split(" · ")[0]}
@@ -2149,7 +2195,7 @@ export default function ScsDashboard() {
                         { fl: "Alpha", air: "38", pt: "10", oft: "2/3", rehab: "3", cond: "2", cap: "12", pct: "80%", col: "bg-emerald-500" },
                         { fl: "Bravo", air: "42", pt: "11", oft: "2/3", rehab: "2", cond: "2", cap: "12", pct: "75%", col: "bg-amber-500" },
                         { fl: "Charlie", air: "32", pt: "7", oft: "1/1", rehab: "1", cond: "1", cap: "8", pct: "60%", col: "bg-emerald-500" },
-                        { fl: "Total · 23 SFS", air: "112", pt: "28", oft: "5/7", rehab: "6", cond: "5", cap: "32", pct: "70%", col: "bg-[#0da2b3]", bold: true }
+                        { fl: "Total · 23 SFS", air: "112", pt: "28", oft: "5/7", rehab: "6", cond: "5", cap: "32", pct: "70%", col: "bg-[var(--brand-color)]", bold: true }
                       ].map((row, idx) => (
                         <tr key={idx} className={`hover:bg-slate-55/20 transition ${row.bold ? "font-bold text-slate-800 dark:text-white" : ""}`}>
                           <td className="py-3 font-bold">{row.fl}</td>
@@ -2271,10 +2317,10 @@ export default function ScsDashboard() {
                           { name: "T. Cho", fl: "Bravo", ops: "68", lane: "Tempo", status: "Cleared", col: "green" },
                           { name: "K. Patel", fl: "Charlie", ops: "66", lane: "Standard", status: "Cleared", col: "green" },
                           { name: "M. Hayes", fl: "Alpha", ops: "74", lane: "Tempo", status: "Cleared", col: "green" },
-                          { name: "B. Ndiaye", fl: "Bravo", ops: "71", lane: "Standard", status: "In review", col: "orange" },
-                          { name: "D. Okafor", fl: "Alpha", ops: "58", lane: "Standard", status: "In review", col: "orange" },
-                          { name: "R. Singh", fl: "Charlie", ops: "70", lane: "Tempo", status: "Drafted", col: "blue" },
-                          { name: "S. Bauer", fl: "Alpha", ops: "64", lane: "Standard", status: "Drafted", col: "blue" }
+                          { name: "B. Ndiaye", fl: "Bravo", ops: "71", lane: "Standard", status: PLAN_STATUSES.PENDING_REVIEW, col: "orange" },
+                          { name: "D. Okafor", fl: "Alpha", ops: "58", lane: "Standard", status: PLAN_STATUSES.PENDING_REVIEW, col: "orange" },
+                          { name: "R. Singh", fl: "Charlie", ops: "70", lane: "Tempo", status: PLAN_STATUSES.DRAFT, col: "blue" },
+                          { name: "S. Bauer", fl: "Alpha", ops: "64", lane: "Standard", status: PLAN_STATUSES.DRAFT, col: "blue" }
                         ].map((row, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
                             <td className="py-2.5 font-bold">{row.name}</td>
@@ -2317,11 +2363,11 @@ export default function ScsDashboard() {
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
                           { date: "Mon 27 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" },
-                          { date: "Mon 27 Jul", time: "14:00", grp: "OFT prep - Tempo", lead: "SSgt Park", pct: "60%", col: "bg-[#0da2b3]" },
+                          { date: "Mon 27 Jul", time: "14:00", grp: "OFT prep - Tempo", lead: "SSgt Park", pct: "60%", col: "bg-[var(--brand-color)]" },
                           { date: "Tue 28 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" },
                           { date: "Tue 28 Jul", time: "11:00", grp: "Rehab - 4", lead: "TSgt Lee", pct: "40%", col: "bg-amber-500" },
                           { date: "Wed 29 Jul", time: "09:00", grp: "Bravo - Endurance", lead: "SSgt Park", pct: "40%", col: "bg-amber-500" },
-                          { date: "Wed 29 Jul", time: "16:00", grp: "Mobility - 8", lead: "SrA Diaz", pct: "60%", col: "bg-[#0da2b3]" },
+                          { date: "Wed 29 Jul", time: "16:00", grp: "Mobility - 8", lead: "SrA Diaz", pct: "60%", col: "bg-[var(--brand-color)]" },
                           { date: "Thu 30 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" }
                         ].map((row, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
@@ -2384,7 +2430,7 @@ export default function ScsDashboard() {
                       <h3 className="text-xs font-bold text-slate-855 dark:text-white">SCS hours coverage</h3>
                       <p className="text-[9px] text-slate-455 leading-none mt-0.5">Scheduled + worked</p>
                     </div>
-                    <span className="px-2 py-0.2 bg-[#0da2b3]/15 text-[#0da2b3] text-[8px] font-bold rounded uppercase font-mono">
+                    <span className="px-2 py-0.2 bg-[var(--brand-color)]/15 text-[var(--brand-color)] text-[8px] font-bold rounded uppercase font-mono">
                       95% target
                     </span>
                   </div>
@@ -2440,7 +2486,7 @@ export default function ScsDashboard() {
                   <span className="font-bold text-slate-800 dark:text-white block uppercase tracking-wider text-[9px]">RTP + RTD &mdash; separate paths</span>
                   <div className="space-y-2">
                     <div className="space-y-0.5">
-                      <span className="font-bold text-[#0da2b3] block">RTP (Return to Performance)</span>
+                      <span className="font-bold text-[var(--brand-color)] block">RTP (Return to Performance)</span>
                       <p className="text-slate-500 leading-normal font-normal">
                         is managed in Ascend: SCS + PT/IM coordinate reconditioning, training load, and progression.
                       </p>
@@ -2479,9 +2525,12 @@ export default function ScsDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
+                  <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-lg text-[9px] font-bold uppercase tracking-wider font-mono">
+                    Population: {POPULATION_LEVELS.INDIVIDUAL}
+                  </span>
+                  <button
                     onClick={() => triggerToast("Search and open new direct message channel")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New message
                   </button>
@@ -2505,7 +2554,7 @@ export default function ScsDashboard() {
                     <input 
                       type="text" 
                       placeholder="Search messages"
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-55 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white placeholder-slate-400"
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-slate-55 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white placeholder-slate-400"
                     />
                     <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                   </div>
@@ -2530,7 +2579,7 @@ export default function ScsDashboard() {
                         }}
                         className={`p-3 rounded-xl border text-left cursor-pointer transition ${
                           selectedChatId === chat.name 
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]" 
+                            ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]" 
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350"
                         }`}
                       >
@@ -2542,7 +2591,7 @@ export default function ScsDashboard() {
                         <div className="flex items-center justify-between gap-4 mt-2">
                           <p className="text-[10px] text-slate-500 truncate w-48 font-sans">{chat.preview}</p>
                           {chat.unread && (
-                            <span className="size-4 bg-[#0da2b3] text-white text-[8px] font-bold rounded-full flex items-center justify-center font-mono">
+                            <span className="size-4 bg-[var(--brand-color)] text-white text-[8px] font-bold rounded-full flex items-center justify-center font-mono">
                               {chat.unread}
                             </span>
                           )}
@@ -2559,7 +2608,7 @@ export default function ScsDashboard() {
                   {/* Chat Header */}
                   <div className="p-4 border-b border-slate-100 dark:border-white/5 bg-[#f8fafc] dark:bg-slate-900/60 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="size-8 rounded-full bg-cyan-500/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center select-none font-mono">
+                      <div className="size-8 rounded-full bg-cyan-500/10 text-[var(--brand-color)] font-bold text-xs flex items-center justify-center select-none font-mono">
                         {selectedChatId.charAt(0)}
                       </div>
                       <div className="text-left">
@@ -2619,11 +2668,11 @@ export default function ScsDashboard() {
                         value={typedMessage}
                         onChange={(e) => setTypedMessage(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                        className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[#0da2b3] text-slate-800 dark:text-white placeholder-slate-400"
+                        className="flex-1 px-3 py-2 text-xs rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white placeholder-slate-400"
                       />
                       <button 
                         onClick={handleSendMessage}
-                        className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                        className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                       >
                         Send
                       </button>

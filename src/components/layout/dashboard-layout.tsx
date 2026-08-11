@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { AscendLogo } from "@/components/ascend-logo";
 import { ArrowLeft, LogOut, Moon, Sun } from "lucide-react";
+import { useTheme } from "@/hooks/use-theme";
 
 type DashboardLayoutProps = {
   roleName: string;
@@ -15,7 +16,7 @@ export function DashboardLayout({ roleName, children }: DashboardLayoutProps) {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const [hasMounted, setHasMounted] = useState(false);
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, mounted, toggleTheme } = useTheme();
 
   useEffect(() => {
     setHasMounted(true);
@@ -28,31 +29,6 @@ export function DashboardLayout({ roleName, children }: DashboardLayoutProps) {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme with document class list
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-
-    return () => clearTimeout(timer);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
   const handleBackToRoles = () => {
     setSelectedRole(null);
     router.push("/roles");
@@ -63,7 +39,7 @@ export function DashboardLayout({ roleName, children }: DashboardLayoutProps) {
     router.push("/");
   };
 
-  if (!hasMounted || !isAuthenticated) {
+  if (!mounted || !hasMounted || !isAuthenticated) {
     return null; // Prevents flashing content while redirecting
   }
 
@@ -117,7 +93,7 @@ export function DashboardLayout({ roleName, children }: DashboardLayoutProps) {
       {/* 2. CUI / OPSEC NAVY BANNER */}
       <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none flex-shrink-0 z-10">
         <div className="flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-[#0da2b3]"></span>
+          <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
           <span>CUI // OPSEC · Not a Government System of Record</span>
         </div>
       </section>

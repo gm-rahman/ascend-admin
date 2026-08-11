@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useTheme } from "@/hooks/use-theme";
+import { useToast } from "@/hooks/use-toast";
+import { initBrandColor } from "@/lib/constants";
+import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Home,
@@ -39,12 +43,11 @@ type TabType = "caseload" | "reflections" | "messages";
 export default function PcDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("caseload");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hasMounted, setHasMounted] = useState(false);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  
+
   // Chat messaging state
   const [chatMessage, setChatMessage] = useState("");
   const [messagesList, setMessagesList] = useState([
@@ -53,12 +56,6 @@ export default function PcDashboard() {
     { sender: "coach", text: "Wednesday's reflection arrived. \"Finally sat with the question long enough to hear my own answer.\" I read it three times. Want to sit with that one next week?", time: "09:14", date: "27 JULY" },
     { sender: "airman", text: "Yes. Wednesday works. Same time?", time: "09:31", date: "27 JULY" }
   ]);
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
-  };
 
   const handleSendMessage = () => {
     if (!chatMessage.trim()) return;
@@ -103,27 +100,10 @@ export default function PcDashboard() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme with local storage & document element
+  // Inject brand color CSS variables on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    return () => clearTimeout(timer);
+    initBrandColor();
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   const handleBackToRoles = () => {
     setSelectedRole(null);
@@ -146,7 +126,7 @@ export default function PcDashboard() {
           {/* Brand logo wrapper */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-800 dark:text-white uppercase font-sans">
                 Purpose Coach
               </span>
@@ -164,7 +144,7 @@ export default function PcDashboard() {
               onClick={() => setActiveTab("caseload")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "caseload"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -175,7 +155,7 @@ export default function PcDashboard() {
               onClick={() => setActiveTab("reflections")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "reflections"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -186,7 +166,7 @@ export default function PcDashboard() {
               onClick={() => setActiveTab("messages")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "messages"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -293,6 +273,10 @@ export default function PcDashboard() {
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     Tuesday, 28 July · A quiet day ahead. Three pastoral consults, twenty-two active reflections, and one first-time engagement to welcome. Take what's here.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Users className="size-3" />
+                    {POPULATION_LEVELS.CASELOAD}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -304,7 +288,7 @@ export default function PcDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Starting new confidential pastoral note")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New pastoral note
                   </button>
@@ -347,7 +331,7 @@ export default function PcDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           pill === "All themes"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-850 dark:hover:text-white"
                         }`}
                       >
@@ -465,7 +449,7 @@ export default function PcDashboard() {
                         title: "A-1503 · First-time engagement",
                         desc: "Welcome, consent, listening",
                         badge: "Welcome",
-                        badgeCol: "bg-[#0da2b3]/15 text-[#0da2b3]"
+                        badgeCol: "bg-[var(--brand-color)/15] text-[var(--brand-color)]"
                       },
                       {
                         time: "14:00 - 30 min",
@@ -534,6 +518,10 @@ export default function PcDashboard() {
                   <p className="text-xs text-slate-550 dark:text-slate-450 mt-1">
                     Opt-in confirmations, reflection entries, and confidential notes for airmen who consented to the Purpose pathway.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Users className="size-3" />
+                    {POPULATION_LEVELS.CASELOAD}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -545,7 +533,7 @@ export default function PcDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Initializing chaplain reach out message")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> Reach out
                   </button>
@@ -574,7 +562,7 @@ export default function PcDashboard() {
                       {[
                         { code: "A-1042", status: "Opted in", recorded: "14 Mar · 14:02", method: "Secure form - signed", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
                         { code: "A-1087", status: "Opted in", recorded: "02 Apr · 09:30", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
-                        { code: "A-1218", status: "Revoked - paused", recorded: "19 May · 11:11", method: "Casual contact - on request", witness: "—", col: "purple" },
+                        { code: "A-1218", status: PRIVACY_STATES.CONSENT_WITHDRAWN, recorded: "19 May · 11:11", method: "Casual contact - on request", witness: "—", col: "purple" },
                         { code: "A-1503", status: "Opted in", recorded: "28 Jul · 08:55", badge: "Today", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" }
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
@@ -619,7 +607,7 @@ export default function PcDashboard() {
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           themeFilter === "All themes"
-                            ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
+                            ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855 dark:hover:text-white"
                         }`}
                       >
@@ -658,7 +646,7 @@ export default function PcDashboard() {
                   <div className="md:col-span-2">
                     <button
                       onClick={() => triggerToast("Filtering reflection entries list")}
-                      className="w-full py-2 bg-slate-200 dark:bg-slate-800 hover:bg-[#0da2b3] hover:text-white text-slate-700 dark:text-white text-xs font-bold rounded-lg cursor-pointer transition"
+                      className="w-full py-2 bg-slate-200 dark:bg-slate-800 hover:bg-[var(--brand-color)] hover:text-white text-slate-700 dark:text-white text-xs font-bold rounded-lg cursor-pointer transition"
                     >
                       Filter
                     </button>
@@ -699,8 +687,8 @@ export default function PcDashboard() {
                           <td className="py-3 text-slate-500 font-mono text-[10px]">{p.len}</td>
                           <td className="py-3 text-slate-700 dark:text-slate-350 italic font-serif leading-relaxed text-[11px]">{p.preview}</td>
                           <td className="py-3 text-right">
-                            <span className="inline-flex items-center gap-1 font-bold text-[9px] text-[#0da2b3] uppercase font-sans">
-                              <span className="size-1.5 rounded-full bg-[#0da2b3]"></span>
+                            <span className="inline-flex items-center gap-1 font-bold text-[9px] text-[var(--brand-color)] uppercase font-sans">
+                              <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
                               {p.flag}
                             </span>
                           </td>
@@ -725,7 +713,7 @@ export default function PcDashboard() {
                     <textarea 
                       rows={4}
                       defaultValue="First-time engagement. Airman arrived quiet, attentive. Asked about cadence (weekly) —"
-                      className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                      className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                     />
                     <div className="text-[9px] text-slate-400 font-medium">This note is privileged communication. Not for leadership review.</div>
                   </div>
@@ -739,7 +727,7 @@ export default function PcDashboard() {
                     </button>
                     <button 
                       onClick={() => triggerToast("Confidential pastoral note saved to ledger")}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                     >
                       Save pastoral note
                     </button>
@@ -814,6 +802,10 @@ export default function PcDashboard() {
                 <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                   One thread per airman. Private to the airman &mdash; not visible to leadership.
                 </p>
+                <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                  <Users className="size-3" />
+                  {POPULATION_LEVELS.CASELOAD}
+                </span>
               </div>
 
               {/* Chat pane grid split */}
@@ -823,8 +815,8 @@ export default function PcDashboard() {
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <h3 className="text-sm font-bold text-slate-855 dark:text-white">Threads</h3>
-                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] rounded-full text-[9px] font-bold uppercase font-mono">
-                      <span className="size-1 bg-[#0da2b3] rounded-full"></span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--brand-color)/15] text-[var(--brand-color)] rounded-full text-[9px] font-bold uppercase font-mono">
+                      <span className="size-1 bg-[var(--brand-color)] rounded-full"></span>
                       3 unread
                     </span>
                   </div>
@@ -851,12 +843,12 @@ export default function PcDashboard() {
                         onClick={() => triggerToast(`Opened message history with: ${thread.code}`)}
                         className={`py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
                           thread.active 
-                            ? "bg-[#0da2b3]/10" 
+                            ? "bg-[var(--brand-color)/10]" 
                             : "hover:bg-[#f8fafc] dark:hover:bg-slate-900/60"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="size-8 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono select-none">
+                          <div className="size-8 rounded-full bg-[var(--brand-color)/10] text-[var(--brand-color)] font-bold text-xs flex items-center justify-center font-mono select-none">
                             A1
                           </div>
                           <div className="space-y-0.5 text-left">
@@ -868,7 +860,7 @@ export default function PcDashboard() {
                         <div className="text-right flex flex-col items-end gap-1.5">
                           <span className="text-[9px] font-mono text-slate-400">{thread.time}</span>
                           {thread.unread > 0 && (
-                            <span className="size-4.5 rounded-full bg-[#0da2b3] text-white text-[9px] font-bold font-mono flex items-center justify-center">
+                            <span className="size-4.5 rounded-full bg-[var(--brand-color)] text-white text-[9px] font-bold font-mono flex items-center justify-center">
                               {thread.unread}
                             </span>
                           )}
@@ -884,7 +876,7 @@ export default function PcDashboard() {
                   {/* Chat header */}
                   <div className="flex items-center justify-between border-b border-slate-200/60 dark:border-white/5 pb-4 flex-shrink-0">
                     <div className="flex items-center gap-3">
-                      <div className="size-9 rounded-full bg-[#0da2b3]/10 text-[#0da2b3] font-bold text-xs flex items-center justify-center font-mono">
+                      <div className="size-9 rounded-full bg-[var(--brand-color)/10] text-[var(--brand-color)] font-bold text-xs flex items-center justify-center font-mono">
                         A1
                       </div>
                       <div className="text-left space-y-0.5">
@@ -917,7 +909,7 @@ export default function PcDashboard() {
                           <div className={`flex w-full ${msg.sender === "coach" ? "justify-end" : "justify-start"} text-left`}>
                             <div className={`max-w-md p-3.5 rounded-2xl relative shadow-sm ${
                               msg.sender === "coach" 
-                                ? "bg-[#0da2b3] text-white rounded-br-none" 
+                                ? "bg-[var(--brand-color)] text-white rounded-br-none" 
                                 : "bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-slate-200 rounded-bl-none"
                             }`}>
                               <p className="text-xs leading-relaxed font-sans">{msg.text}</p>
@@ -951,7 +943,7 @@ export default function PcDashboard() {
                     />
                     <button 
                       onClick={handleSendMessage}
-                      className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                      className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1.5"
                     >
                       Send
                     </button>

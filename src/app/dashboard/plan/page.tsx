@@ -3,6 +3,10 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useTheme } from "@/hooks/use-theme";
+import { useToast } from "@/hooks/use-toast";
+import { initBrandColor } from "@/lib/constants";
+import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Home,
@@ -37,17 +41,10 @@ type TabType = "dashboard" | "assignment" | "reconditioning";
 export default function PlanDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { theme, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
-  const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hasMounted, setHasMounted] = useState(false);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
-  };
 
   const setActiveTab = (tab: TabType) => {
     setActiveTabInternal(tab);
@@ -78,27 +75,10 @@ export default function PlanDashboard() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme with local storage & document element
+  // Inject brand color CSS variables on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-    return () => clearTimeout(timer);
+    initBrandColor();
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
 
   const handleBackToRoles = () => {
     setSelectedRole(null);
@@ -121,7 +101,7 @@ export default function PlanDashboard() {
           {/* Brand logo wrapper */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-800 dark:text-white uppercase font-sans">
                 Plan · Wing
               </span>
@@ -139,7 +119,7 @@ export default function PlanDashboard() {
               onClick={() => setActiveTab("dashboard")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -150,7 +130,7 @@ export default function PlanDashboard() {
               onClick={() => setActiveTab("assignment")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "assignment"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -161,7 +141,7 @@ export default function PlanDashboard() {
               onClick={() => setActiveTab("reconditioning")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "reconditioning"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3] dark:text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -250,6 +230,10 @@ export default function PlanDashboard() {
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     KPIs, recent plans, assignment queue, and coordination activity across all linked workspaces.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Users className="size-3" />
+                    {POPULATION_LEVELS.COHORT}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -261,7 +245,7 @@ export default function PlanDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Creating new custom readiness plan")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New plan
                   </button>
@@ -358,10 +342,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Mental Perf Column */}
+                  {/* MP Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Mental Perf</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">MP</span>
                       <span className="text-[10px] text-slate-400 font-mono">4</span>
                     </div>
 
@@ -382,10 +366,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Nutrition Column */}
+                  {/* Nutritionist Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Nutrition</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Nutritionist</span>
                       <span className="text-[10px] text-slate-400 font-mono">3</span>
                     </div>
 
@@ -406,10 +390,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Purpose Column */}
+                  {/* Purpose Coach Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Purpose</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Purpose Coach</span>
                       <span className="text-[10px] text-slate-400 font-mono">2</span>
                     </div>
 
@@ -465,10 +449,10 @@ export default function PlanDashboard() {
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
                           { title: "4-week recovery · Bravo", desc: "Recovery · strength", owners: "SCS · PT/IM", k: "k=24", status: "Active", col: "green", time: "28 Jul · 06:00" },
-                          { title: "Stress & sleep reset", desc: "Mental · 4-week", owners: "Mental Perf · SCS", k: "k=12", status: "Opt-in", col: "teal", time: "27 Jul · 22:18" },
-                          { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutrition · SCS", k: "k=18", status: "Active", col: "green", time: "27 Jul · 14:55" },
-                          { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose · SCS", k: "k=10", status: "Active", col: "green", time: "26 Jul · 11:03" },
-                          { title: "Mission purpose cohort", desc: "Purpose · 6-week", owners: "Purpose · SCS", k: "k=10", status: "Opt-in", col: "teal", time: "25 Jul · 09:14" },
+                          { title: "Stress & sleep reset", desc: "Mental · 4-week", owners: "MP · SCS", k: "k=12", status: "Opt-in", col: "teal", time: "27 Jul · 22:18" },
+                          { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutritionist · SCS", k: "k=18", status: "Active", col: "green", time: "27 Jul · 14:55" },
+                          { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose Coach · SCS", k: "k=10", status: "Active", col: "green", time: "26 Jul · 11:03" },
+                          { title: "Mission purpose cohort", desc: "Purpose · 6-week", owners: "Purpose Coach · SCS", k: "k=10", status: "Opt-in", col: "teal", time: "25 Jul · 09:14" },
                           { title: "OFT prep · Alpha", desc: "Strength · 6-week", owners: "SCS · PT/IM", k: "k=22", status: "Active", col: "green", time: "24 Jul · 07:00" }
                         ].map((p, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
@@ -480,9 +464,9 @@ export default function PlanDashboard() {
                             <td className="py-3.5 text-slate-500 font-mono">{p.k}</td>
                             <td className="py-3.5">
                               <span className={`inline-flex items-center gap-1.5 font-bold text-[9px] uppercase ${
-                                p.col === "green" ? "text-emerald-500" : "text-[#0da2b3]"
+                                p.col === "green" ? "text-emerald-500" : "text-[var(--brand-color)]"
                               }`}>
-                                <span className={`size-1.5 rounded-full ${p.col === "green" ? "bg-emerald-500" : "bg-[#0da2b3]"}`}></span>
+                                <span className={`size-1.5 rounded-full ${p.col === "green" ? "bg-emerald-500" : "bg-[var(--brand-color)]"}`}></span>
                                 {p.status}
                               </span>
                             </td>
@@ -509,9 +493,9 @@ export default function PlanDashboard() {
                   <div className="space-y-4">
                     {[
                       { title: "Recovery block · Charlie", desc: "Authored · needs SCS + PT/IM owner · 6d", badge: "6d", col: "orange" },
-                      { title: "Sleep reset · Bravo", desc: "Authored · needs Mental Performance · 3d", badge: "3d", col: "orange" },
-                      { title: "Nutrition prep · OFT", desc: "Authored · needs Nutrition + SCS · 2d", badge: "2d", col: "teal" },
-                      { title: "Pre-deployment brief", desc: "Authored · needs Purpose + SCS · 1d", badge: "1d", col: "teal" }
+                      { title: "Sleep reset · Bravo", desc: "Authored · needs MP · 3d", badge: "3d", col: "orange" },
+                      { title: "Nutrition prep · OFT", desc: "Authored · needs Nutritionist + SCS · 2d", badge: "2d", col: "teal" },
+                      { title: "Pre-deployment brief", desc: "Authored · needs Purpose Coach + SCS · 1d", badge: "1d", col: "teal" }
                     ].map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4 p-3.5 bg-[#f8fafc] dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl hover:shadow-sm transition cursor-pointer">
                         <div className="space-y-0.5 text-left">
@@ -519,7 +503,7 @@ export default function PlanDashboard() {
                           <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-normal">{item.desc}</p>
                         </div>
                         <span className={`px-2 py-0.5 text-[9px] font-bold rounded ${
-                          item.col === "orange" ? "bg-amber-500/15 text-amber-600" : "bg-[#0da2b3]/15 text-[#0c8a99]"
+                          item.col === "orange" ? "bg-amber-500/15 text-amber-600" : "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]"
                         }`}>
                           {item.badge}
                         </span>
@@ -550,6 +534,10 @@ export default function PlanDashboard() {
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     Author a structured plan from a template. Route to roles. Assign cohort.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Users className="size-3" />
+                    {POPULATION_LEVELS.COHORT}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -561,7 +549,7 @@ export default function PlanDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Readiness plan sent to owner specialists for approval")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Send className="size-3.5" /> Send to owners
                   </button>
@@ -620,7 +608,7 @@ export default function PlanDashboard() {
                         key={idx}
                         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                           item.active 
-                            ? "bg-[#0da2b3]/10 text-[#0da2b3]" 
+                            ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]" 
                             : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900/60"
                         }`}
                       >
@@ -647,7 +635,7 @@ export default function PlanDashboard() {
                         <input 
                           type="text" 
                           defaultValue="4-week recovery · Bravo"
-                          className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none focus:border-[#0da2b3]/50 font-bold"
+                          className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none focus:border-[var(--brand-color)/50] font-bold"
                         />
                       </div>
 
@@ -682,7 +670,7 @@ export default function PlanDashboard() {
                       <textarea 
                         rows={4}
                         defaultValue="Recovery protocol rollout in response to the +1.2 MoM lift in wing OPS. Sleep watch on Delta flight is the cohort-level driver."
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
                   </div>
@@ -696,7 +684,7 @@ export default function PlanDashboard() {
                     </div>
 
                     <div className="flex flex-wrap gap-2.5 pt-2">
-                      <button className="px-4 py-1.5 rounded-full text-xs font-bold bg-[#0da2b3] text-white cursor-pointer transition">
+                      <button className="px-4 py-1.5 rounded-full text-xs font-bold bg-[var(--brand-color)] text-white cursor-pointer transition">
                         Daily
                       </button>
                       {["Weekly", "Bi-weekly", "Ad-hoc"].map((c, i) => (
@@ -730,7 +718,7 @@ export default function PlanDashboard() {
                           {[
                             { role: "SCS", req: "Primary", col: "teal", r: true, w: true, n: true },
                             { role: "PT/IM", req: "Secondary", col: "indigo", r: true, w: true, n: true },
-                            { role: "MENTAL PERFORMANCE", req: "Advisory", col: "orange", r: false, w: false, n: true },
+                            { role: "MP", req: "Advisory", col: "orange", r: false, w: false, n: true },
                             { role: "NUTRITIONIST", req: null, col: null, r: false, w: false, n: false },
                             { role: "PURPOSE COACH", req: null, col: null, r: "lock", w: false, n: false }
                           ].map((row, idx) => (
@@ -739,7 +727,7 @@ export default function PlanDashboard() {
                               <td className="py-3">
                                 {row.req ? (
                                   <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                    row.col === "teal" ? "bg-[#0da2b3]/15 text-[#0c8a99]" :
+                                    row.col === "teal" ? "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]" :
                                     row.col === "indigo" ? "bg-indigo-500/15 text-indigo-500" :
                                     "bg-amber-500/15 text-amber-500"
                                   }`}>
@@ -748,8 +736,12 @@ export default function PlanDashboard() {
                                 ) : "—"}
                               </td>
                               <td className="py-3">
-                                {row.r === "lock" ? <Lock className="size-3 text-slate-400" /> :
-                                 row.r ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
+                                {row.r === "lock" ? (
+                                  <span className="inline-flex items-center gap-1 text-[8px] font-bold text-slate-400 uppercase">
+                                    <Lock className="size-3" />
+                                    {PRIVACY_STATES.AUTH_REQUIRED}
+                                  </span>
+                                ) : row.r ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
                               </td>
                               <td className="py-3">
                                 {row.w ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
@@ -790,7 +782,7 @@ export default function PlanDashboard() {
                         </button>
                         <button 
                           onClick={() => triggerToast("Readiness plan sent to owners for review")}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                         >
                           <Send className="size-3.5" /> Send to owners
                         </button>
@@ -814,15 +806,15 @@ export default function PlanDashboard() {
                   {[
                     { cat: "Recovery", title: "4-week reconditioning", desc: "Daily capture · weekly review · aggregate progress at k \u2265 5", b1: "4 weeks", b2: "k \u2265 5" },
                     { cat: "Strength", title: "6-week strength block", desc: "SCS-led · strength + mobility · OFT prep cadence", b1: "6 weeks", b2: "SCS-led" },
-                    { cat: "Mental", title: "Sleep reset", desc: "Mental Performance-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
-                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutrition-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
-                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutrition + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" },
+                    { cat: "Mental", title: "Sleep reset", desc: "MP-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
+                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutritionist-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
+                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutritionist + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" },
                     { cat: "Purpose", title: "Purpose cohort", desc: "Purpose Coach-led · opt-in · 6 weeks", b1: "6 weeks", b2: "Opt-in" }
                   ].map((tpl, idx) => (
                     <div 
                       key={idx} 
                       onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/55 rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55] rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
@@ -859,6 +851,10 @@ export default function PlanDashboard() {
                   <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
                     4 / 6-week blocks. Daily / weekly schedule. Aggregate progress by flight (k &ge; 5). Cross-persona coordination.
                   </p>
+                  <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
+                    <Users className="size-3" />
+                    {POPULATION_LEVELS.COHORT}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -870,7 +866,7 @@ export default function PlanDashboard() {
                   </button>
                   <button 
                     onClick={() => triggerToast("Initializing new reconditioning block")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New block
                   </button>
@@ -931,14 +927,14 @@ export default function PlanDashboard() {
                   {[
                     { cat: "Recovery", title: "4-week reconditioning", desc: "Daily capture · weekly review · aggregate progress at k \u2265 5", b1: "4 weeks", b2: "k \u2265 5" },
                     { cat: "Strength", title: "6-week strength block", desc: "SCS-led · strength + mobility · OFT prep cadence", b1: "6 weeks", b2: "SCS-led" },
-                    { cat: "Mental", title: "Sleep reset", desc: "Mental Performance-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
-                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutrition-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
-                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutrition + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" }
+                    { cat: "Mental", title: "Sleep reset", desc: "MP-led · opt-in cohort · 4 weeks", b1: "4 weeks", b2: "Opt-in" },
+                    { cat: "Nutrition", title: "Hydration ramp", desc: "Nutritionist-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
+                    { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutritionist + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" }
                   ].map((tpl, idx) => (
                     <div 
                       key={idx} 
                       onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[#0da2b3]/55 rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55] rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
@@ -995,9 +991,9 @@ export default function PlanDashboard() {
                           { name: "Flight Alpha - aggregate", details: "k=22 · OFT prep", block: "6-week strength", wk: "2 of 6", adh: "88%", pct: 88, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
                           { name: "Flight Bravo - aggregate", details: "k=24 · recovery", block: "4-week recovery", wk: "2 of 4", adh: "81%", pct: 81, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
                           { name: "Flight Charlie - aggregate", details: "k=20 · mobility", block: "4-week mobility", wk: "1 of 4", adh: "76%", pct: 76, owners: ["SCS"], status: "Ramping", col: "teal" },
-                          { name: "Foxtrot - aggregate", details: "k=18 · hydration ramp", block: "4-week nutrition", wk: "1 of 4", adh: "74%", pct: 74, owners: ["NUTRITION"], status: "Ramping", col: "teal" },
-                          { name: "Opt-in: Sleep reset", details: "k=12 · Mental Perf", block: "4-week sleep", wk: "2 of 4", adh: "65%", pct: 65, owners: ["MENTAL PERF"], status: "Watch", col: "orange" },
-                          { name: "Opt-in: Mission purpose", details: "k=10 · Purpose", block: "6-week purpose", wk: "2 of 6", adh: "91%", pct: 91, owners: ["PURPOSE"], status: "On track", col: "green" },
+                          { name: "Foxtrot - aggregate", details: "k=18 · hydration ramp", block: "4-week nutrition", wk: "1 of 4", adh: "74%", pct: 74, owners: ["Nutritionist"], status: "Ramping", col: "teal" },
+                          { name: "Opt-in: Sleep reset", details: "k=12 · MP", block: "4-week sleep", wk: "2 of 4", adh: "65%", pct: 65, owners: ["MP"], status: "Watch", col: "orange" },
+                          { name: "Opt-in: Mission purpose", details: "k=10 · Purpose Coach", block: "6-week purpose", wk: "2 of 6", adh: "91%", pct: 91, owners: ["Purpose Coach"], status: "On track", col: "green" },
                           { name: "Caseload: Lower-back RTD", details: "k=8 · PT/IM", block: "6-week rehab", wk: "3 of 6", adh: "85%", pct: 85, owners: ["PT/IM"], status: "On track", col: "green" },
                           { name: "Caseload: Pre-OFT clearance", details: "k=14 · PT/IM", block: "1-week clearance", wk: "1 of 1", adh: "92%", pct: 100, owners: ["PT/IM"], status: "Cleared", col: "green" }
                         ].map((c, i) => (
@@ -1012,7 +1008,7 @@ export default function PlanDashboard() {
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                                  <div className={`h-full ${c.status === "Cleared" ? "bg-emerald-500" : "bg-[#0da2b3]"} rounded-full`} style={{ width: `${c.pct}%` }}></div>
+                                  <div className={`h-full ${c.status === "Cleared" ? "bg-emerald-500" : "bg-[var(--brand-color)]"} rounded-full`} style={{ width: `${c.pct}%` }}></div>
                                 </div>
                               </div>
                             </td>
@@ -1020,10 +1016,10 @@ export default function PlanDashboard() {
                               <div className="flex flex-wrap gap-1">
                                 {c.owners.map((owner, oIdx) => (
                                   <span key={oIdx} className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                    owner === "SCS" ? "bg-[#0da2b3]/15 text-[#0c8a99]" :
+                                    owner === "SCS" ? "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]" :
                                     owner === "PT/IM" ? "bg-indigo-500/15 text-indigo-500" :
-                                    owner === "NUTRITION" ? "bg-amber-500/15 text-amber-500" :
-                                    owner === "MENTAL PERF" ? "bg-indigo-500/15 text-indigo-500" :
+                                    owner === "Nutritionist" ? "bg-amber-500/15 text-amber-500" :
+                                    owner === "MP" ? "bg-indigo-500/15 text-indigo-500" :
                                     "bg-emerald-500/15 text-emerald-500"
                                   }`}>
                                     {owner}
@@ -1034,11 +1030,11 @@ export default function PlanDashboard() {
                             <td className="py-3">
                               <span className={`inline-flex items-center gap-1.5 font-bold text-[9px] uppercase ${
                                 c.col === "green" ? "text-emerald-500" :
-                                c.col === "teal" ? "text-[#0da2b3]" : "text-amber-500"
+                                c.col === "teal" ? "text-[var(--brand-color)]" : "text-amber-500"
                               }`}>
                                 <span className={`size-1.5 rounded-full ${
                                   c.col === "green" ? "bg-emerald-500" :
-                                  c.col === "teal" ? "bg-[#0da2b3]" : "bg-amber-500"
+                                  c.col === "teal" ? "bg-[var(--brand-color)]" : "bg-amber-500"
                                 }`}></span>
                                 {c.status}
                               </span>
@@ -1131,10 +1127,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Mental Perf Column */}
+                  {/* MP Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Mental Perf</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">MP</span>
                       <span className="text-[10px] text-slate-400 font-mono">2</span>
                     </div>
 
@@ -1157,10 +1153,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Nutrition Column */}
+                  {/* Nutritionist Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Nutrition</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Nutritionist</span>
                       <span className="text-[10px] text-slate-400 font-mono">2</span>
                     </div>
 
@@ -1181,10 +1177,10 @@ export default function PlanDashboard() {
                     </div>
                   </div>
 
-                  {/* Purpose Column */}
+                  {/* Purpose Coach Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
-                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Purpose</span>
+                      <span className="text-xs font-extrabold text-slate-800 dark:text-white font-sans">Purpose Coach</span>
                       <span className="text-[10px] text-slate-400 font-mono">1</span>
                     </div>
 

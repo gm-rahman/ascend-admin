@@ -3,7 +3,19 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { useAdminStore, AdminTab, ConfirmationItem, ServiceStatus } from "@/store/admin-store";
+import {
+  useAdminStore,
+  AdminStore,
+  AdminTab,
+  ConfirmationItem,
+  ActivityItem,
+  ServiceStatus,
+  RoleCatalogItem,
+  RbacMatrixRow,
+} from "@/store/admin-store";
+import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/hooks/use-theme";
+import { SERVICE_STATUS, ROLES } from "@/lib/terminology";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Shield,
@@ -43,15 +55,13 @@ export default function AdminDashboardPage() {
   const router = useRouter();
   const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
   const adminStore = useAdminStore();
-  const [theme, setTheme] = useState<"light" | "dark">("light");
+  const { theme, toggleTheme } = useTheme();
+  const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   // Local state for modals and changes
   const [activeReviewItem, setActiveReviewItem] = useState<ConfirmationItem | null>(null);
-  const [showConfirmToast, setShowConfirmToast] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
   const [scopeChanged, setScopeChanged] = useState(false);
-  const [systemChanged, setSystemChanged] = useState(false);
 
   useEffect(() => {
     setHasMounted(true);
@@ -64,33 +74,9 @@ export default function AdminDashboardPage() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  // Sync theme
-  useEffect(() => {
-    const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-    document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    setTheme(initialTheme);
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
-    localStorage.setItem("ascend_admin_theme", newTheme);
-    document.documentElement.classList.toggle("dark", newTheme === "dark");
-  };
-
   const handleLogout = () => {
     logout();
     router.push("/");
-  };
-
-  const triggerToast = (msg: string) => {
-    setToastMessage(msg);
-    setShowConfirmToast(true);
-    setTimeout(() => setShowConfirmToast(false), 3000);
   };
 
   if (!hasMounted || !isAuthenticated) return null;
@@ -155,7 +141,7 @@ export default function AdminDashboardPage() {
               label="System"
               active={adminStore.activeTab === "system"}
               onClick={() => adminStore.setActiveTab("system")}
-              badge={adminStore.services.filter(s => s.status !== "Online").length > 0 ? "alert" : undefined}
+              badge={adminStore.services.filter(s => s.status !== SERVICE_STATUS.ONLINE).length > 0 ? "alert" : undefined}
               badgeColor="red"
             />
           </nav>
@@ -185,7 +171,7 @@ export default function AdminDashboardPage() {
           
           {/* Header left breadcrumbs */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#0da2b3] uppercase tracking-wider">ADMIN OVERVIEW</span>
+            <span className="text-xs font-bold text-[var(--brand-color)] uppercase tracking-wider">ADMIN OVERVIEW</span>
             <span className="text-xs text-slate-300 dark:text-slate-600">/</span>
             <span className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">
               {adminStore.activeTab.replace("-", " ")}
@@ -197,18 +183,18 @@ export default function AdminDashboardPage() {
             
             {/* CUI Warning center label */}
             <div className="hidden md:flex items-center gap-2 text-[10px] font-semibold text-slate-400 bg-slate-100 dark:bg-slate-950/40 px-3 py-1 rounded-full border border-slate-200/55 dark:border-white/5">
-              <span className="size-1.5 rounded-full bg-[#0da2b3] animate-pulse"></span>
+              <span className="size-1.5 rounded-full bg-[var(--brand-color)] animate-pulse"></span>
               CUI // OPSEC · Not a Government System of Record
             </div>
 
             {/* Active role tag */}
             <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 bg-slate-100 dark:bg-slate-950 text-slate-600 dark:text-slate-300 rounded border dark:border-white/10 uppercase">
-              Admin
+              {ROLES.ADMIN}
             </span>
 
             {/* User Dropdown badge */}
             <div className="flex items-center gap-2.5">
-              <div className="size-7 rounded-full bg-[#0da2b3]/15 text-[#0da2b3] font-bold text-xs flex items-center justify-center border border-[#0da2b3]/25">
+              <div className="size-7 rounded-full bg-[var(--brand-color)/15] text-[var(--brand-color)] font-bold text-xs flex items-center justify-center border border-[var(--brand-color)/25]">
                 LA
               </div>
               <div className="hidden lg:block text-left">
@@ -285,10 +271,8 @@ export default function AdminDashboardPage() {
             />
           )}
           {adminStore.activeTab === "system" && (
-            <SystemView 
+            <SystemView
               adminStore={adminStore}
-              systemChanged={systemChanged}
-              setSystemChanged={setSystemChanged}
               triggerToast={triggerToast}
             />
           )}
@@ -354,7 +338,7 @@ export default function AdminDashboardPage() {
                   setActiveReviewItem(null);
                   triggerToast(`${activeReviewItem.action} request approved successfully.`);
                 }}
-                className="flex-1 py-2 px-4 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+                className="flex-1 py-2 px-4 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
               >
                 Approve & Write Log
               </button>
@@ -366,7 +350,7 @@ export default function AdminDashboardPage() {
       {/* DYNAMIC CONFIRMATION TOAST */}
       {showConfirmToast && (
         <div className="fixed bottom-6 right-6 bg-slate-900 text-white border border-slate-800 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 z-50 animate-slide-in">
-          <CheckCircle className="size-4 text-[#0da2b3]" />
+          <CheckCircle className="size-4 text-[var(--brand-color)]" />
           <span className="text-xs font-medium">{toastMessage}</span>
         </div>
       )}
@@ -401,7 +385,7 @@ function SidebarNavItem({
       onClick={onClick}
       className={`w-full flex items-center justify-between px-4 py-3 rounded-xl text-xs font-semibold transition-all duration-150 cursor-pointer ${
         active
-          ? "bg-[#0da2b3] text-white shadow-md shadow-[#0da2b3]/10 font-bold"
+          ? "bg-[var(--brand-color)] text-white shadow-md shadow-[var(--brand-color)/10] font-bold"
           : "hover:bg-slate-800/60 text-slate-400 hover:text-slate-200"
       }`}
       type="button"
@@ -430,7 +414,7 @@ function OverviewView({
   adminStore,
   setActiveReviewItem,
 }: {
-  adminStore: any;
+  adminStore: AdminStore;
   setActiveReviewItem: (item: ConfirmationItem | null) => void;
 }) {
   return (
@@ -454,7 +438,7 @@ function OverviewView({
           </button>
           <button
             onClick={() => adminStore.setActiveTab("roles")}
-            className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
+            className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm transition cursor-pointer"
           >
             Manage roles
           </button>
@@ -472,7 +456,7 @@ function OverviewView({
         <MetricCard
           title="Pending confirmations"
           value={adminStore.pendingConfirmations.length.toString()}
-          subtext={`${adminStore.pendingConfirmations.filter((c: any) => c.action === "Export").length} exports · ${adminStore.pendingConfirmations.filter((c: any) => c.action === "Deactivation").length} deactivation`}
+          subtext={`${adminStore.pendingConfirmations.filter((c: ConfirmationItem) => c.action === "Export").length} exports · ${adminStore.pendingConfirmations.filter((c: ConfirmationItem) => c.action === "Deactivation").length} deactivation`}
           subtextStyle="text-amber-500"
           highlight
         />
@@ -525,7 +509,7 @@ function OverviewView({
             code="PR-W-300.D"
             title="Exports"
             desc="Aggregate and restricted exports with confirmation gating."
-            badge={`${adminStore.pendingConfirmations.filter((c: any) => c.action === "Export").length} pending`}
+            badge={`${adminStore.pendingConfirmations.filter((c: ConfirmationItem) => c.action === "Export").length} pending`}
             badgeColor="yellow"
             onClick={() => adminStore.setActiveTab("exports")}
           />
@@ -567,7 +551,7 @@ function OverviewView({
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-white/5">
-            {adminStore.recentActivity.map((activity: any) => (
+            {adminStore.recentActivity.map((activity: ActivityItem) => (
               <div key={activity.id} className="flex items-center justify-between py-3">
                 <div className="space-y-0.5">
                   <p className="text-xs font-bold text-slate-700 dark:text-slate-200">{activity.action}</p>
@@ -625,7 +609,7 @@ function OverviewView({
                       <td className="py-3 text-right">
                         <button
                           onClick={() => setActiveReviewItem(conf)}
-                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-[#0da2b3] hover:text-white dark:hover:bg-[#0da2b3] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-[var(--brand-color)] hover:text-white dark:hover:bg-[var(--brand-color)] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                         >
                           Review
                         </button>
@@ -691,7 +675,7 @@ function ModuleShortcutCard({
     >
       <div>
         <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 tracking-wider block mb-1">{code}</span>
-        <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-[#0da2b3] dark:group-hover:text-[#0da2b3] transition-colors duration-200">
+        <h3 className="text-sm font-bold text-slate-800 dark:text-white group-hover:text-[var(--brand-color)] dark:group-hover:text-[var(--brand-color)] transition-colors duration-200">
           {title}
         </h3>
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 line-clamp-2">
@@ -701,7 +685,7 @@ function ModuleShortcutCard({
 
       <div className="pt-3">
         <span className={`px-2 py-0.5 rounded text-[10px] font-bold select-none ${
-          badgeColor === "teal" ? "bg-[#0da2b3]/10 text-[#0da2b3]" :
+          badgeColor === "teal" ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]" :
           badgeColor === "yellow" ? "bg-amber-500/10 text-amber-500" :
           "bg-emerald-500/10 text-emerald-500"
         }`}>
@@ -719,7 +703,7 @@ function RolesView({
   adminStore,
   triggerToast,
 }: {
-  adminStore: any;
+  adminStore: AdminStore;
   triggerToast: (msg: string) => void;
 }) {
   const [rbacChanged, setRbacChanged] = useState(false);
@@ -729,7 +713,7 @@ function RolesView({
 
   const roleCategories = ["All", "Staff", "Contractor", "Officer", "System"];
 
-  const filteredRoles = adminStore.rolesCatalog.filter((role: any) => {
+  const filteredRoles = adminStore.rolesCatalog.filter((role: RoleCatalogItem) => {
     if (adminStore.rolesFilter === "All") return true;
     return role.category === adminStore.rolesFilter;
   });
@@ -739,7 +723,7 @@ function RolesView({
     setRbacChanged(true);
   };
 
-  const handleEditClick = (role: any) => {
+  const handleEditClick = (role: RoleCatalogItem) => {
     setEditingRoleId(role.id);
     setEditingValue(role.assigned);
   };
@@ -756,7 +740,7 @@ function RolesView({
     triggerToast("RBAC rules and override matrices deployed.");
   };
 
-  const renderRbacIcon = (state: string) => {
+  const renderRbacIcon = (state: RbacMatrixRow["states"][number]) => {
     switch (state) {
       case "active":
         return (
@@ -857,7 +841,7 @@ function RolesView({
       
       {/* 1. Policy Alert box */}
       <div className="bg-[#1e293b]/20 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        <Lock className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+        <Lock className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800 dark:text-white">Rules & RBAC · security policy</span>
           <p className="mt-0.5">Every modification to standard role assignments must write to the control plane log. Device & override logic resolves in order of specificity.</p>
@@ -882,7 +866,7 @@ function RolesView({
           </button>
           <button
             onClick={() => triggerToast("Deploying active policy definitions...")}
-            className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
+            className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
           >
             Post rules
           </button>
@@ -905,7 +889,7 @@ function RolesView({
                 onClick={() => adminStore.setRolesFilter(cat)}
                 className={`px-3 py-1 rounded-lg text-[10px] font-bold tracking-wide uppercase transition cursor-pointer border ${
                   adminStore.rolesFilter === cat
-                    ? "bg-[#0da2b3] text-white border-transparent"
+                    ? "bg-[var(--brand-color)] text-white border-transparent"
                     : "bg-slate-50 dark:bg-[#070a13] border-slate-200 dark:border-white/5 text-slate-500 hover:bg-slate-100"
                 }`}
               >
@@ -928,7 +912,7 @@ function RolesView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {filteredRoles.map((r: any) => (
+              {filteredRoles.map((r: RoleCatalogItem) => (
                 <tr key={r.id} className="align-middle">
                   <td className="py-3 font-bold text-slate-800 dark:text-white">{r.role}</td>
                   <td className="py-3">
@@ -961,7 +945,7 @@ function RolesView({
                   <td className="py-3 text-right">
                     <button
                       onClick={() => handleEditClick(r)}
-                      className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[#0da2b3] hover:text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                      className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[var(--brand-color)] hover:text-white rounded-lg text-[10px] font-bold cursor-pointer"
                     >
                       Edit
                     </button>
@@ -1035,10 +1019,10 @@ function RolesView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {adminStore.rbacMatrix.map((row: any, rIdx: number) => (
+              {adminStore.rbacMatrix.map((row: RbacMatrixRow, rIdx: number) => (
                 <tr key={rIdx} className="align-middle hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
                   <td className="py-3 font-bold text-slate-800 dark:text-slate-200">{row.permission}</td>
-                  {row.states.map((state: string, cIdx: number) => (
+                  {row.states.map((state: RbacMatrixRow["states"][number], cIdx: number) => (
                     <td
                       key={cIdx}
                       onClick={() => handleCellClick(rIdx, cIdx)}
@@ -1067,7 +1051,7 @@ function RolesView({
             <h3 className="text-sm font-bold text-slate-800 dark:text-white">Accounts & onboarding</h3>
             <p className="text-[10px] text-slate-450 mt-0.5">Status · access expiration · assigned providers · effective permissions · Purpose consent (separate)</p>
           </div>
-          <span className="px-2 py-0.5 bg-[#0da2b3]/10 text-[#0da2b3] text-[9px] font-bold rounded-full uppercase">
+          <span className="px-2 py-0.5 bg-[var(--brand-color)/10] text-[var(--brand-color)] text-[9px] font-bold rounded-full uppercase">
             Effective permissions
           </span>
         </div>
@@ -1170,7 +1154,7 @@ function RolesView({
                 onClick={() => setOutcomesPage(1)}
                 className={`size-6 flex items-center justify-center rounded-lg border text-xs font-bold transition cursor-pointer ${
                   outcomesPage === 1
-                    ? "bg-[#0da2b3] text-white border-transparent"
+                    ? "bg-[var(--brand-color)] text-white border-transparent"
                     : "border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900"
                 }`}
               >
@@ -1180,7 +1164,7 @@ function RolesView({
                 onClick={() => setOutcomesPage(2)}
                 className={`size-6 flex items-center justify-center rounded-lg border text-xs font-bold transition cursor-pointer ${
                   outcomesPage === 2
-                    ? "bg-[#0da2b3] text-white border-transparent"
+                    ? "bg-[var(--brand-color)] text-white border-transparent"
                     : "border-slate-200 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-900"
                 }`}
               >
@@ -1243,7 +1227,7 @@ function RolesView({
                   <tr key={row.id} className="align-middle">
                     <td className="py-2.5 font-bold text-slate-500">{row.id}</td>
                     <td className={`py-2.5 text-slate-800 dark:text-white font-sans ${row.highlight ? "font-bold" : ""}`}>{row.driver}</td>
-                    <td className={`py-2.5 text-slate-600 dark:text-slate-400 font-sans ${row.highlight ? "font-bold text-[#0da2b3]" : ""}`}>{row.direction}</td>
+                    <td className={`py-2.5 text-slate-600 dark:text-slate-400 font-sans ${row.highlight ? "font-bold text-[var(--brand-color)]" : ""}`}>{row.direction}</td>
                     <td className={`py-2.5 text-slate-800 dark:text-slate-300 font-sans ${row.highlight ? "font-bold" : ""}`}>{row.routing}</td>
                     <td className="py-2.5">
                       <span className="inline-flex items-center gap-1.5 text-emerald-500 font-bold font-sans">
@@ -1277,7 +1261,7 @@ function RolesView({
                   <tr key={row.id} className="align-middle">
                     <td className="py-2.5 font-bold text-slate-500">{row.id}</td>
                     <td className={`py-2.5 text-slate-800 dark:text-white font-sans ${row.highlight ? "font-bold" : ""}`}>{row.driver}</td>
-                    <td className={`py-2.5 text-slate-600 dark:text-slate-400 font-sans ${row.highlight ? "font-bold text-[#0da2b3]" : ""}`}>{row.direction}</td>
+                    <td className={`py-2.5 text-slate-600 dark:text-slate-400 font-sans ${row.highlight ? "font-bold text-[var(--brand-color)]" : ""}`}>{row.direction}</td>
                     <td className={`py-2.5 text-slate-800 dark:text-slate-300 font-sans ${row.highlight ? "font-bold" : ""}`}>{row.routing}</td>
                     <td className="py-2.5">
                       <span className="inline-flex items-center gap-1.5 text-emerald-500 font-bold font-sans">
@@ -1318,7 +1302,7 @@ function RolesView({
             </button>
             <button
               onClick={handleConfirmChanges}
-              className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/90 text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
+              className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/90] text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
             >
               Confirm change
             </button>
@@ -1333,13 +1317,25 @@ function RolesView({
 // ----------------------------------------------------
 // 3. SCOPE VIEW
 // ----------------------------------------------------
+type DriverKey = keyof AdminStore["driverVisibility"];
+
+type CoverageRow = {
+  role: string;
+  self: string;
+  flight: string;
+  caseload: string;
+  optin: string;
+  wing: string;
+  global: string;
+};
+
 function ScopeView({
   adminStore,
   scopeChanged,
   setScopeChanged,
   triggerToast,
 }: {
-  adminStore: any;
+  adminStore: AdminStore;
   scopeChanged: boolean;
   setScopeChanged: (val: boolean) => void;
   triggerToast: (msg: string) => void;
@@ -1357,7 +1353,7 @@ function ScopeView({
     setScopeChanged(true);
   };
 
-  const handleDriverToggle = (driver: "physical" | "sleep" | "mental" | "nutrition" | "purpose") => {
+  const handleDriverToggle = (driver: DriverKey) => {
     adminStore.toggleDriverVisibility(driver);
     setScopeChanged(true);
   };
@@ -1372,7 +1368,7 @@ function ScopeView({
       
       {/* Warning header */}
       <div className="bg-[#1e293b]/20 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        <Layers className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+        <Layers className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800 dark:text-white">Scope matrix - inheritance & cohort minimums</span>
           <p className="mt-0.5">Every role reads through inheritance (Wing &rarr; Unit &rarr; Flight). Cohort minimums (k) apply whenever data crosses a privacy boundary.</p>
@@ -1409,7 +1405,7 @@ function ScopeView({
                   onClick={() => handleUnitClick(unit)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                     adminStore.selectedScopeUnit === unit
-                      ? "bg-[#0da2b3] text-white border-transparent"
+                      ? "bg-[var(--brand-color)] text-white border-transparent"
                       : "bg-slate-50 dark:bg-[#070a13] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
                   }`}
                 >
@@ -1429,7 +1425,7 @@ function ScopeView({
                   onClick={() => handleKClick(k)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                     adminStore.cohortSizeK === k
-                      ? "bg-[#0da2b3] text-white border-transparent"
+                      ? "bg-[var(--brand-color)] text-white border-transparent"
                       : "bg-slate-50 dark:bg-[#070a13] border-slate-200 dark:border-white/5 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
                   }`}
                 >
@@ -1443,21 +1439,23 @@ function ScopeView({
           <div className="space-y-2">
             <span className="text-[10px] text-slate-400 uppercase font-bold">Driver visibility</span>
             <div className="flex flex-wrap gap-2">
-              {[
-                { key: "physical", label: "Physical" },
-                { key: "sleep", label: "Sleep" },
-                { key: "mental", label: "Mental" },
-                { key: "nutrition", label: "Nutrition" },
-                { key: "purpose", label: "Purpose (off)" },
-              ].map((driver) => {
+              {(
+                [
+                  { key: "physical", label: "Physical" },
+                  { key: "sleep", label: "Sleep" },
+                  { key: "mental", label: "Mental" },
+                  { key: "nutrition", label: "Nutrition" },
+                  { key: "purpose", label: "Purpose (off)" },
+                ] as { key: DriverKey; label: string }[]
+              ).map((driver) => {
                 const isActive = adminStore.driverVisibility[driver.key];
                 return (
                   <button
                     key={driver.key}
-                    onClick={() => handleDriverToggle(driver.key as any)}
+                    onClick={() => handleDriverToggle(driver.key)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition cursor-pointer border ${
                       isActive
-                        ? "bg-[#0da2b3] text-white border-transparent"
+                        ? "bg-[var(--brand-color)] text-white border-transparent"
                         : "bg-slate-50 dark:bg-[#070a13] border-slate-200 dark:border-white/5 text-slate-400 dark:text-slate-500 hover:bg-slate-100"
                     }`}
                   >
@@ -1526,21 +1524,23 @@ function ScopeView({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-              {[
-                { role: "Operator", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "-" },
-                { role: "SCS", self: "own", flight: "-", caseload: "active", optin: "-", wing: "gated", global: "-" },
-                { role: "PT/IM", self: "own", flight: "-", caseload: "active", optin: "confirm", wing: "gated", global: "-" },
-                { role: "MP", self: "own", flight: "-", caseload: "-", optin: "confirm", wing: "-", global: "-" },
-                { role: "Nutrition", self: "own", flight: "-", caseload: "active", optin: "confirm", wing: "-", global: "-" },
-                { role: "Purpose", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "-" },
-                { role: "Plan", self: "own", flight: "-", caseload: "active", optin: "active", wing: "active", global: "gated" },
-                { role: "Leadership", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "active" },
-                { role: "Admin", self: "own", flight: "active", caseload: "active", optin: "active", wing: "active", global: "active" },
-              ].map((row, idx) => (
+              {(
+                [
+                  { role: "Operator", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "-" },
+                  { role: "SCS", self: "own", flight: "-", caseload: "active", optin: "-", wing: "gated", global: "-" },
+                  { role: "PT/IM", self: "own", flight: "-", caseload: "active", optin: "confirm", wing: "gated", global: "-" },
+                  { role: "MP", self: "own", flight: "-", caseload: "-", optin: "confirm", wing: "-", global: "-" },
+                  { role: "Nutrition", self: "own", flight: "-", caseload: "active", optin: "confirm", wing: "-", global: "-" },
+                  { role: "Purpose", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "-" },
+                  { role: "Plan", self: "own", flight: "-", caseload: "active", optin: "active", wing: "active", global: "gated" },
+                  { role: "Leadership", self: "own", flight: "-", caseload: "-", optin: "-", wing: "-", global: "active" },
+                  { role: "Admin", self: "own", flight: "active", caseload: "active", optin: "active", wing: "active", global: "active" },
+                ] as CoverageRow[]
+              ).map((row, idx) => (
                 <tr key={idx} className="align-middle">
                   <td className="py-3 font-bold text-slate-800 dark:text-white">{row.role}</td>
-                  {["self", "flight", "caseload", "optin", "wing", "global"].map((col) => {
-                    const status = (row as any)[col];
+                  {(["self", "flight", "caseload", "optin", "wing", "global"] as (keyof Omit<CoverageRow, "role">)[]).map((col) => {
+                    const status = row[col];
                     return (
                       <td key={col} className="py-3 text-center">
                         {status === "-" ? (
@@ -1646,7 +1646,7 @@ function ScopeView({
             </button>
             <button
               onClick={handleSaveChange}
-              className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/90 text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
+              className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/90] text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
             >
               Confirm change
             </button>
@@ -1664,11 +1664,11 @@ function ScopeView({
 function AuditLogView({
   adminStore,
 }: {
-  adminStore: any;
+  adminStore: AdminStore;
 }) {
   const categories = ["All", "Login", "Record access", "Export", "Config change", "Deactivation"];
 
-  const filteredLogs = adminStore.recentActivity.filter((log: any) => {
+  const filteredLogs = adminStore.recentActivity.filter((log: ActivityItem) => {
     // Category match
     const catMatch = adminStore.auditFilter === "All" || log.action.toLowerCase().includes(adminStore.auditFilter.toLowerCase()) || log.actor.toLowerCase().includes(adminStore.auditFilter.toLowerCase());
     
@@ -1698,7 +1698,7 @@ function AuditLogView({
       
       {/* 1. Policy Alert box */}
       <div className="bg-[#1e293b]/20 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        <Lock className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+        <Lock className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800 dark:text-white">Audit log · every action, immutable</span>
           <p className="mt-0.5">2,184 entries in the last 24 hours. Filterable by actor role, scope, and severity. Drill down into any row for full context.</p>
@@ -1764,7 +1764,7 @@ function AuditLogView({
             value={adminStore.auditSearchQuery}
             onChange={(e) => adminStore.setAuditSearchQuery(e.target.value)}
             placeholder="Search actor, action, target, scope..."
-            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-800 bg-transparent rounded-xl text-xs focus:ring-[#0da2b3] focus:border-[#0da2b3] outline-none"
+            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-800 bg-transparent rounded-xl text-xs focus:ring-[var(--brand-color)] focus:border-[var(--brand-color)] outline-none"
           />
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -1774,7 +1774,7 @@ function AuditLogView({
               onClick={() => adminStore.setAuditFilter(cat)}
               className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wide uppercase transition cursor-pointer border ${
                 adminStore.auditFilter === cat
-                  ? "bg-[#0da2b3] text-white border-transparent"
+                  ? "bg-[var(--brand-color)] text-white border-transparent"
                   : "bg-slate-50 dark:bg-[#070a13] border-slate-200 dark:border-white/5 text-slate-500 hover:bg-slate-100"
               }`}
             >
@@ -1813,7 +1813,7 @@ function AuditLogView({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-mono text-[11px]">
-                {filteredLogs.map((log: any) => (
+                {filteredLogs.map((log: ActivityItem) => (
                   <tr key={log.id} className="align-middle">
                     <td className="py-3">
                       <div className={`size-1.5 rounded-full ${getSeverityColor(log.tagColor)}`} />
@@ -1893,7 +1893,7 @@ function ExportsView({
   setActiveReviewItem,
   triggerToast,
 }: {
-  adminStore: any;
+  adminStore: AdminStore;
   setActiveReviewItem: (item: ConfirmationItem | null) => void;
   triggerToast: (msg: string) => void;
 }) {
@@ -1943,7 +1943,7 @@ function ExportsView({
           </button>
           <button
             onClick={() => setShowConfirmExportBar(true)}
-            className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="size-3.5" /> New export
           </button>
@@ -1958,7 +1958,7 @@ function ExportsView({
           <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
             <h3 className="text-sm font-bold text-slate-800 dark:text-white">Pending confirmations</h3>
             <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-full">
-              {adminStore.pendingConfirmations.filter((c: any) => c.action === "Export").length} open
+              {adminStore.pendingConfirmations.filter((c: ConfirmationItem) => c.action === "Export").length} open
             </span>
           </div>
 
@@ -1975,7 +1975,7 @@ function ExportsView({
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                 {adminStore.pendingConfirmations
-                  .filter((c: any) => c.action === "Export")
+                  .filter((c: ConfirmationItem) => c.action === "Export")
                   .map((conf: ConfirmationItem) => (
                     <tr key={conf.id} className="align-middle">
                       <td className="py-3 font-bold text-slate-800 dark:text-white">{conf.target}</td>
@@ -1993,7 +1993,7 @@ function ExportsView({
                       <td className="py-3 text-right">
                         <button
                           onClick={() => setActiveReviewItem(conf)}
-                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[#0da2b3] hover:text-white dark:hover:bg-[#0da2b3] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[var(--brand-color)] hover:text-white dark:hover:bg-[var(--brand-color)] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                         >
                           Review
                         </button>
@@ -2066,7 +2066,7 @@ function ExportsView({
                   <td className="py-3 font-bold text-slate-800 dark:text-white">{sch.name}</td>
                   <td className="py-3 text-slate-500 dark:text-slate-400">{sch.cadence}</td>
                   <td className="py-3">
-                    <span className="px-1.5 py-0.5 bg-[#0da2b3]/10 text-[#0da2b3] text-[9px] font-bold rounded">
+                    <span className="px-1.5 py-0.5 bg-[var(--brand-color)/10] text-[var(--brand-color)] text-[9px] font-bold rounded">
                       {sch.scope}
                     </span>
                   </td>
@@ -2175,7 +2175,7 @@ function ExportsView({
             </button>
             <button
               onClick={handleConfirmSendExport}
-              className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/90 text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
+              className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/90] text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
             >
               Confirm & send
             </button>
@@ -2192,13 +2192,9 @@ function ExportsView({
 // ----------------------------------------------------
 function SystemView({
   adminStore,
-  systemChanged: propSystemChanged,
-  setSystemChanged: propSetSystemChanged,
   triggerToast,
 }: {
-  adminStore: any;
-  systemChanged: boolean;
-  setSystemChanged: (val: boolean) => void;
+  adminStore: AdminStore;
   triggerToast: (msg: string) => void;
 }) {
   const [localSystemChanged, setLocalSystemChanged] = useState(false);
@@ -2241,7 +2237,7 @@ function SystemView({
       
       {/* 1. Policy Alert box */}
       <div className="bg-[#1e293b]/20 dark:bg-slate-900/60 p-4 rounded-xl border border-slate-200 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-slate-500 dark:text-slate-400">
-        <Sliders className="size-5 text-[#0da2b3] flex-shrink-0 mt-0.5" />
+        <Sliders className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
         <div>
           <span className="font-bold text-slate-800 dark:text-white">System module · R6.90A - 26d</span>
           <p className="mt-0.5">7 sub-modules, all green. Overall system status is normal; last build 23 May 10:22 (v1.11.0) for the testing engineering.</p>
@@ -2266,7 +2262,7 @@ function SystemView({
           </button>
           <button
             onClick={() => triggerToast("Initializing diagnostic sweep...")}
-            className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/95 text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
             <span className="size-1.5 rounded-full bg-emerald-500"></span>
             Run diagnostics
@@ -2308,7 +2304,7 @@ function SystemView({
         </div>
         <div className="p-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm space-y-1">
           <span className="text-[9px] font-bold text-slate-455 uppercase tracking-wide">Compliance - 55d</span>
-          <span className="text-2xl font-black text-[#0da2b3]">PASS</span>
+          <span className="text-2xl font-black text-[var(--brand-color)]">PASS</span>
           <span className="text-[10px] text-slate-400 font-semibold block">full - 22/03/24 - 10:42</span>
         </div>
         <div className="p-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl shadow-sm space-y-1">
@@ -2357,8 +2353,8 @@ function SystemView({
                     <td className="py-3 font-bold text-slate-800 dark:text-white">{srv.name}</td>
                     <td className="py-3">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold select-none ${
-                        srv.status === "Online" ? "bg-emerald-500/10 text-emerald-500" :
-                        srv.status === "Degraded" ? "bg-amber-500/10 text-amber-500" :
+                        srv.status === SERVICE_STATUS.ONLINE ? "bg-emerald-500/10 text-emerald-500" :
+                        srv.status === SERVICE_STATUS.DEGRADED ? "bg-amber-500/10 text-amber-500" :
                         "bg-red-500/10 text-red-500"
                       }`}>
                         {srv.status}
@@ -2407,7 +2403,7 @@ function SystemView({
                 ].map((row, idx) => (
                   <tr key={idx} className="align-middle">
                     <td className="py-2.5 font-bold text-slate-800 dark:text-white">{row.rate}</td>
-                    <td className="py-2.5 text-center font-mono font-bold text-[#0da2b3]">{row.val}</td>
+                    <td className="py-2.5 text-center font-mono font-bold text-[var(--brand-color)]">{row.val}</td>
                     <td className="py-2.5 text-right text-slate-550 dark:text-slate-400">{row.applies}</td>
                   </tr>
                 ))}
@@ -2460,7 +2456,7 @@ function SystemView({
                   <td className="py-3.5 text-right">
                     <button
                       onClick={() => handleResolveDeactivation(row.id)}
-                      className="px-3 py-1 bg-slate-100 hover:bg-[#0da2b3] hover:text-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer transition"
+                      className="px-3 py-1 bg-slate-100 hover:bg-[var(--brand-color)] hover:text-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer transition"
                     >
                       Resolve
                     </button>
@@ -2603,7 +2599,7 @@ function SystemView({
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">PT/IM YTD</span>
             <p className="font-bold text-slate-800 dark:text-white">340 / 512</p>
-            <p className="text-[10px] text-[#0da2b3] font-semibold">66% - on pace.</p>
+            <p className="text-[10px] text-[var(--brand-color)] font-semibold">66% - on pace.</p>
           </div>
           <div className="space-y-1">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">WEEKLY COVERAGE</span>
@@ -2666,7 +2662,7 @@ function SystemView({
             <h3 className="text-sm font-bold text-slate-800 dark:text-white">9 operational queues</h3>
             <p className="text-[10px] text-slate-455 mt-0.5">Provider coverage · support · corrective actions · IDMT/documentation handoffs · medical-access audit · retention/disposition · export audit · equipment gaps · Fly Away Kit</p>
           </div>
-          <span className="px-2 py-0.5 bg-[#0da2b3]/10 text-[#0da2b3] text-[9px] font-bold rounded uppercase">
+          <span className="px-2 py-0.5 bg-[var(--brand-color)/10] text-[var(--brand-color)] text-[9px] font-bold rounded uppercase">
             Each with assignment/status/due/resolution/closure/audit
           </span>
         </div>
@@ -2760,7 +2756,7 @@ function SystemView({
             </button>
             <button
               onClick={handleConfirmChanges}
-              className="px-4 py-2 bg-[#0da2b3] hover:bg-[#0da2b3]/90 text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
+              className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/90] text-white rounded-xl text-xs font-semibold shadow-md cursor-pointer"
             >
               Confirm change
             </button>

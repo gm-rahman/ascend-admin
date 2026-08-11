@@ -159,7 +159,7 @@ export default function MpDashboard() {
           {/* Brand logo wrapper */}
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-[#0da2b3]"></span>
+              <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-800 dark:text-white uppercase font-sans">
                 Mental Performance
               </span>
@@ -177,7 +177,7 @@ export default function MpDashboard() {
               onClick={() => setActiveTab("dashboard")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard" && !editingNoteId
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -188,7 +188,7 @@ export default function MpDashboard() {
               onClick={() => setActiveTab("notes")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "notes" || editingNoteId
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -199,7 +199,7 @@ export default function MpDashboard() {
               onClick={() => setActiveTab("records")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "records"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -210,7 +210,7 @@ export default function MpDashboard() {
               onClick={() => setActiveTab("messages")}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "messages"
-                  ? "bg-[#0da2b3]/10 text-[#0da2b3]"
+                  ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
                   : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
               }`}
             >
@@ -269,7 +269,7 @@ export default function MpDashboard() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <span className="text-xs font-bold text-slate-800 dark:text-white block">Dr. M. Khan</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">MP &middot; 23rd MDG</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">MP</span>
               </div>
               <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
                 MK
@@ -358,7 +358,7 @@ export default function MpDashboard() {
                         </button>
                         <button 
                           onClick={() => triggerToast("Session note draft saved")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                         >
                           Save note
                         </button>
@@ -403,7 +403,7 @@ export default function MpDashboard() {
                         rows={2}
                         value={soapSubjective}
                         onChange={(e) => setSoapSubjective(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
 
@@ -418,7 +418,7 @@ export default function MpDashboard() {
                         rows={2}
                         value={soapObjective}
                         onChange={(e) => setSoapObjective(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
 
@@ -433,7 +433,7 @@ export default function MpDashboard() {
                         rows={2}
                         value={soapAssessment}
                         onChange={(e) => setSoapAssessment(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
 
@@ -448,7 +448,7 @@ export default function MpDashboard() {
                         rows={2}
                         value={soapPlan}
                         onChange={(e) => setSoapPlan(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[#0da2b3]/50 leading-relaxed font-sans"
+                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
                   </div>

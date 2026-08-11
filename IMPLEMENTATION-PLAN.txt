@@ -1,0 +1,373 @@
+===========================================================
+  ASCEND ADMIN DASHBOARD — IMPLEMENTATION PLAN
+  Source: Client fix/Ascend Frontend Revisions (1).docx
+  Date: 2026-08-11
+===========================================================
+
+CLIENT REQUIREMENTS (from .docx document)
+------------------------------------------
+
+1. Standardize Dashboard Terminology
+   One approved term per concept across ALL dashboards
+   (scores, roles, readiness categories, case types, alert types, statuses)
+
+2. Standardize Workflow Status Labels
+   One controlled status set per workflow type:
+   alerts, performance plans, specialist follow-ups, requests, rehabilitation cases
+
+3. Actionable Work Queues
+   Priority work at top of specialist dashboards
+   Analytics pushed below or removed from MVP
+
+4. Separate PT/IM Clinical vs Performance Support
+   Clearly separated sections/modules
+   Clinical: rehab cases, medical docs, restrictions, authorizations, RTD
+   Performance: readiness, performance plans, education, nonclinical follow-up
+
+5. SCS Rehab Boundaries
+   SCS must NOT own diagnosis, duty restrictions, medical decisions
+   Label PT/IM-owned cases clearly
+   Replace clinical action buttons with performance actions
+
+6. Population Level Labels
+   Every view shows: Individual Soldier, Assigned Caseload, Cohort, Unit, Organization
+
+7. Privacy States
+   Restricted, Authorization Required, Access Expired,
+   Consent Required, Consent Withdrawn, Access Denied
+   Consistent everywhere, never blank
+
+===========================================================
+PHASE 1: SHARED INFRASTRUCTURE (Foundation)
+===========================================================
+
+TASK 1.1: Create src/hooks/use-toast.ts
+  - Extract triggerToast from 8 page files
+  - Single hook replaces duplicated toast state/logic
+  Files to create: src/hooks/use-toast.ts
+  Files to modify:
+    src/app/dashboard/scs/page.tsx (line 53-54, 91-95)
+    src/app/dashboard/pt-im/page.tsx (line 45-46, 64-68)
+    src/app/dashboard/admin/page.tsx (line 54-55, 90-94)
+    src/app/dashboard/nutrotinish/page.tsx (line 48-49, 68-72)
+    src/app/dashboard/plan/page.tsx (line 46-50)
+    src/app/dashboard/pc/page.tsx (line 57-61)
+    src/app/dashboard/mp/page.tsx (line 69-73)
+    src/app/dashboard/leadership/page.tsx (line 59-63)
+
+TASK 1.2: Create src/hooks/use-theme.ts
+  - Extract theme sync + toggle from 11 files
+  - Encapsulates localStorage read, dark class toggle, setTimeout flash prevention
+  Files to create: src/hooks/use-theme.ts
+  Files to modify:
+    src/app/page.tsx (line 21, 39-55, 57-62)
+    src/app/roles/page.tsx (line 37, 51-66, 68-73)
+    src/components/layout/dashboard-layout.tsx (line 18, 32-47, 49-54)
+    src/app/dashboard/scs/page.tsx (line 51-52, 146-157, 159-164)
+    src/app/dashboard/pt-im/page.tsx (line 43-44, 112-124, 126-131)
+    src/app/dashboard/admin/page.tsx (line 46-47, 68-76, 78-83)
+    src/app/dashboard/nutrotinish/page.tsx (line 41, 103-116, 118-123)
+    src/app/dashboard/plan/page.tsx (line 41, 82-94, 96-101)
+    src/app/dashboard/pc/page.tsx (line 43, 106-119, 121-126)
+    src/app/dashboard/mp/page.tsx (line 40, 119-132, 134-139)
+    src/app/dashboard/leadership/page.tsx (line 37, 77-87)
+
+TASK 1.3: Create src/lib/constants.ts
+  - Centralize #0da2b3 brand color as named constant
+  - Prevents 200+ hardcoded color references from drifting
+  Files to create: src/lib/constants.ts
+  Files to modify (13 locations):
+    src/components/layout/dashboard-layout.tsx (line 120)
+    src/components/ascend-logo.tsx (line 46)
+    src/app/page.tsx (line 169)
+    src/app/roles/page.tsx (line 133)
+    src/app/dashboard/pt-im/page.tsx (line 154)
+    src/app/dashboard/scs/page.tsx (line 187)
+    src/app/dashboard/plan/page.tsx (line 124)
+    src/app/dashboard/pc/page.tsx (line 149)
+    src/app/dashboard/nutrotinish/page.tsx (line 146)
+    src/app/dashboard/mt/page.tsx (line 11)
+    src/app/dashboard/mp/page.tsx (line 162)
+    src/app/dashboard/leadership/page.tsx (line 117)
+    src/app/dashboard/admin/page.tsx (line 188)
+
+TASK 1.4: Create src/lib/terminology.ts
+  - Single source of truth for ALL terminology
+  - Approved role names, status labels, case types, alert types,
+    plan types, population levels, privacy states, risk levels
+  Files to create: src/lib/terminology.ts
+  Used by all dashboard pages during refactor phases
+
+===========================================================
+PHASE 2: QUICK FIXES
+===========================================================
+
+TASK 2.1: Rename nutrotinish -> nutritionist
+  - Fix typo in folder name
+  - Update all references in imports, navigation, role assignment
+  Files to rename:
+    src/app/dashboard/nutrotinish/page.tsx -> src/app/dashboard/nutritionist/page.tsx
+  Files to search: grep -r "nutrotinish" src/
+  Update references in: role pages, nav links, auth guards
+
+TASK 2.2: Fix any types in admin/page.tsx
+  - Replace adminStore: any with proper AdminStore type (6 components)
+  - Fix inline .filter()/.map() callbacks with proper types
+  - Resolve as any casts
+  File: src/app/dashboard/admin/page.tsx
+  Locations: lines 433, 723, 1342, 1667, 1896, 2199 (component props)
+             lines 732, 475, 528, 570, 1671, 1038, 1457, 1543 (callbacks)
+  Import: { AdminStore, ... } from "@/store/admin-store"
+
+===========================================================
+PHASE 3: SCS DASHBOARD REFACTOR
+===========================================================
+
+File: src/app/dashboard/scs/page.tsx (~2200 lines)
+Reqs addressed: 3 (actionable queues), 5 (rehab boundaries),
+                6 (population labels), 7 (privacy states)
+
+TASK 3.1: Create component structure
+  src/app/dashboard/scs/components/
+    SCSOverview.tsx
+    SCSDashboardView.tsx
+    SCSPeopleRoster.tsx
+    SCSPlans.tsx
+    SCSCoverage.tsx
+    SCSMessages.tsx
+
+TASK 3.2: SCSOverview (actionable queues + population labels + privacy)
+  Add actionable work queue cards at top:
+    - Newly assigned Soldiers (clickable count)
+    - Follow-ups due (clickable count)
+    - Overdue actions (clickable count)
+    - Unread messages (clickable count)
+    - Active plans requiring review (clickable count)
+  Push nonessential charts/analytics below queues
+  Add population-level labels: Individual Soldier, Assigned Caseload,
+    Cohort, Unit, Organization
+  Replace clinical ownership wording:
+    "Primary dx: L4 lumbar pain" -> "PT/IM diagnosis: L4 lumbar pain (PT/IM-owned)"
+    "clearance: limited duty" -> "PT/IM duty restriction: limited duty"
+  Replace clinical action buttons:
+    "Edit plan" -> "View plan -> PT/IM"
+    "Add note" (clinical) -> "Add performance note"
+    Add "View authorized performance summary"
+  Add privacy states: Restricted, Authorization Required, Consent Required
+
+TASK 3.3: SCSDashboardView
+  Extract Dashboard tab (OFE trends, driver bars, metrics)
+  Add population-level labels to every metric
+  Standardize status labels to terminology.ts
+  Update color tokens to use BRAND_COLOR
+
+TASK 3.4: SCSPeopleRoster
+  Extract People tab (roster table, drill-in views)
+  Add population-level labels (Individual vs Caseload)
+  Add privacy states on restricted records
+  Standardize status labels
+
+TASK 3.5: SCSPlans
+  Extract Plans tab (plan assignment, tracking)
+  Standardize plan status labels to PLAN_STATUSES
+  Add population-level labels
+  Replace clinical action buttons
+
+TASK 3.6: SCSCoverage
+  Extract Coverage tab (coverage schedules, gaps)
+  Standardize status labels
+  Add population-level labels
+
+TASK 3.7: SCSMessages
+  Extract Messages tab (chat threads, messaging)
+  Add population-level labels where relevant
+  Standardize terminology
+
+TASK 3.8: Simplify scs/page.tsx
+  Reduce ~2200 lines to ~300 lines layout only
+  Import sub-components, wire up tab switching, render layout
+
+===========================================================
+PHASE 4: PT/IM DASHBOARD REFACTOR
+===========================================================
+
+File: src/app/dashboard/pt-im/page.tsx (~1800 lines)
+Reqs addressed: 3 (actionable queues), 4 (clinical separation),
+                6 (population labels), 7 (privacy states)
+
+TASK 4.1: Create component structure
+  src/app/dashboard/pt-im/components/
+    PTIMDashboardView.tsx
+    PTIMInjuryQueue.tsx
+    PTIMMedicalRecords.tsx
+    PTIMQuarterly.tsx
+    PTIMSCSCoordination.tsx
+    PTIMHandoff.tsx
+
+TASK 4.2: Restructure navigation — Clinical vs Performance (Req 4)
+  Current sidebar:
+    Patients: Dashboard, Injury queue, Medical Records, Quarterly
+    Coordination: SCS coordination, IDMT handoff
+
+  New sidebar:
+    PERFORMANCE SUPPORT (non-clinical):
+      Dashboard, Injury queue, SCS coordination
+    CLINICAL / REHABILITATION (clinical):
+      Medical Records, Quarterly, IDMT handoff
+
+  Use visual separation: different section headers, divider line
+
+TASK 4.3: PTIMDashboardView
+  Add actionable work queue cards at top:
+    - New injury cases
+    - Follow-ups due
+    - Overdue actions
+    - Unread communications
+    - Plans requiring review
+  Push analytics charts below queues
+  Add population-level labels
+
+TASK 4.4: PTIMInjuryQueue
+  Extract Injury queue tab
+  Add population-level labels
+  Standardize status labels
+  Add privacy states on restricted records
+
+TASK 4.5: PTIMMedicalRecords (clinical section, privacy-heavy)
+  Extract Medical Records tab
+  Clearly labeled as "Clinical / Rehabilitation" section
+  All 6 privacy states: Restricted, Auth Required, Access Expired,
+    Consent Required, Consent Withdrawn, Access Denied
+  Never show medical details as blank -- always show reason
+  Population-level labels
+
+TASK 4.6: PTIMQuarterly, PTIMSCSCoordination, PTIMHandoff
+  PTIMQuarterly: population labels, status standardization
+  PTIMSCSCoordination: population labels, terminology standardization
+  PTIMHandoff: clearly clinical, privacy states on export
+
+TASK 4.7: Simplify pt-im/page.tsx
+  Reduce ~1800 lines to ~300 lines layout only
+  Import sub-components, wire up tab switching, render layout
+
+===========================================================
+PHASE 5: ADMIN & NUTRITIONIST TERMINOLOGY CLEANUP
+===========================================================
+
+TASK 5.1: Update admin/page.tsx
+  Replace all terminology to match terminology.ts
+  Ensure privacy states match PRIVACY_STATES exactly
+  Standardize status labels to single source
+  Replace inline #0da2b3 uses with BRAND_COLOR constant
+  (Already using extraction pattern -- no structural refactor needed)
+
+TASK 5.2: Update nutritionist/page.tsx
+  Replace all terminology to match terminology.ts
+  Add population-level labels (Cohort, Caseload, etc.)
+  Add privacy states where restricted data appears
+  Standardize status labels
+  Replace inline #0da2b3 with BRAND_COLOR
+
+===========================================================
+PHASE 6: CROSS-CUTTING CLEANUP
+===========================================================
+
+TASK 6.1: Update remaining dashboard pages
+  Files:
+    src/app/dashboard/plan/page.tsx
+    src/app/dashboard/pc/page.tsx
+    src/app/dashboard/mp/page.tsx
+    src/app/dashboard/leadership/page.tsx
+    src/app/dashboard/mt/page.tsx
+
+  Changes per file:
+    Replace triggerToast inline -> use useToast()
+    Replace theme sync inline -> use useTheme()
+    Replace #0da2b3 -> import BRAND_COLOR
+
+TASK 6.2: Update layout and logo components
+  src/components/layout/dashboard-layout.tsx -- replace #0da2b3
+  src/components/ascend-logo.tsx -- replace #0da2b3
+
+TASK 6.3: Update app and roles pages
+  src/app/page.tsx -- replace #0da2b3, use useTheme()
+  src/app/roles/page.tsx -- replace #0da2b3, use useTheme()
+
+===========================================================
+COMPLETION CHECKLIST
+===========================================================
+
+Phase 1: Shared Infrastructure
+  [ ] src/hooks/use-toast.ts created
+  [ ] src/hooks/use-theme.ts created
+  [ ] src/lib/constants.ts created
+  [ ] src/lib/terminology.ts created
+  [ ] 8 page files use useToast()
+  [ ] 11 page/layout files use useTheme()
+  [ ] 13 small files use BRAND_COLOR
+
+Phase 2: Quick Fixes
+  [ ] nutrotinish/ renamed to nutritionist/
+  [ ] All nutrotinish references updated
+  [ ] All adminStore: any -> AdminStore (6 components)
+  [ ] All inline any callbacks typed
+
+Phase 3: SCS Refactor
+  [ ] scs/components/SCSOverview.tsx -- actionable queues, population
+      labels, privacy states, no clinical ownership
+  [ ] scs/components/SCSDashboardView.tsx
+  [ ] scs/components/SCSPeopleRoster.tsx
+  [ ] scs/components/SCSPlans.tsx
+  [ ] scs/components/SCSCoverage.tsx
+  [ ] scs/components/SCSMessages.tsx
+  [ ] scs/page.tsx reduced to layout only
+  [ ] All 7 client reqs addressed in SCS
+
+Phase 4: PT/IM Refactor
+  [ ] pt-im/components/PTIMDashboardView.tsx
+  [ ] pt-im/components/PTIMInjuryQueue.tsx
+  [ ] pt-im/components/PTIMMedicalRecords.tsx -- full privacy states
+  [ ] pt-im/components/PTIMQuarterly.tsx
+  [ ] pt-im/components/PTIMSCSCoordination.tsx
+  [ ] pt-im/components/PTIMHandoff.tsx
+  [ ] pt-im/page.tsx reduced to layout only
+  [ ] Sidebar restructured: Performance Support + Clinical sections
+  [ ] All 7 client reqs addressed in PT/IM
+
+Phase 5: Admin & Nutritionist
+  [ ] admin/page.tsx terminology updated
+  [ ] nutritionist/page.tsx terminology + population labels + privacy
+  [ ] Inline #0da2b3 in Admin replaced
+
+Phase 6: Cross-Cutting
+  [ ] 5 remaining dashboard pages use new hooks
+  [ ] dashboard-layout.tsx uses BRAND_COLOR
+  [ ] ascend-logo.tsx uses BRAND_COLOR
+  [ ] app/page.tsx uses useTheme() + BRAND_COLOR
+  [ ] roles/page.tsx uses useTheme() + BRAND_COLOR
+
+===========================================================
+EXECUTION ORDER
+===========================================================
+
+1. Phase 1 (all 4 tasks) -- shared infrastructure
+2. Phase 2 (2 tasks) -- quick fixes
+3. Phase 3 (all 8 tasks) -- SCS refactor
+4. Phase 4 (all 7 tasks) -- PT/IM refactor
+5. Phase 5 (2 tasks) -- Admin + Nutritionist cleanup
+6. Phase 6 (3 tasks) -- remaining pages + layout/logo
+
+===========================================================
+RISK & NOTES
+===========================================================
+
+- SCS (~2200 lines) and PT/IM (~1800 lines) are the largest files
+  Extracting components requires careful preservation of all behavior
+- Mock data arrays must be preserved during extraction
+- Some state (activeTab, toast, theme) needs to be lifted to parent
+  page.tsx and passed as props to sub-components
+- 200+ inline Tailwind string literals with #0da2b3 exist in large
+  files -- replace with BRAND_COLOR template literals during refactor
+- No existing test suite detected -- manual verification required
+- Zustand stores are well-typed and do not need modification
+- The admin/page.tsx extraction pattern is the reference standard
