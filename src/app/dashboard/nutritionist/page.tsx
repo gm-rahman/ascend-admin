@@ -10,6 +10,7 @@ import { POPULATION_LEVELS, PRIVACY_STATES, PERSON_TERM } from "@/lib/terminolog
 import { PopulationScopeBadge } from "@/components/privacy/population-scope-badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+import { CreateRecordModal } from "@/components/ui/create-record-modal";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   ChevronDown,
@@ -31,6 +32,278 @@ import {
 
 type TabType = "dashboard" | "consults" | "records" | "messages";
 
+type ConsultRecord = {
+  initials: string;
+  name: string;
+  reason: string;
+  time: string;
+  status: string;
+  col: string;
+  out: string;
+};
+
+const RECENT_CONSULTS: ConsultRecord[] = [
+  { initials: "AM", name: "A. Mendez", reason: "Sleep nutrition", time: "13:30", status: "Completed", col: "green", out: "Notes" },
+  { initials: "JR", name: "J. Reyes", reason: "Protein target", time: "12:20", status: "In Progress", col: "orange", out: "Open" },
+  { initials: "TC", name: "T. Cho", reason: "Carb checkup", time: "09:30", status: "Completed", col: "green", out: "Notes" },
+  { initials: "KN", name: "K. Ndoye", reason: "Weight mgmt", time: "12:30", status: "Scheduled", col: "teal", out: "Prep" },
+  { initials: "RP", name: "R. Patel", reason: "Recovery nutrition", time: "15:00", status: "Scheduled", col: "teal", out: "Prep" }
+];
+
+type FoodLogEntry = {
+  time: string;
+  entry: string;
+  kcal: string;
+  carb: string;
+  prot: string;
+  fat: string;
+  flag: string;
+  col: string;
+};
+
+const FOOD_LOG_TODAY: FoodLogEntry[] = [
+  { time: "06:45", entry: "Breakfast: 2oz + banana + whey + black coffee", kcal: "520kcal", carb: "65 gc", prot: "32 gp", fat: "10 gf", flag: "OK", col: "green" },
+  { time: "10:15", entry: "Snack: Apple + almonds (28g)", kcal: "240kcal", carb: "30 gc", prot: "6 gp", fat: "12 gf", flag: "OK", col: "green" },
+  { time: "12:55", entry: "Lunch: MRE + sports drink + high sodium", kcal: "980kcal", carb: "140 gc", prot: "28 gp", fat: "22 gf", flag: "Sodium ++", col: "orange" },
+  { time: "16:20", entry: "Pre-training: Rice + chicken + veg", kcal: "610kcal", carb: "75 gc", prot: "40 gp", fat: "10 gf", flag: "OK", col: "green" },
+  { time: "19:30", entry: "Dinner: Pending entry", kcal: "—", carb: "—", prot: "—", fat: "—", flag: "Past", col: "gray" }
+];
+
+type ChecklistItem = {
+  txt: string;
+  sub?: string;
+  sub2?: string;
+  done: boolean;
+  review?: boolean;
+};
+
+type QueueRecord = {
+  initials: string;
+  name: string;
+  desc: string;
+  reason: string;
+  time: string;
+  checklist: ChecklistItem[];
+  status: string;
+  statusCol: string;
+  act: string;
+  actCol: string;
+};
+
+const CONSULT_QUEUE: QueueRecord[] = [
+  {
+    initials: "SN",
+    name: "S. Ndoye",
+    desc: "New referral · Echo flight",
+    reason: "Weight mgmt",
+    time: "10:30",
+    checklist: [
+      { txt: "Pull 7-day food logs", sub: "ready", done: true },
+      { txt: "Review intake form", sub: "submitted", sub2: "ready", done: true },
+      { txt: "Flag baseline weight + BMI", sub: "PT/IM sync", sub2: "ready", done: true }
+    ],
+    status: "Ready · 3/3",
+    statusCol: "orange",
+    act: "Start →",
+    actCol: "teal"
+  },
+  {
+    initials: "AM",
+    name: "A. Mendez",
+    desc: "Sleep nutrition · Bravo",
+    reason: "Recovery",
+    time: "13:30",
+    checklist: [
+      { txt: "Caffeine taper log", sub: "day 3", sub2: "ready", done: true },
+      { txt: "Sleep nutrition notes", sub: "prior consult", sub2: "ready", done: true },
+      { txt: "Hydration adherence", sub: "67% - flag", sub2: "review", done: false, review: true }
+    ],
+    status: "In Progress · 2/3",
+    statusCol: "orange",
+    act: "Open",
+    actCol: "white"
+  },
+  {
+    initials: "JR",
+    name: "J. Reyes",
+    desc: "Rehab - protein target",
+    reason: "Performance",
+    time: "15:00",
+    checklist: [
+      { txt: "Protein adherence", sub: "1.6 g/kg target", sub2: "ready", done: true },
+      { txt: "Recovery macro split", sub: "C/P/F", sub2: "review", done: false, review: true }
+    ],
+    status: "In Progress",
+    statusCol: "teal",
+    act: "Resume",
+    actCol: "white"
+  },
+  {
+    initials: "RP",
+    name: "R. Patel",
+    desc: "Recovery - post-op",
+    reason: "Recovery",
+    time: "16:00",
+    checklist: [
+      { txt: "Surgical Nutrition Action", sub: "v2 · 22 Jul", sub2: "ready", done: true },
+      { txt: "Wound-healing macros", sub: "Vit C", sub2: "ready", done: true },
+      { txt: "Confirm with PT/IM", sub: "load status", sub2: "ready", done: true }
+    ],
+    status: "Ready · 3/3",
+    statusCol: "green",
+    act: "Start →",
+    actCol: "teal"
+  },
+  {
+    initials: "TC",
+    name: "T. Cho",
+    desc: "Performance · Charlie",
+    reason: "Hydration",
+    time: "09:00 · 28 Jul",
+    checklist: [
+      { txt: "Ruck hydration database", sub: "3 events", sub2: "pending", done: false },
+      { txt: "Carb tolerance review", sub: "GI symptoms", sub2: "pending", done: false }
+    ],
+    status: "Not started",
+    statusCol: "slate",
+    act: "Prep",
+    actCol: "white"
+  },
+  {
+    initials: "CH",
+    name: "C. Hayes",
+    desc: "New referral · Bravo",
+    reason: "Macro adj.",
+    time: "11:00 · 28 Jul",
+    checklist: [
+      { txt: "Dietitian intake form", sub: "received", sub2: "ready", done: true },
+      { txt: "Body comp baseline", sub: "PT/IM sync", sub2: "ready", done: true }
+    ],
+    status: "Ready · 2/2",
+    statusCol: "green",
+    act: "Start →",
+    actCol: "teal"
+  },
+  {
+    initials: "MB",
+    name: "M. Brooks",
+    desc: "Performance · Foxtrot",
+    reason: "Performance",
+    time: "14:30 · 29 Jul",
+    checklist: [
+      { txt: "PRT Nutrition Action", sub: "carb load", sub2: "pending", done: false }
+    ],
+    status: "Not started",
+    statusCol: "slate",
+    act: "Prep",
+    actCol: "white"
+  },
+  {
+    initials: "DV",
+    name: "D. Vega",
+    desc: "Hydration · Alpha",
+    reason: "Hydration",
+    time: "10:00 · 30 Jul",
+    checklist: [
+      { txt: "Heat acclimation plan", sub: "flag", sub2: "ready", done: true }
+    ],
+    status: "Ready · 1/1",
+    statusCol: "green",
+    act: "Start →",
+    actCol: "teal"
+  }
+];
+
+type PatientRecord = {
+  initials: string;
+  name: string;
+  desc: string;
+  date: string;
+  col: string;
+  active: boolean;
+};
+
+const CASELOAD_PATIENTS: PatientRecord[] = [
+  { initials: "JR", name: "J. Reyes", desc: "Rehab - protein target", date: "22 Jul", col: "bg-indigo-500", active: false },
+  { initials: "AM", name: "A. Mendez", desc: "Sleep nutrition · Bravo", date: "26 Jul", col: "bg-[var(--brand-color)]", active: false },
+  { initials: "TC", name: "T. Cho", desc: "Performance · Charlie", date: "15 Jul", col: "bg-indigo-500", active: false },
+  { initials: "SN", name: "S. Ndoye", desc: "New referral · weight mgmt", date: "10:30 today", col: "bg-[var(--brand-color)]", active: true },
+  { initials: "RP", name: "R. Patel", desc: "Recovery - post-op", date: "22 Jul", col: "bg-indigo-500", active: false },
+  { initials: "CH", name: "C. Hayes", desc: "New referral · macro adj.", date: "—", col: "bg-emerald-500", active: false },
+  { initials: "MB", name: "M. Brooks", desc: "Performance · Foxtrot", date: "19 Jul", col: "bg-indigo-500", active: false },
+  { initials: "DV", name: "D. Vega", desc: "Hydration · Alpha", date: "20 Jul", col: "bg-[var(--brand-color)]", active: false }
+];
+
+type AssessmentNote = {
+  title: string;
+  meta: string;
+  text: string;
+  badge: string;
+  badgeCol: string;
+};
+
+const NUTRITION_ASSESSMENTS: AssessmentNote[] = [
+  {
+    title: "Initial nutrition intake",
+    meta: "22 Jul baseline · completed by Capt Patel",
+    text: `${PERSON_TERM} reports 3-4 eating events per day with late-evening snacking. No supplement use. Goals: -15kg over 8 weeks, improve PRT run time, increase protein to 1.6 g/kg.`,
+    badge: "Intake",
+    badgeCol: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
+  },
+  {
+    title: "Consult note - 22 Jul",
+    meta: "A. Mendez (Student) · follow-up scheduled 5 Aug",
+    text: `Started balanced macro plan. Discussed hydration timing around PT blocks (pre/intra/post). ${PERSON_TERM} agreed to daily log syncs by 22:00.`,
+    badge: "Scheduled",
+    badgeCol: "bg-emerald-500/10 text-emerald-500"
+  },
+  {
+    title: "Body comp baseline",
+    meta: "22 Jul · k=8",
+    text: "BF 22.4% (DXA). Lean mass: 71.4 kg. Waist: 84 cm. Within healthy range for height; weight mgmt goal appropriate.",
+    badge: "Synced",
+    badgeCol: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
+  },
+  {
+    title: "Open concern - late-night intake",
+    meta: "Auto-flagged · 27 Jul 21:45 entry",
+    text: "Pattern detected: 4 of last 7 evenings logged caloric intake after 21:30 (avg 550 kcal). Suggest behavioral plan and check-in at next consult.",
+    badge: "Active",
+    badgeCol: "bg-amber-500/10 text-amber-500"
+  }
+];
+
+const ASSESSMENT_BADGE_COLORS: Record<string, string> = {
+  Intake: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]",
+  Scheduled: "bg-emerald-500/10 text-emerald-500",
+  Synced: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]",
+  Active: "bg-amber-500/10 text-amber-500"
+};
+
+type InboxThread = {
+  initials: string;
+  name: string;
+  time: string;
+  txt: string;
+  unread: number;
+  active: boolean;
+};
+
+const CASELOAD_INBOX: InboxThread[] = [
+  { initials: "AM", name: "A. Mendez", time: "06:42", txt: "Caffeine taper, day 3 — slept 6h 12m", unread: 2, active: true },
+  { initials: "TC", name: "T. Cho", time: "25 Jul", txt: "Carb top-up during last ruck — felt strong", unread: 1, active: false },
+  { initials: "SN", name: "S. Ndiaye", time: "27 Jul", txt: "Quick question on the log app", unread: 0, active: false },
+  { initials: "JR", name: "J. Reyes", time: "24 Jul", txt: "Protein at lunch — chicken bowl worked", unread: 0, active: false },
+  { initials: "RP", name: "R. Patel", time: "22 Jul", txt: "Pre-ruck fuelling plan received", unread: 0, active: false }
+];
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "NA";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export default function NutritionistDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout } = useAuthStore();
@@ -39,6 +312,29 @@ export default function NutritionistDashboard() {
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast(3500);
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
   const [hasMounted, setHasMounted] = useState(false);
+
+  const [viewingNutritionRecords, setViewingNutritionRecords] = useState(false);
+  const [viewingActiveQueue, setViewingActiveQueue] = useState(false);
+  const [viewingAllConsults, setViewingAllConsults] = useState(false);
+  const [viewingConsultOutcome, setViewingConsultOutcome] = useState<ConsultRecord | null>(null);
+  const [viewingFoodLogs, setViewingFoodLogs] = useState(false);
+  const [viewingConsultRecord, setViewingConsultRecord] = useState<QueueRecord | null>(null);
+  const [viewingAllRecords, setViewingAllRecords] = useState(false);
+  const [viewingPatientRecord, setViewingPatientRecord] = useState<PatientRecord | null>(null);
+
+  // Phase 6: Active consult session state
+  const [activeConsultId, setActiveConsultId] = useState<string | null>(null);
+
+  const [consultQueueFilter, setConsultQueueFilter] = useState("Today");
+  const [consultQueue, setConsultQueue] = useState<QueueRecord[]>(CONSULT_QUEUE);
+  const [creatingConsult, setCreatingConsult] = useState(false);
+  const [consultDefaultName, setConsultDefaultName] = useState("");
+
+  const [assessmentNotes, setAssessmentNotes] = useState<AssessmentNote[]>(NUTRITION_ASSESSMENTS);
+  const [creatingNote, setCreatingNote] = useState(false);
+
+  const [caseloadInbox, setCaseloadInbox] = useState<InboxThread[]>(CASELOAD_INBOX);
+  const [creatingMessage, setCreatingMessage] = useState(false);
 
   const [nutritionChatMessage, setNutritionChatMessage] = useState("");
   const [nutritionMessagesList, setNutritionMessagesList] = useState([
@@ -179,7 +475,7 @@ export default function NutritionistDashboard() {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-650 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50/20 dark:hover:bg-red-950/20 transition cursor-pointer"
           >
             <LogOut className="size-4" />
             Log out
@@ -261,14 +557,14 @@ export default function NutritionistDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Historical nutrition logs database opened")}
+                  <button
+                    onClick={() => setViewingNutritionRecords(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Open records
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Active queue dashboard view refreshed")}
+                  <button
+                    onClick={() => setViewingActiveQueue(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     Open consult queue
@@ -460,8 +756,8 @@ export default function NutritionistDashboard() {
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white">Recent consults</h3>
                       <p className="text-[10px] text-slate-500">Completed and in-progress · last 5 entries.</p>
                     </div>
-                    <button 
-                      onClick={() => triggerToast("Opening full consult records history")}
+                    <button
+                      onClick={() => setViewingAllConsults(true)}
                       className="text-[var(--brand-color)] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
                     >
                       View all
@@ -480,13 +776,7 @@ export default function NutritionistDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                        {[
-                          { initials: "AM", name: "A. Mendez", reason: "Sleep nutrition", time: "13:30", status: "Completed", col: "green", out: "Notes" },
-                          { initials: "JR", name: "J. Reyes", reason: "Protein target", time: "12:20", status: "In Progress", col: "orange", out: "Open" },
-                          { initials: "TC", name: "T. Cho", reason: "Carb checkup", time: "09:30", status: "Completed", col: "green", out: "Notes" },
-                          { initials: "KN", name: "K. Ndoye", reason: "Weight mgmt", time: "12:30", status: "Scheduled", col: "teal", out: "Prep" },
-                          { initials: "RP", name: "R. Patel", reason: "Recovery nutrition", time: "15:00", status: "Scheduled", col: "teal", out: "Prep" }
-                        ].map((c, i) => (
+                        {RECENT_CONSULTS.map((c, i) => (
                           <tr key={i} className="hover:bg-slate-55/20 transition">
                             <td className="py-2.5">
                               <div className="flex items-center gap-2">
@@ -515,8 +805,8 @@ export default function NutritionistDashboard() {
                               </span>
                             </td>
                             <td className="py-2.5 text-right font-sans">
-                              <button 
-                                onClick={() => triggerToast(`Opening outcome dashboard for: ${c.name}`)}
+                              <button
+                                onClick={() => setViewingConsultOutcome(c)}
                                 className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-white flex items-center gap-0.5 ml-auto border border-slate-200 dark:border-white/10 px-2 py-0.5 rounded hover:bg-slate-50 dark:hover:bg-slate-900 cursor-pointer"
                               >
                                 {c.out}
@@ -534,7 +824,7 @@ export default function NutritionistDashboard() {
 
               {/* Today's food log - A. Mendez */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm text-left space-y-4 pt-4 border-t border-slate-200 dark:border-white/5">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-105/60 dark:border-white/5 pb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100/60 dark:border-white/5 pb-4">
                   <div>
                     <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">TODAY&apos;S FOOD LOG &middot; A. MENDEZ</span>
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Meal consistency & logs</h3>
@@ -546,7 +836,7 @@ export default function NutritionistDashboard() {
                       7 trends archive
                     </span>
                     <button
-                      onClick={() => triggerToast("Opening full historical food logs for A. Mendez")}
+                      onClick={() => setViewingFoodLogs(true)}
                       className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                     >
                       Full record &rarr;
@@ -569,13 +859,7 @@ export default function NutritionistDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-mono">
-                      {[
-                        { time: "06:45", entry: "Breakfast: 2oz + banana + whey + black coffee", kcal: "520kcal", carb: "65 gc", prot: "32 gp", fat: "10 gf", flag: "OK", col: "green" },
-                        { time: "10:15", entry: "Snack: Apple + almonds (28g)", kcal: "240kcal", carb: "30 gc", prot: "6 gp", fat: "12 gf", flag: "OK", col: "green" },
-                        { time: "12:55", entry: "Lunch: MRE + sports drink + high sodium", kcal: "980kcal", carb: "140 gc", prot: "28 gp", fat: "22 gf", flag: "Sodium ++", col: "orange" },
-                        { time: "16:20", entry: "Pre-training: Rice + chicken + veg", kcal: "610kcal", carb: "75 gc", prot: "40 gp", fat: "10 gf", flag: "OK", col: "green" },
-                        { time: "19:30", entry: "Dinner: Pending entry", kcal: "—", carb: "—", prot: "—", fat: "—", flag: "Past", col: "gray" }
-                      ].map((item, idx) => (
+                      {FOOD_LOG_TODAY.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-3 text-slate-500 text-[10px]">{item.time}</td>
                           <td className="py-3 font-bold text-slate-800 dark:text-white font-sans text-xs">{item.entry}</td>
@@ -640,8 +924,8 @@ export default function NutritionistDashboard() {
                   >
                     Dashboard
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Schedule consult wizard loaded")}
+                  <button
+                    onClick={() => { setConsultDefaultName(""); setCreatingConsult(true); }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> Schedule consult
@@ -674,8 +958,9 @@ export default function NutritionistDashboard() {
                     {["Today", "This week", "Pending prep", "All"].map((fTab, idx) => (
                       <button
                         key={idx}
+                        onClick={() => setConsultQueueFilter(fTab)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
-                          fTab === "Today"
+                          fTab === consultQueueFilter
                             ? "bg-slate-900 text-white dark:bg-slate-800"
                             : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
                         }`}
@@ -713,129 +998,12 @@ export default function NutritionistDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                      {[
-                        {
-                          initials: "SN",
-                          name: "S. Ndoye",
-                          desc: "New referral · Echo flight",
-                          reason: "Weight mgmt",
-                          time: "10:30",
-                          checklist: [
-                            { txt: "Pull 7-day food logs", sub: "ready", done: true },
-                            { txt: "Review intake form", sub: "submitted", sub2: "ready", done: true },
-                            { txt: "Flag baseline weight + BMI", sub: "PT/IM sync", sub2: "ready", done: true }
-                          ],
-                          status: "Ready · 3/3",
-                          statusCol: "orange",
-                          act: "Start \u2192",
-                          actCol: "teal"
-                        },
-                        {
-                          initials: "AM",
-                          name: "A. Mendez",
-                          desc: "Sleep nutrition · Bravo",
-                          reason: "Recovery",
-                          time: "13:30",
-                          checklist: [
-                            { txt: "Caffeine taper log", sub: "day 3", sub2: "ready", done: true },
-                            { txt: "Sleep nutrition notes", sub: "prior consult", sub2: "ready", done: true },
-                            { txt: "Hydration adherence", sub: "67% - flag", sub2: "review", done: false, review: true }
-                          ],
-                          status: "In Progress · 2/3",
-                          statusCol: "orange",
-                          act: "Open",
-                          actCol: "white"
-                        },
-                        {
-                          initials: "JR",
-                          name: "J. Reyes",
-                          desc: "Rehab - protein target",
-                          reason: "Performance",
-                          time: "15:00",
-                          checklist: [
-                            { txt: "Protein adherence", sub: "1.6 g/kg target", sub2: "ready", done: true },
-                            { txt: "Recovery macro split", sub: "C/P/F", sub2: "review", done: false, review: true }
-                          ],
-                          status: "In Progress",
-                          statusCol: "teal",
-                          act: "Resume",
-                          actCol: "white"
-                        },
-                        {
-                          initials: "RP",
-                          name: "R. Patel",
-                          desc: "Recovery - post-op",
-                          reason: "Recovery",
-                          time: "16:00",
-                          checklist: [
-                            { txt: "Surgical Nutrition Action", sub: "v2 · 22 Jul", sub2: "ready", done: true },
-                            { txt: "Wound-healing macros", sub: "Vit C", sub2: "ready", done: true },
-                            { txt: "Confirm with PT/IM", sub: "load status", sub2: "ready", done: true }
-                          ],
-                          status: "Ready · 3/3",
-                          statusCol: "green",
-                          act: "Start \u2192",
-                          actCol: "teal"
-                        },
-                        {
-                          initials: "TC",
-                          name: "T. Cho",
-                          desc: "Performance · Charlie",
-                          reason: "Hydration",
-                          time: "09:00 · 28 Jul",
-                          checklist: [
-                            { txt: "Ruck hydration database", sub: "3 events", sub2: "pending", done: false },
-                            { txt: "Carb tolerance review", sub: "GI symptoms", sub2: "pending", done: false }
-                          ],
-                          status: "Not started",
-                          statusCol: "slate",
-                          act: "Prep",
-                          actCol: "white"
-                        },
-                        {
-                          initials: "CH",
-                          name: "C. Hayes",
-                          desc: "New referral · Bravo",
-                          reason: "Macro adj.",
-                          time: "11:00 · 28 Jul",
-                          checklist: [
-                            { txt: "Dietitian intake form", sub: "received", sub2: "ready", done: true },
-                            { txt: "Body comp baseline", sub: "PT/IM sync", sub2: "ready", done: true }
-                          ],
-                          status: "Ready · 2/2",
-                          statusCol: "green",
-                          act: "Start \u2192",
-                          actCol: "teal"
-                        },
-                        {
-                          initials: "MB",
-                          name: "M. Brooks",
-                          desc: "Performance · Foxtrot",
-                          reason: "Performance",
-                          time: "14:30 · 29 Jul",
-                          checklist: [
-                            { txt: "PRT Nutrition Action", sub: "carb load", sub2: "pending", done: false }
-                          ],
-                          status: "Not started",
-                          statusCol: "slate",
-                          act: "Prep",
-                          actCol: "white"
-                        },
-                        {
-                          initials: "DV",
-                          name: "D. Vega",
-                          desc: "Hydration · Alpha",
-                          reason: "Hydration",
-                          time: "10:00 · 30 Jul",
-                          checklist: [
-                            { txt: "Heat acclimation plan", sub: "flag", sub2: "ready", done: true }
-                          ],
-                          status: "Ready · 1/1",
-                          statusCol: "green",
-                          act: "Start \u2192",
-                          actCol: "teal"
-                        }
-                      ].map((c, i) => (
+                      {consultQueue.filter((c) => {
+                        if (consultQueueFilter === "Today") return !c.time.includes("·");
+                        if (consultQueueFilter === "This week") return c.time.includes("·");
+                        if (consultQueueFilter === "Pending prep") return c.checklist.some((item) => !item.done);
+                        return true;
+                      }).map((c, i) => (
                         <tr key={i} className="hover:bg-slate-55/20 transition items-start">
                           
                           {/* Patient */}
@@ -850,6 +1018,12 @@ export default function NutritionistDashboard() {
                               <div className="text-left">
                                 <span className="font-bold text-slate-800 dark:text-white block">{c.name}</span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">{c.desc}</span>
+                                {activeConsultId === c.name && (
+                                  <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-[var(--brand-color)]/15 text-[var(--brand-color)] rounded text-[8px] font-bold uppercase">
+                                    <span className="size-1 rounded-full bg-[var(--brand-color)] animate-pulse"></span>
+                                    In session
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -882,7 +1056,7 @@ export default function NutritionistDashboard() {
                                   </span>
                                   {item.sub && (
                                     <span className={`inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.2 rounded text-[8px] font-bold uppercase font-mono ${
-                                      ("review" in item && item.review) ? "bg-purple-500/10 text-purple-650" :
+                                      ("review" in item && item.review) ? "bg-purple-500/10 text-purple-600" :
                                       item.done ? "bg-[var(--brand-color)]/10 text-[var(--brand-color)]" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                                     }`}>
                                       {item.sub}
@@ -917,15 +1091,18 @@ export default function NutritionistDashboard() {
                           {/* Action */}
                           <td className="py-4 align-top text-right">
                             {c.actCol === "teal" ? (
-                              <button 
-                                onClick={() => triggerToast(`Starting consult session for: ${c.name}`)}
+                              <button
+                                onClick={() => {
+                                  setActiveConsultId(c.name);
+                                  triggerToast(`Starting consult session for: ${c.name}`);
+                                }}
                                 className="px-3.5 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white text-xs font-bold rounded-lg transition cursor-pointer"
                               >
                                 {c.act}
                               </button>
                             ) : (
-                              <button 
-                                onClick={() => triggerToast(`Opening consult record workflow for: ${c.name}`)}
+                              <button
+                                onClick={() => setViewingConsultRecord(c)}
                                 className="inline-flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                               >
                                 {c.act}
@@ -942,8 +1119,31 @@ export default function NutritionistDashboard() {
 
               </div>
 
+              {/* Active consult inline panel */}
+              {activeConsultId && (
+                <div className="bg-[var(--brand-color)]/10 border border-[var(--brand-color)]/30 rounded-2xl p-5 shadow-sm text-left space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--brand-color)]/20 pb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="size-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                        In session · {activeConsultId}
+                      </h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveConsultId(null)}
+                      className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400">
+                    Consult session live. Mark checklist items, append notes, and seal when complete.
+                  </p>
+                </div>
+              )}
+
               {/* Bottom Warning Alert banner */}
-              <div className="bg-[#fffbeb] dark:bg-amber-950/10 text-slate-800 dark:text-slate-200 p-5 rounded-2xl border border-amber-250 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
+              <div className="bg-[#fffbeb] dark:bg-amber-950/10 text-slate-800 dark:text-slate-200 p-5 rounded-2xl border border-amber-200 dark:border-white/5 flex gap-3 text-xs leading-relaxed text-left">
                 <AlertTriangle className="size-5 text-amber-500 flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold">Hydration reminder - Bravo + Charlie flights</span>
@@ -985,14 +1185,14 @@ export default function NutritionistDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Opening all historical records directories")}
+                  <button
+                    onClick={() => setViewingAllRecords(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
-                  <button 
-                    onClick={() => triggerToast("New assessment note editor initialized")}
+                  <button
+                    onClick={() => setCreatingNote(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New note
@@ -1022,19 +1222,10 @@ export default function NutritionistDashboard() {
 
                   {/* List of patients */}
                   <div className="space-y-1">
-                    {[
-                      { initials: "JR", name: "J. Reyes", desc: "Rehab - protein target", date: "22 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "AM", name: "A. Mendez", desc: "Sleep nutrition · Bravo", date: "26 Jul", col: "bg-[var(--brand-color)]", active: false },
-                      { initials: "TC", name: "T. Cho", desc: "Performance · Charlie", date: "15 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "SN", name: "S. Ndoye", desc: "New referral · weight mgmt", date: "10:30 today", col: "bg-[var(--brand-color)]", active: true },
-                      { initials: "RP", name: "R. Patel", desc: "Recovery - post-op", date: "22 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "CH", name: "C. Hayes", desc: "New referral · macro adj.", date: "—", col: "bg-emerald-500", active: false },
-                      { initials: "MB", name: "M. Brooks", desc: "Performance · Foxtrot", date: "19 Jul", col: "bg-indigo-500", active: false },
-                      { initials: "DV", name: "D. Vega", desc: "Hydration · Alpha", date: "20 Jul", col: "bg-[var(--brand-color)]", active: false }
-                    ].map((p, idx) => (
-                      <div 
+                    {CASELOAD_PATIENTS.map((p, idx) => (
+                      <div
                         key={idx}
-                        onClick={() => triggerToast(`Loaded record context for: ${p.name}`)}
+                        onClick={() => setViewingPatientRecord(p)}
                         className={`p-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
                           p.active 
                             ? "bg-[var(--brand-color)]/10 border border-[var(--brand-color)]/30" 
@@ -1194,8 +1385,12 @@ export default function NutritionistDashboard() {
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Nutrition Action history</h3>
                         <p className="text-[10px] text-slate-500">Active / closed Nutrition Actions lists</p>
                       </div>
-                      <button 
-                        onClick={() => triggerToast("Schedule consult wizard initialized")}
+                      <button
+                        onClick={() => {
+                          setConsultDefaultName("S. Ndoye");
+                          setCreatingConsult(true);
+                          triggerToast("Schedule consult wizard initialized");
+                        }}
                         className="text-[var(--brand-color)] hover:text-[#0c8a99] text-xs font-bold cursor-pointer"
                       >
                         Schedule consult &rarr;
@@ -1376,8 +1571,8 @@ export default function NutritionistDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("New caseload outreach message initiated")}
+                  <button
+                    onClick={() => setCreatingMessage(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New message
@@ -1541,6 +1736,322 @@ export default function NutritionistDashboard() {
 
         </main>
       </div>
+
+      {viewingNutritionRecords && (
+        <RecordDetailDialog
+          open={viewingNutritionRecords}
+          onClose={() => setViewingNutritionRecords(false)}
+          title="Historical nutrition logs"
+          subtitle="Full caseload · nutrition logs database"
+          fields={[
+            { label: "Scope", value: POPULATION_LEVELS.CASELOAD },
+            { label: "Airmen", value: "24" },
+            { label: "Active Nutrition Actions", value: "38" },
+            { label: "Consults today", value: "6" },
+          ]}
+        />
+      )}
+
+      {viewingActiveQueue && (
+        <RecordDetailDialog
+          open={viewingActiveQueue}
+          onClose={() => setViewingActiveQueue(false)}
+          title="Active queue"
+          subtitle="Today's consult queue snapshot"
+          fields={[
+            { label: "Today", value: "6 consults" },
+            { label: "Follow-ups", value: "2" },
+            { label: "New", value: "4" },
+            { label: "Acknowledged actions", value: "82" },
+          ]}
+        />
+      )}
+
+      {viewingAllConsults && (
+        <RecordDetailDialog
+          open={viewingAllConsults}
+          onClose={() => setViewingAllConsults(false)}
+          title="All recent consults"
+          subtitle={`${RECENT_CONSULTS.length} entries · completed & in-progress`}
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
+            {RECENT_CONSULTS.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setViewingAllConsults(false);
+                  setViewingConsultOutcome(item);
+                }}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition cursor-pointer"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{item.name}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{item.reason} &middot; {item.time}</span>
+                </span>
+                <span className={`flex-shrink-0 text-[9px] font-bold uppercase ${
+                  item.col === "green" ? "text-emerald-500" : item.col === "orange" ? "text-amber-500" : "text-[var(--brand-color)]"
+                }`}>
+                  {item.status}
+                </span>
+              </button>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
+      {viewingConsultOutcome && (
+        <RecordDetailDialog
+          open={!!viewingConsultOutcome}
+          onClose={() => setViewingConsultOutcome(null)}
+          title={viewingConsultOutcome.name}
+          subtitle={viewingConsultOutcome.reason}
+          fields={[
+            { label: "Time", value: viewingConsultOutcome.time },
+            { label: "Status", value: viewingConsultOutcome.status },
+            { label: "Outcome", value: viewingConsultOutcome.out },
+          ]}
+        />
+      )}
+
+      {viewingFoodLogs && (
+        <RecordDetailDialog
+          open={viewingFoodLogs}
+          onClose={() => setViewingFoodLogs(false)}
+          title="Full historical food logs"
+          subtitle="A. Mendez · auto-ingested from operator capture"
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden font-mono text-[10px]">
+            {FOOD_LOG_TODAY.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5 text-left">
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate font-sans">{item.entry}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{item.time} &middot; {item.kcal} &middot; C {item.carb} / P {item.prot} / F {item.fat}</span>
+                </span>
+                <span className={`flex-shrink-0 text-[9px] font-bold uppercase ${
+                  item.col === "green" ? "text-emerald-500" : item.col === "orange" ? "text-amber-500" : "text-slate-400"
+                }`}>
+                  {item.flag}
+                </span>
+              </div>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
+      {viewingConsultRecord && (
+        <RecordDetailDialog
+          open={!!viewingConsultRecord}
+          onClose={() => setViewingConsultRecord(null)}
+          title={viewingConsultRecord.name}
+          subtitle={viewingConsultRecord.desc}
+          fields={[
+            { label: "Reason", value: viewingConsultRecord.reason },
+            { label: "Time", value: viewingConsultRecord.time },
+            { label: "Status", value: viewingConsultRecord.status },
+          ]}
+        >
+          <div className="space-y-2">
+            {viewingConsultRecord.checklist.map((item, idx) => (
+              <div key={idx} className="flex items-start gap-2.5 text-left text-[11px]">
+                <input type="checkbox" checked={item.done} readOnly className="mt-0.5 rounded border-slate-200 text-[var(--brand-color)] focus:ring-[var(--brand-color)]/40" />
+                <span className={item.done ? "text-slate-500 line-through decoration-slate-300 dark:decoration-slate-800" : "text-slate-700 dark:text-slate-300"}>
+                  {item.txt}
+                </span>
+              </div>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
+      {viewingAllRecords && (
+        <RecordDetailDialog
+          open={viewingAllRecords}
+          onClose={() => setViewingAllRecords(false)}
+          title="All historical record directories"
+          subtitle={`${POPULATION_LEVELS.CASELOAD} · ${CASELOAD_PATIENTS.length} airmen`}
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
+            {CASELOAD_PATIENTS.map((p, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setViewingAllRecords(false);
+                  setViewingPatientRecord(p);
+                }}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition cursor-pointer"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{p.name}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{p.desc}</span>
+                </span>
+                <span className="flex-shrink-0 text-[9px] font-mono text-slate-400">{p.date}</span>
+              </button>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
+      {viewingPatientRecord && (
+        <RecordDetailDialog
+          open={!!viewingPatientRecord}
+          onClose={() => setViewingPatientRecord(null)}
+          title={viewingPatientRecord.name}
+          subtitle={viewingPatientRecord.desc}
+          fields={[
+            { label: "Last update", value: viewingPatientRecord.date },
+            { label: "Status", value: viewingPatientRecord.active ? "Active" : "On file" },
+          ]}
+        />
+      )}
+
+      <CreateRecordModal
+        open={creatingConsult}
+        onClose={() => setCreatingConsult(false)}
+        title="Schedule consult"
+        subtitle="Bound to caseload scope · access logged"
+        fields={[
+          {
+            name: "name",
+            label: "Airman name",
+            type: "text",
+            required: true,
+            defaultValue: consultDefaultName
+          },
+          {
+            name: "reason",
+            label: "Reason",
+            type: "select",
+            options: ["Initial assessment", "Follow-up", "Re-check", "Specialty referral"],
+            required: true
+          },
+          {
+            name: "time",
+            label: "Scheduled time",
+            type: "text",
+            placeholder: "e.g. Tomorrow 0900"
+          }
+        ]}
+        submitLabel="Schedule"
+        onSubmit={(values) => {
+          const parts = values.name.trim().split(/\s+/).filter(Boolean);
+          const initials = parts.length === 0
+            ? "NA"
+            : parts.length === 1
+              ? parts[0].slice(0, 2).toUpperCase()
+              : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          setConsultQueue([
+            {
+              initials,
+              name: values.name,
+              desc: `${values.reason} · new consult`,
+              reason: values.reason,
+              time: values.time || "TBD",
+              checklist: [
+                { txt: "Initial intake form", sub: "pending", done: false }
+              ],
+              status: "Scheduled",
+              statusCol: "teal",
+              act: "Prep",
+              actCol: "white"
+            },
+            ...consultQueue
+          ]);
+          setConsultDefaultName("");
+          setCreatingConsult(false);
+          triggerToast(`Created: consult for ${values.name}`);
+        }}
+      />
+
+      <CreateRecordModal
+        open={creatingNote}
+        onClose={() => setCreatingNote(false)}
+        title="New assessment note"
+        subtitle="Bound to nutrition scope · audit-logged"
+        fields={[
+          { name: "title", label: "Title", type: "text", required: true },
+          { name: "airman", label: "Airman", type: "text", placeholder: "e.g. TSgt Bennett" },
+          {
+            name: "type",
+            label: "Type",
+            type: "select",
+            options: ["Initial", "Follow-up", "Discharge"],
+            defaultValue: "Initial",
+            required: true
+          },
+          { name: "body", label: "Body", type: "textarea", required: true }
+        ]}
+        submitLabel="Save note"
+        onSubmit={(values) => {
+          const today = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+          const meta = values.airman
+            ? `${values.airman} · ${today}`
+            : `${today} · created by Nutritionist`;
+          const badge = values.type === "Initial" ? "Intake" : values.type === "Follow-up" ? "Scheduled" : "Synced";
+          const badgeCol =
+            values.type === "Initial"
+              ? "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
+              : values.type === "Follow-up"
+                ? "bg-emerald-500/10 text-emerald-500"
+                : "bg-amber-500/10 text-amber-500";
+          setAssessmentNotes([
+            {
+              title: values.title,
+              meta,
+              text: values.body,
+              badge,
+              badgeCol
+            },
+            ...assessmentNotes
+          ]);
+          setCreatingNote(false);
+          triggerToast(`Created: assessment note "${values.title}"`);
+        }}
+      />
+
+      <CreateRecordModal
+        open={creatingMessage}
+        onClose={() => setCreatingMessage(false)}
+        title="Start new outreach thread"
+        subtitle="Opt-in enforced · every send is audit-logged"
+        fields={[
+          { name: "name", label: "Airman name", type: "text", required: true },
+          {
+            name: "channel",
+            label: "Channel",
+            type: "select",
+            options: ["Message", "Email", "Phone task"],
+            defaultValue: "Message"
+          },
+          { name: "firstMessage", label: "First message", type: "textarea", required: true }
+        ]}
+        submitLabel="Start thread"
+        onSubmit={(values) => {
+          const parts = values.name.trim().split(/\s+/).filter(Boolean);
+          const initials = parts.length === 0
+            ? "NA"
+            : parts.length === 1
+              ? parts[0].slice(0, 2).toUpperCase()
+              : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          setCaseloadInbox([
+            {
+              initials,
+              name: values.name,
+              time: "now",
+              txt: values.firstMessage,
+              unread: 0,
+              active: false
+            },
+            ...caseloadInbox
+          ]);
+          setCreatingMessage(false);
+          triggerToast(`Created: thread with ${values.name}`);
+        }}
+      />
 
       {/* TOAST NOTIFICATION */}
       {showConfirmToast && (

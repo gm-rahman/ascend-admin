@@ -10,6 +10,7 @@ import { AscendLogo } from "@/components/ascend-logo";
 import { POPULATION_LEVELS, BRIEFING_STATUSES } from "@/lib/terminology";
 import { IconButton } from "@/components/ui/icon-button";
 import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+import { CreateRecordModal } from "@/components/ui/create-record-modal";
 import {
   Home,
   Sliders,
@@ -55,7 +56,7 @@ type TemplateRecord = {
   sub: string;
 };
 
-const RECENT_REPORTS: ReportRecord[] = [
+const INITIAL_RECENT_REPORTS: ReportRecord[] = [
   {
     title: "Wing Weekly OPS",
     subtext: "Composite + 5 drivers · 6 flights",
@@ -126,6 +127,70 @@ export default function LeadershipDashboard() {
   const [viewingReport, setViewingReport] = useState<ReportRecord | null>(null);
   const [viewingTemplate, setViewingTemplate] = useState<TemplateRecord | null>(null);
   const [viewingAllReports, setViewingAllReports] = useState(false);
+  const [reportsTypeFilter, setReportsTypeFilter] = useState("All");
+  const [recentReports, setRecentReports] = useState<ReportRecord[]>(INITIAL_RECENT_REPORTS);
+  const [showNewReportModal, setShowNewReportModal] = useState(false);
+  const [showNewSectionModal, setShowNewSectionModal] = useState(false);
+
+  // Phase 6: Drafts, sent history, and recent exports state for briefing builder
+  const [draftsList, setDraftsList] = useState<{ id: string; title: string; status: string; savedAt: string }[]>([]);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const [sentHistory, setSentHistory] = useState<{ id: string; reportId: string; sentAt: string; recipients: string[] }[]>([]);
+  const [recentExports, setRecentExports] = useState<{ id: string; sourceId: string; sourceTitle: string; format: string; at: string }[]>([]);
+  const [newReportPrefillTitle, setNewReportPrefillTitle] = useState<string>("");
+  const [outlineSections, setOutlineSections] = useState<{ num: number; name: string; desc: string; active: boolean }[]>([
+    { num: 1, name: "Mission context", desc: "Window · cohort · confidence", active: true },
+    { num: 2, name: "Composite OPS trend", desc: "12-mo · k=125 · +3.4 PvP", active: false },
+    { num: 3, name: "Driver snapshot", desc: "5 drivers · watch · momentum", active: false },
+    { num: 4, name: "By-flight comparison", desc: "6 flights · k \u2265 5 · MoM", active: false },
+    { num: 5, name: "Risk & recommendations", desc: "Sleep watch · 1 advisory open", active: false }
+  ]);
+
+  // Phase 5: Briefing-builder outline active index (Set A) — drives preview panel below
+  const [activeOutlineIdx, setActiveOutlineIdx] = useState<number>(0);
+
+  // Phase 5: Briefing template cards (Set B) — selecting a template swaps the outline
+  type BriefingTemplate = {
+    title: string;
+    desc: string;
+    sections: { num: number; name: string; desc: string; preview: string }[];
+  };
+  const [selectedTemplateIdx, setSelectedTemplateIdx] = useState<number>(0);
+  const TEMPLATES: BriefingTemplate[] = [
+    {
+      title: "Mission Readiness",
+      desc: "Composite trend · driver snapshot · OFT pass rate · top risk",
+      sections: [
+        { num: 1, name: "Mission context", desc: "12-mo window · cohort k=125 · high confidence", preview: "Window covers Aug 2024 \u2013 Jul 2025. Cohort n=125 across 6 flights. Confidence high (k \u2265 5 across all cells)." },
+        { num: 2, name: "Composite OPS trend", desc: "Composite +3.4 PvP · Aug 73 \u2192 Jul 76", preview: "Composite OPS lifted 3.4 points to 76 (Aug 73 \u2192 Jul 76). Recovery program rollout in March is the dominant signal." },
+        { num: 3, name: "Driver snapshot", desc: "5 drivers · watch: Sleep (-1)", preview: "Physical 78 (+2), Mental 73 (+3), Purpose 75 (+2). Sleep 71 (-1, watch). Emotion 70 (flat)." },
+        { num: 4, name: "By-flight comparison", desc: "6 flights · k \u2265 5 · MoM", preview: "Alpha, Bravo, Charlie, Echo, Foxtrot all high confidence. Delta flight flagged at cohort level (sleep watch)." },
+        { num: 5, name: "Risk & recommendations", desc: "Sleep watch · 1 advisory open", preview: "Sleep watch open, L2 advisory. No L4+ at the cohort level. Continue recovery program · sleep intervention in Delta." }
+      ]
+    },
+    {
+      title: "Recovery Rollout",
+      desc: "Multi-flight progress · adherence · recovery signal · open risks",
+      sections: [
+        { num: 1, name: "Mission context", desc: "Q2-Q3 rollout · 4 flights · adherence window", preview: "Rollout spans 4 flights (Alpha, Bravo, Charlie, Echo) over Q2-Q3 2025. Adherence measured weekly; current avg 78%." },
+        { num: 2, name: "Composite OPS trend", desc: "Recovery cohort +5.1 PvP · control +1.4", preview: "Recovery cohort Composite OPS climbed 5.1 points vs control +1.4 over the rollout window. Effect concentrated in weeks 6-12." },
+        { num: 3, name: "Driver snapshot", desc: "Sleep +6 · Stress -4 · Purpose +3", preview: "Sleep +6 (recovery cohort), Stress mgmt -4 (sustained), Purpose +3. All other drivers flat. No L4+ triggers." },
+        { num: 4, name: "By-flight comparison", desc: "4 active flights · adherence k \u2265 5", preview: "Alpha 81% adherence, Bravo 76%, Charlie 80%, Echo 74%. All k \u2265 5 in outcome cells. No flight flagged at L4+." },
+        { num: 5, name: "Risk & recommendations", desc: "Adherence dip Echo · 1 advisory", preview: "Echo flight adherence dip in week 7; L2 advisory only. Recommend weekly check-in continuation. No operational gate changes." }
+      ]
+    },
+    {
+      title: "Quarterly Wing Review",
+      desc: "FY-quarter comparison · cohort bands · recommendations · next quarter",
+      sections: [
+        { num: 1, name: "Mission context", desc: "FY-quarter · 3 quarters · k \u2265 5", preview: "Covers Q2-Q4 FY25. Cohort k \u2265 5 across all sections. Includes prior-year (FY24) comparison where data exists." },
+        { num: 2, name: "Composite OPS trend", desc: "Q2 71 \u2192 Q3 74 \u2192 Q4 76", preview: "Composite OPS Q2 71 \u2192 Q3 74 \u2192 Q4 76. Recovery program lift concentrated in Q3. Sustained gain into Q4." },
+        { num: 3, name: "Driver snapshot", desc: "Bands · high 28 / mid 64 / watch 33", preview: "Cohort bands Q4: high 28%, mid 51%, watch 21%. Sleep watch band down 4 pts from Q3. Purpose flat across bands." },
+        { num: 4, name: "By-flight comparison", desc: "6 flights · YoY · MoM", preview: "Year-over-year: 4 of 6 flights up vs FY24. Month-over-month: 5 of 6 stable, Delta flagged (sleep watch)." },
+        { num: 5, name: "Risk & recommendations", desc: "Sleep watch · 2 advisories · next Q plan", preview: "2 L2 advisories open (Sleep watch, Echo adherence). Q1 FY26 plan: continue recovery, open sleep intervention, close 1 advisory by end of Q1." }
+      ]
+    }
+  ];
   const { theme, mounted: hasMounted, toggleTheme } = useTheme();
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
 
@@ -483,7 +548,7 @@ export default function LeadershipDashboard() {
               </div>
 
               {/* 12-Month Readiness Hero Card with soft cyan outer container */}
-              <div className="bg-[#e0f2fe]/50 dark:bg-sky-955/10 border border-[#bae6fd]/50 dark:border-white/5 rounded-[32px] p-2 shadow-sm text-left">
+              <div className="bg-[#e0f2fe]/50 dark:bg-sky-950/10 border border-[#bae6fd]/50 dark:border-white/5 rounded-[32px] p-2 shadow-sm text-left">
                 <div className="bg-white dark:bg-[#0e1628] rounded-[28px] p-6 md:p-8 space-y-6">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">COMPOSITE OPS · WING</span>
@@ -1022,7 +1087,7 @@ export default function LeadershipDashboard() {
               </div>
 
               {/* Main Chart Hero Panel with nested cyan frame */}
-              <div className="bg-[#e0f2fe]/50 dark:bg-sky-955/10 border border-[#bae6fd]/50 dark:border-white/5 rounded-[32px] p-2 shadow-sm text-left">
+              <div className="bg-[#e0f2fe]/50 dark:bg-sky-950/10 border border-[#bae6fd]/50 dark:border-white/5 rounded-[32px] p-2 shadow-sm text-left">
                 <div className="bg-white dark:bg-[#0e1628] rounded-[28px] p-6 md:p-8 space-y-6">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">COMPOSITE OPS · 12 MONTH</span>
@@ -1296,8 +1361,8 @@ export default function LeadershipDashboard() {
                   >
                     <Download className="size-4" /> Export library
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Initializing new custom report draft")}
+                  <button
+                    onClick={() => setShowNewReportModal(true)}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New report
@@ -1322,8 +1387,9 @@ export default function LeadershipDashboard() {
                   {["All", "Weekly", "Monthly", "Quarterly", "Annual", "Ad-hoc"].map((pill, idx) => (
                     <button
                       key={idx}
+                      onClick={() => setReportsTypeFilter(pill)}
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
-                        pill === "All"
+                        pill === reportsTypeFilter
                           ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
                           : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-800 dark:hover:text-white"
                       }`}
@@ -1373,7 +1439,7 @@ export default function LeadershipDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
-                      {RECENT_REPORTS.map((item, idx) => (
+                      {recentReports.filter((item) => reportsTypeFilter === "All" || item.type === reportsTypeFilter).map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition">
                           <td className="py-4">
                             <span className="font-bold text-slate-800 dark:text-white block">{item.title}</span>
@@ -1405,6 +1471,13 @@ export default function LeadershipDashboard() {
                           </td>
                         </tr>
                       ))}
+                      {recentReports.filter((item) => reportsTypeFilter === "All" || item.type === reportsTypeFilter).length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="py-6 text-center text-slate-400 text-xs">
+                            No {reportsTypeFilter.toLowerCase()} reports found.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1503,17 +1576,58 @@ export default function LeadershipDashboard() {
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Compose the executive briefing from a structured outline. Every section pulls from aggregate data only. Scope: {POPULATION_LEVELS.ORGANIZATION}.
                   </p>
+                  {lastSavedAt && (
+                    <p className="text-[10px] text-emerald-500 font-bold mt-1 font-mono">
+                      Last saved: {new Date(lastSavedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Briefing draft saved to local registry")}
+                  <button
+                    onClick={() => {
+                      const templateTitle = TEMPLATES[selectedTemplateIdx]?.title ?? "Briefing";
+                      const now = new Date();
+                      const iso = now.toISOString();
+                      const draftId = `draft-${Date.now()}`;
+                      setDraftsList((prev) => [
+                        { id: draftId, title: `${templateTitle} draft`, status: "draft", savedAt: iso },
+                        ...prev,
+                      ]);
+                      setLastSavedAt(iso);
+                      triggerToast("Briefing draft saved to local registry");
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Save draft
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Executive briefing sent to squadron command channels")}
+                  <button
+                    onClick={() => {
+                      const templateTitle = TEMPLATES[selectedTemplateIdx]?.title ?? "Briefing";
+                      const now = new Date();
+                      const iso = now.toISOString();
+                      const reportId = `brief-${Date.now()}`;
+                      const recipients = ["CC", "SEL", "Squadron Command"];
+                      setSentHistory((prev) => [
+                        { id: `sent-${Date.now()}`, reportId, sentAt: iso, recipients },
+                        ...prev,
+                      ]);
+                      setRecentReports((prev) => [
+                        {
+                          title: `${templateTitle} briefing`,
+                          subtext: `Aggregate · k ≥ 5 · ${recipients.length} recipients`,
+                          type: "Ad-hoc",
+                          scope: POPULATION_LEVELS.ORGANIZATION,
+                          period: now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) + " " + now.getFullYear(),
+                          gen: now.toLocaleDateString("en-GB", { day: "2-digit", month: "short" }) + " · " + now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false }),
+                          status: BRIEFING_STATUSES.SENT,
+                          color: "green",
+                        },
+                        ...prev,
+                      ]);
+                      const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+                      triggerToast(`Sent to ${recipients.length} recipients · ${timeStr}`);
+                    }}
                     className="inline-flex items-center gap-1.5 px-3 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Send className="size-3.5" /> Send briefing
@@ -1540,27 +1654,34 @@ export default function LeadershipDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                  {[
-                    {
-                      title: "Mission Readiness",
-                      desc: "Composite trend · driver snapshot · OFT pass rate · top risk"
-                    },
-                    {
-                      title: "Recovery Rollout",
-                      desc: "Multi-flight progress · adherence · recovery signal · open risks"
-                    },
-                    {
-                      title: "Quarterly Wing Review",
-                      desc: "FY-quarter comparison · cohort bands · recommendations · next quarter"
-                    }
-                  ].map((tpl, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => triggerToast(`Selected template: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/50] rounded-2xl p-5 shadow-sm hover:shadow transition cursor-pointer text-left"
+                  {TEMPLATES.map((tpl, idx) => (
+                    <div
+                      key={tpl.title}
+                      onClick={() => {
+                        setSelectedTemplateIdx(idx);
+                        setOutlineSections(
+                          tpl.sections.map((s) => ({
+                            num: s.num,
+                            name: s.name,
+                            desc: s.desc,
+                            active: s.num === 1
+                          }))
+                        );
+                        setActiveOutlineIdx(0);
+                      }}
+                      className={`bg-white dark:bg-[#0e1628] rounded-2xl p-5 shadow-sm hover:shadow transition cursor-pointer text-left border ${
+                        selectedTemplateIdx === idx
+                          ? "border-[var(--brand-color)] ring-2 ring-[var(--brand-color)/30]"
+                          : "border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/50]"
+                      }`}
                     >
                       <h4 className="text-xs font-black text-[var(--brand-color)] uppercase tracking-wider">{tpl.title}</h4>
                       <p className="text-[11px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
+                      {selectedTemplateIdx === idx && (
+                        <span className="inline-block mt-3 px-2 py-0.5 bg-[var(--brand-color)]/10 text-[var(--brand-color)] text-[9px] font-bold rounded uppercase">
+                          Selected
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1577,8 +1698,8 @@ export default function LeadershipDashboard() {
                         <h3 className="text-sm font-bold text-slate-900 dark:text-white">Outline</h3>
                         <p className="text-[10px] text-slate-500 mt-0.5">Drag to reorder · click to edit</p>
                       </div>
-                      <button 
-                        onClick={() => triggerToast("Adding new outline section block")}
+                      <button
+                        onClick={() => setShowNewSectionModal(true)}
                         className="inline-flex items-center gap-1 px-2.5 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
                       >
                         <Plus className="size-3 text-[var(--brand-color)]" /> Add section
@@ -1586,21 +1707,29 @@ export default function LeadershipDashboard() {
                     </div>
 
                     <div className="divide-y divide-slate-100 dark:divide-white/5">
-                      {[
-                        { num: 1, name: "Mission context", desc: "Window · cohort · confidence" },
-                        { num: 2, name: "Composite OPS trend", desc: "12-mo · k=125 · +3.4 PvP" },
-                        { num: 3, name: "Driver snapshot", desc: "5 drivers · watch · momentum" },
-                        { num: 4, name: "By-flight comparison", desc: "6 flights · k \u2265 5 · MoM" },
-                        { num: 5, name: "Risk & recommendations", desc: "Sleep watch · 1 advisory open" }
-                      ].map((sec, idx) => (
-                        <div key={idx} className="py-3.5 flex items-center justify-between gap-4 hover:bg-slate-50/20 transition cursor-pointer">
+                      {outlineSections.map((sec, idx) => (
+                        <div
+                          key={idx}
+                          onClick={() => setActiveOutlineIdx(idx)}
+                          className={`py-3.5 flex items-center justify-between gap-4 transition cursor-pointer px-2 -mx-2 rounded-lg ${
+                            activeOutlineIdx === idx
+                              ? "bg-[var(--brand-color)]/10 ring-1 ring-[var(--brand-color)]/40"
+                              : "hover:bg-slate-50/20"
+                          }`}
+                        >
                           <div className="space-y-0.5">
-                            <span className="text-xs font-bold text-slate-800 dark:text-white block">
+                            <span className={`text-xs font-bold block ${
+                              activeOutlineIdx === idx ? "text-[var(--brand-color)]" : "text-slate-800 dark:text-white"
+                            }`}>
                               {sec.num} &middot; {sec.name}
                             </span>
                             <span className="text-[10px] text-slate-500 block font-mono">{sec.desc}</span>
                           </div>
-                          <span className="text-[9px] font-bold text-slate-400 font-mono">Section</span>
+                          <span className={`text-[9px] font-bold font-mono ${
+                            activeOutlineIdx === idx ? "text-[var(--brand-color)]" : "text-slate-400"
+                          }`}>
+                            {activeOutlineIdx === idx ? "Active" : "Section"}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -1620,8 +1749,24 @@ export default function LeadershipDashboard() {
                         <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
                         Draft
                       </span>
-                      <button 
-                        onClick={() => triggerToast("Generating aggregate PDF document for download")}
+                      <button
+                        onClick={() => {
+                          const now = new Date();
+                          const iso = now.toISOString();
+                          const templateTitle = TEMPLATES[selectedTemplateIdx]?.title ?? "Briefing";
+                          setRecentExports((prev) => [
+                            {
+                              id: `exp-${Date.now()}`,
+                              sourceId: `briefing-${selectedTemplateIdx}`,
+                              sourceTitle: templateTitle,
+                              format: "PDF",
+                              at: iso,
+                            },
+                            ...prev,
+                          ]);
+                          const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+                          triggerToast(`PDF generated · ${timeStr}`);
+                        }}
                         className="inline-flex items-center gap-1 px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                       >
                         <Download className="size-3" /> PDF
@@ -1632,31 +1777,96 @@ export default function LeadershipDashboard() {
                   {/* Rendered Live Briefing Text */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-5 md:p-6 shadow-sm text-xs font-sans text-slate-700 dark:text-slate-300 space-y-4 text-left leading-relaxed">
                     <div>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white">Mission readiness &middot; 28 Jul 2025</h4>
-                      <p className="text-[10px] font-mono text-slate-400 mt-0.5">Aggregate view &middot; cohort k = 125 &middot; 12-month window &middot; confidence high</p>
+                      <h4 className="text-sm font-black text-slate-900 dark:text-white">{TEMPLATES[selectedTemplateIdx].title} &middot; 28 Jul 2025</h4>
+                      <p className="text-[10px] font-mono text-slate-400 mt-0.5">
+                        Section {outlineSections[activeOutlineIdx]?.num ?? 1} of {outlineSections.length} &middot; {outlineSections[activeOutlineIdx]?.name ?? "Section"} &middot; aggregate view &middot; cohort k = 125
+                      </p>
                     </div>
 
                     <ul className="space-y-3 pl-2 text-[11px] list-none">
                       <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
-                        Composite OPS lifted 8 points to 76 (Aug &rarr; Jul). Recovery program rollout in March is the dominant signal.
-                      </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
-                        Drivers &mdash; Physical 78 (+2), Mental 73 (+3), Purpose 75 (+2). Sleep 71 (-1, watch).
-                      </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
-                        By flight &mdash; Alpha, Bravo, Charlie, Echo, Foxtrot all high confidence. Delta flight flagged at cohort level (sleep watch).
-                      </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
-                        Risk &mdash; Sleep watch open, L2 advisory. No L4+ at the cohort level.
-                      </li>
-                      <li className="relative pl-4 before:content-[''] before:absolute before:left-0 before:top-1.5 before:size-1.5 before:bg-[var(--brand-color)] before:rounded-full">
-                        Recommendation &mdash; Continue recovery program &middot; Sleep intervention in Delta &middot; No operational gate changes.
+                        {TEMPLATES[selectedTemplateIdx].sections[activeOutlineIdx]?.preview ?? "No section selected."}
                       </li>
                     </ul>
+
+                    <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+                      <p className="text-[9px] font-mono text-slate-400">
+                        Click any outline item on the left to preview its content here. Template: {TEMPLATES[selectedTemplateIdx].title}.
+                      </p>
+                    </div>
                   </div>
                 </div>
 
               </div>
+
+              {/* Activity panel — drafts, sent, exports */}
+              {(draftsList.length > 0 || sentHistory.length > 0 || recentExports.length > 0) && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
+                  {draftsList.length > 0 && (
+                    <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-white">Drafts</h3>
+                        <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[9px] font-bold rounded uppercase">
+                          {draftsList.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {draftsList.slice(0, 4).map((d) => (
+                          <div key={d.id} className="text-[10px] space-y-0.5">
+                            <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{d.title}</p>
+                            <p className="text-slate-400 font-mono">
+                              {new Date(d.savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {sentHistory.length > 0 && (
+                    <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-white">Sent history</h3>
+                        <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded uppercase">
+                          {sentHistory.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {sentHistory.slice(0, 4).map((s) => (
+                          <div key={s.id} className="text-[10px] space-y-0.5">
+                            <p className="font-bold text-slate-700 dark:text-slate-200 truncate">{s.reportId}</p>
+                            <p className="text-slate-400 font-mono">
+                              {new Date(s.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                              {" · "}{s.recipients.length} recipients
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {recentExports.length > 0 && (
+                    <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
+                      <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                        <h3 className="text-xs font-bold text-slate-800 dark:text-white">Recent exports</h3>
+                        <span className="px-2 py-0.5 bg-sky-500/10 text-sky-500 text-[9px] font-bold rounded uppercase">
+                          {recentExports.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {recentExports.slice(0, 4).map((e) => (
+                          <div key={e.id} className="text-[10px] space-y-0.5">
+                            <p className="font-bold text-slate-700 dark:text-slate-200 truncate">
+                              {e.sourceTitle} · {e.format}
+                            </p>
+                            <p className="text-slate-400 font-mono">
+                              Generated {new Date(e.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Footnote */}
               <div className="text-[10px] text-slate-400 select-none font-mono text-left">
@@ -1704,7 +1914,27 @@ export default function LeadershipDashboard() {
               </button>
               <button
                 onClick={() => {
-                  triggerToast(`Exporting: ${viewingReport.title}`);
+                  const now = new Date();
+                  const iso = now.toISOString();
+                  if (viewingReport) {
+                    setRecentExports((prev) => [
+                      {
+                        id: `exp-${Date.now()}`,
+                        sourceId: viewingReport.title,
+                        sourceTitle: viewingReport.title,
+                        format: "PDF",
+                        at: iso,
+                      },
+                      ...prev,
+                    ]);
+                    setRecentReports((prev) =>
+                      prev.map((r) =>
+                        r === viewingReport ? { ...r, status: BRIEFING_STATUSES.SENT, color: "green" } : r
+                      )
+                    );
+                  }
+                  const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+                  triggerToast(`Exported ${viewingReport?.title} · ${timeStr}`);
                   setViewingReport(null);
                 }}
                 type="button"
@@ -1739,8 +1969,11 @@ export default function LeadershipDashboard() {
               </button>
               <button
                 onClick={() => {
-                  triggerToast(`New draft report started from template: ${viewingTemplate.title}`);
+                  const title = viewingTemplate?.title ?? "Template";
                   setViewingTemplate(null);
+                  setShowNewReportModal(true);
+                  setNewReportPrefillTitle(`${title} (Draft)`);
+                  triggerToast(`New draft report started from template: ${title}`);
                 }}
                 type="button"
                 className="flex-1 py-2 px-4 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer"
@@ -1757,11 +1990,11 @@ export default function LeadershipDashboard() {
           open={viewingAllReports}
           onClose={() => setViewingAllReports(false)}
           title="All recent reports"
-          subtitle={`${RECENT_REPORTS.length} reports · aggregate · k ≥ 5`}
+          subtitle={`${recentReports.length} reports · aggregate · k ≥ 5`}
           fields={[]}
         >
           <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
-            {RECENT_REPORTS.map((item, idx) => (
+            {recentReports.map((item, idx) => (
               <button
                 key={idx}
                 type="button"
@@ -1793,6 +2026,67 @@ export default function LeadershipDashboard() {
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
+
+      <CreateRecordModal
+        open={showNewReportModal}
+        onClose={() => {
+          setShowNewReportModal(false);
+          setNewReportPrefillTitle("");
+        }}
+        title="New report"
+        subtitle="Configure an aggregate export. k \u2265 5 is enforced."
+        submitLabel="Create report"
+        fields={[
+          { name: "Title", label: "Title", type: "text", required: true, placeholder: "e.g. Wing Weekly OPS", defaultValue: newReportPrefillTitle },
+          { name: "Type", label: "Type", type: "select", required: true, options: ["Weekly", "Monthly", "Quarterly", "Annual", "Ad-hoc"] },
+          { name: "Scope", label: "Scope", type: "text", placeholder: "e.g. All wings" },
+          { name: "Period", label: "Period", type: "text", placeholder: "e.g. Week 32, 2026" }
+        ]}
+        onSubmit={(values) => {
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+          const dayStr = now.toLocaleDateString([], { day: "2-digit", month: "short" });
+          const newReport: ReportRecord = {
+            title: values.Title || "Untitled report",
+            subtext: `${values.Type || "Ad-hoc"} report · just now`,
+            type: values.Type || "Ad-hoc",
+            scope: values.Scope || POPULATION_LEVELS.ORGANIZATION,
+            period: values.Period || `${dayStr} ${now.getFullYear()}`,
+            gen: `${dayStr} · ${timeStr}`,
+            status: BRIEFING_STATUSES.DRAFT,
+            color: "orange",
+          };
+          setRecentReports([newReport, ...recentReports]);
+          setShowNewReportModal(false);
+          setNewReportPrefillTitle("");
+          triggerToast(`Created: ${newReport.title}`);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showNewSectionModal}
+        onClose={() => setShowNewSectionModal(false)}
+        title="Add outline section"
+        subtitle="Append a new section to this briefing outline."
+        submitLabel="Add section"
+        fields={[
+          { name: "Name", label: "Section name", type: "text", required: true, placeholder: "e.g. Risk & mitigations" },
+          { name: "Number", label: "Section number", type: "text", defaultValue: String(outlineSections.length + 1) }
+        ]}
+        onSubmit={(values) => {
+          const nextNum = values.Number ? parseInt(values.Number, 10) : outlineSections.length + 1;
+          const safeNum = Number.isFinite(nextNum) ? nextNum : outlineSections.length + 1;
+          const newSection = {
+            num: safeNum,
+            name: values.Name || `Section ${safeNum}`,
+            desc: "New section · drag to reorder",
+            active: false,
+          };
+          setOutlineSections([...outlineSections, newSection]);
+          setShowNewSectionModal(false);
+          triggerToast(`Created: ${newSection.name}`);
+        }}
+      />
 
     </div>
   );

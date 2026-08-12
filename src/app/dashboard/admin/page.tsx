@@ -717,6 +717,7 @@ function RolesView({
 }) {
   const [rbacChanged, setRbacChanged] = useState(false);
   const [outcomesPage, setOutcomesPage] = useState(1);
+  const [lastDeployAt, setLastDeployAt] = useState<string | null>(null);
 
   // People directory (real per-person accounts, distinct from the static
   // role-category catalog below).
@@ -759,6 +760,16 @@ function RolesView({
 
   const handleConfirmChanges = () => {
     setRbacChanged(false);
+    const now = new Date();
+    setLastDeployAt(now.toISOString());
+    adminStore.addActivity({
+      action: "RBAC rules deployed",
+      actor: "Lead Admin",
+      reason: "Override matrices committed to control plane",
+      scope: "Admin · Roles & RBAC",
+      tag: "system",
+      tagColor: "blue",
+    });
     triggerToast("RBAC rules and override matrices deployed.");
   };
 
@@ -878,6 +889,11 @@ function RolesView({
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
             Role catalog, scope assignments, and device + context overrides. Code-coded scope: rules logic override hierarchy.
           </p>
+          {lastDeployAt && (
+            <p className="text-[10px] text-emerald-500 font-bold mt-1 font-mono">
+              Last deploy: {new Date(lastDeployAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -887,7 +903,17 @@ function RolesView({
             Audit trail
           </button>
           <button
-            onClick={() => triggerToast("Deploying active policy definitions...")}
+            onClick={() => {
+              adminStore.addActivity({
+                action: "Policy deploy",
+                actor: "Lead Admin",
+                reason: "RBAC matrix posted to control plane",
+                scope: "Admin · Roles & RBAC",
+                tag: "system",
+                tagColor: "blue",
+              });
+              triggerToast("Deploying active policy definitions...");
+            }}
             className="px-4 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color)/95] text-white rounded-xl text-xs font-semibold shadow-sm cursor-pointer"
           >
             Post rules
@@ -966,7 +992,7 @@ function RolesView({
                   <td className="py-3 text-right">
                     <button
                       onClick={() => setViewingPerson(p)}
-                      className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[var(--brand-color)] hover:text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                      className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-[var(--brand-color)] hover:text-white rounded-lg text-[10px] font-bold cursor-pointer"
                       type="button"
                     >
                       View
@@ -1495,6 +1521,15 @@ function ScopeView({
   const units = ["Dot 1 - Operations", "Dot 2 - Maint.", "Fit 1A", "Fit 2B", "Fit 3A", "Spt. Staff"];
   const cohortSizes = [1, 5, 8, 12];
 
+  type CohortDeployment = {
+    cohortId: string;
+    unit: string;
+    cohortSizeK: number;
+    drivers: string[];
+    at: string;
+  };
+  const [cohortDeployments, setCohortDeployments] = useState<CohortDeployment[]>([]);
+
   const handleUnitClick = (unit: string) => {
     adminStore.setSelectedScopeUnit(unit);
     setScopeChanged(true);
@@ -1512,6 +1547,25 @@ function ScopeView({
 
   const handleSaveChange = () => {
     setScopeChanged(false);
+    const activeDrivers = Object.entries(adminStore.driverVisibility)
+      .filter(([, visible]) => visible)
+      .map(([key]) => key);
+    const deployment: CohortDeployment = {
+      cohortId: `cohort-${Date.now()}`,
+      unit: adminStore.selectedScopeUnit,
+      cohortSizeK: adminStore.cohortSizeK,
+      drivers: activeDrivers,
+      at: new Date().toISOString(),
+    };
+    setCohortDeployments([deployment, ...cohortDeployments]);
+    adminStore.addActivity({
+      action: "Cohort config deployed",
+      actor: "Lead Admin",
+      reason: `${deployment.unit} · k=${deployment.cohortSizeK} · ${deployment.drivers.length} drivers`,
+      scope: "Admin · Scope matrix",
+      tag: "system",
+      tagColor: "blue",
+    });
     triggerToast("Cohort configurations updated and deployed.");
   };
 
@@ -1646,6 +1700,28 @@ function ScopeView({
               <p className="text-[10px] text-amber-500">Gated · 14 / 22 / 9 records</p>
             </div>
           </div>
+
+          {cohortDeployments.length > 0 && (
+            <div className="pt-3 border-t border-slate-100 dark:border-white/5">
+              <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block mb-2">
+                Recent deployments
+              </span>
+              <div className="space-y-2">
+                {cohortDeployments.slice(0, 3).map((d) => (
+                  <div
+                    key={d.cohortId}
+                    className="p-2 rounded-lg bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-white/5 text-[10px] space-y-0.5"
+                  >
+                    <p className="font-bold text-slate-700 dark:text-slate-200">{d.unit} · k={d.cohortSizeK}</p>
+                    <p className="text-slate-400 font-mono">
+                      {new Date(d.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                      {" · "}{d.drivers.length} drivers
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
       </div>
@@ -1841,7 +1917,7 @@ function AuditLogView({
         return "bg-red-500";
       case "gray":
       default:
-        return "bg-slate-450 dark:bg-slate-600";
+        return "bg-slate-500 dark:bg-slate-600";
     }
   };
 
@@ -2057,9 +2133,75 @@ function ExportsView({
     { id: "sch-3", name: "PT/IM caseload audit", cadence: "Quarterly", scope: "caseload", format: "CSV", nextRun: "30 Sep · 08:00", status: REPORT_STATUSES.PAUSED },
     { id: "sch-4", name: "IDMT handoff digest", cadence: "Weekly · Fri 16:00", scope: "handoff", format: "PDF", nextRun: "01 Aug · 16:00", status: REPORT_STATUSES.ACTIVE },
   ]);
+  const [showScheduleWizard, setShowScheduleWizard] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState<string | null>(null);
+  const [scheduleForm, setScheduleForm] = useState({
+    name: "",
+    cadence: "Weekly · Mon 08:00",
+    scope: "Kz-5",
+    format: "PDF",
+    recipients: "Wing CC + DPH",
+  });
 
   const handleEditSchedule = (id: string) => {
+    const target = schedules.find((s) => s.id === id);
+    if (target) {
+      setEditingScheduleId(id);
+      setScheduleForm({
+        name: target.name,
+        cadence: target.cadence,
+        scope: target.scope,
+        format: target.format,
+        recipients: "Wing CC + DPH",
+      });
+    }
+    setShowScheduleWizard(true);
     triggerToast("Configuring recurring schedule...");
+  };
+
+  const handleSubmitSchedule = () => {
+    if (!scheduleForm.name.trim()) return;
+    if (editingScheduleId) {
+      setSchedules((prev) =>
+        prev.map((s) =>
+          s.id === editingScheduleId
+            ? { ...s, name: scheduleForm.name, cadence: scheduleForm.cadence, scope: scheduleForm.scope, format: scheduleForm.format }
+            : s
+        )
+      );
+      adminStore.addActivity({
+        action: "Schedule updated",
+        actor: "Lead Admin",
+        reason: `${scheduleForm.name} · ${scheduleForm.cadence}`,
+        scope: "Admin · Exports",
+        tag: "system",
+        tagColor: "blue",
+      });
+      triggerToast(`Schedule updated: ${scheduleForm.name}`);
+    } else {
+      const newSchedule = {
+        id: `sch-${Date.now()}`,
+        name: scheduleForm.name,
+        cadence: scheduleForm.cadence,
+        scope: scheduleForm.scope,
+        format: scheduleForm.format,
+        nextRun: "—",
+        status: REPORT_STATUSES.ACTIVE,
+      };
+      setSchedules((prev) => [newSchedule, ...prev]);
+      adminStore.addActivity({
+        action: "Schedule added",
+        actor: "Lead Admin",
+        reason: `${newSchedule.name} · ${newSchedule.cadence} · ${scheduleForm.recipients}`,
+        scope: "Admin · Exports",
+        tag: "system",
+        tagColor: "blue",
+      });
+      triggerToast(`Schedule added: ${newSchedule.name}`);
+    }
+    setShowScheduleWizard(false);
+    setEditingScheduleId(null);
+    setScheduleForm({ name: "", cadence: "Weekly · Mon 08:00", scope: "Kz-5", format: "PDF", recipients: "Wing CC + DPH" });
   };
 
   const handleConfirmSendExport = () => {
@@ -2089,7 +2231,12 @@ function ExportsView({
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => triggerToast("Initializing export wizard...")}
+            onClick={() => {
+              setEditingScheduleId(null);
+              setScheduleForm({ name: "", cadence: "Weekly · Mon 08:00", scope: "Kz-5", format: "PDF", recipients: "Wing CC + DPH" });
+              setShowScheduleWizard(true);
+              triggerToast("Initializing export wizard...");
+            }}
             className="px-4 py-2 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 rounded-xl text-xs font-semibold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
           >
             Schedule export
@@ -2146,7 +2293,7 @@ function ExportsView({
                       <td className="py-3 text-right">
                         <button
                           onClick={() => setActiveReviewItem(conf)}
-                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-[var(--brand-color)] hover:text-white dark:hover:bg-[var(--brand-color)] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
+                          className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-[var(--brand-color)] hover:text-white dark:hover:bg-[var(--brand-color)] text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold transition cursor-pointer"
                         >
                           Review
                         </button>
@@ -2193,7 +2340,12 @@ function ExportsView({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
           <h3 className="text-sm font-bold text-slate-800 dark:text-white">Schedules · recurring exports</h3>
           <button
-            onClick={() => triggerToast("Adding recurring export schedule...")}
+            onClick={() => {
+              setEditingScheduleId(null);
+              setScheduleForm({ name: "", cadence: "Weekly · Mon 08:00", scope: "Kz-5", format: "PDF", recipients: "Wing CC + DPH" });
+              setShowScheduleWizard(true);
+              triggerToast("Adding recurring export schedule...");
+            }}
             className="px-2.5 py-1.5 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[10px] font-bold flex items-center gap-1.5 cursor-pointer text-slate-600 dark:text-slate-300"
           >
             <Plus className="size-3.5" /> Add schedule
@@ -2235,7 +2387,7 @@ function ExportsView({
                   <td className="py-3 text-right">
                     <button
                       onClick={() => handleEditSchedule(sch.id)}
-                      className="px-2 py-1 bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded text-[10px] font-bold transition cursor-pointer border border-transparent dark:border-white/5"
+                      className="px-2 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 rounded text-[10px] font-bold transition cursor-pointer border border-transparent dark:border-white/5"
                     >
                       Edit
                     </button>
@@ -2332,6 +2484,127 @@ function ExportsView({
             >
               Confirm & send
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* SCHEDULE WIZARD MODAL */}
+      {showScheduleWizard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-5">
+            <div className="flex items-start justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                  {editingScheduleId ? "Edit schedule" : "Schedule export wizard"}
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Configure cadence, scope, format and recipients. Reversible through the audit log.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowScheduleWizard(false);
+                  setEditingScheduleId(null);
+                }}
+                type="button"
+                className="text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer flex-shrink-0"
+                aria-label="Close"
+              >
+                <XCircle className="size-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wide text-slate-400">
+                  Schedule name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={scheduleForm.name}
+                  onChange={(e) => setScheduleForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="e.g. Wing 0 aggregate"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wide text-slate-400">
+                  Cadence
+                </label>
+                <select
+                  value={scheduleForm.cadence}
+                  onChange={(e) => setScheduleForm((f) => ({ ...f, cadence: e.target.value }))}
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)]"
+                >
+                  <option value="Weekly · Mon 08:00">Weekly · Mon 08:00</option>
+                  <option value="Weekly · Fri 16:00">Weekly · Fri 16:00</option>
+                  <option value="Monthly · 1st 09:00">Monthly · 1st 09:00</option>
+                  <option value="Monthly · 15th 09:00">Monthly · 15th 09:00</option>
+                  <option value="Quarterly">Quarterly</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold tracking-wide text-slate-400">
+                    Scope
+                  </label>
+                  <input
+                    type="text"
+                    value={scheduleForm.scope}
+                    onChange={(e) => setScheduleForm((f) => ({ ...f, scope: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)]"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-bold tracking-wide text-slate-400">
+                    Format
+                  </label>
+                  <select
+                    value={scheduleForm.format}
+                    onChange={(e) => setScheduleForm((f) => ({ ...f, format: e.target.value }))}
+                    className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)]"
+                  >
+                    <option value="PDF">PDF</option>
+                    <option value="CSV">CSV</option>
+                    <option value="PDF + CSV">PDF + CSV</option>
+                    <option value="PPTX">PPTX</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-bold tracking-wide text-slate-400">
+                  Recipients
+                </label>
+                <input
+                  type="text"
+                  value={scheduleForm.recipients}
+                  onChange={(e) => setScheduleForm((f) => ({ ...f, recipients: e.target.value }))}
+                  placeholder="e.g. Wing CC + DPH"
+                  className="w-full rounded-xl border border-slate-200 dark:border-white/10 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[var(--brand-color)]"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowScheduleWizard(false);
+                  setEditingScheduleId(null);
+                }}
+                type="button"
+                className="flex-1 py-2 px-4 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmitSchedule}
+                type="button"
+                disabled={!scheduleForm.name.trim()}
+                className="flex-1 py-2 px-4 bg-[var(--brand-color)] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                {editingScheduleId ? "Save changes" : "Create schedule"}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2619,7 +2892,7 @@ function SystemView({
                   <td className="py-3.5 text-right">
                     <button
                       onClick={() => handleResolveDeactivation(row.id)}
-                      className="px-3 py-1 bg-slate-100 hover:bg-[var(--brand-color)] hover:text-white dark:bg-slate-850 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer transition"
+                      className="px-3 py-1 bg-slate-100 hover:bg-[var(--brand-color)] hover:text-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-[10px] font-bold cursor-pointer transition"
                     >
                       Resolve
                     </button>

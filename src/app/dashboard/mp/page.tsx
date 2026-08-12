@@ -8,6 +8,8 @@ import { AscendLogo } from "@/components/ascend-logo";
 import { PrivacyStateBadge } from "@/components/privacy/privacy-state-badge";
 import { PopulationScopeBadge } from "@/components/privacy/population-scope-badge";
 import { IconButton } from "@/components/ui/icon-button";
+import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+import { CreateRecordModal } from "@/components/ui/create-record-modal";
 import { POPULATION_LEVELS, PRIVACY_STATES, FOLLOW_UP_STATUSES, RECORD_STATUSES } from "@/lib/terminology";
 import {
   Brain,
@@ -39,6 +41,15 @@ import {
 
 type TabType = "dashboard" | "notes" | "records" | "messages";
 
+type InboxThread = {
+  initials: string;
+  name: string;
+  time: string;
+  txt: string;
+  unread: number;
+  active: boolean;
+};
+
 export default function MpDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout } = useAuthStore();
@@ -59,13 +70,51 @@ export default function MpDashboard() {
   const [noteFollowUp, setNoteFollowUp] = useState<string>(FOLLOW_UP_STATUSES.ASSIGNED);
   const [escalatedToCareTeam, setEscalatedToCareTeam] = useState(false);
 
+  // Phase 6: Note lock + draft persistence + audit ledger
+  const [noteLocked, setNoteLocked] = useState<Record<string, boolean>>({});
+  const [draftNotes, setDraftNotes] = useState<Record<string, { body: string; savedAt: string }>>({});
+  const [auditLedger, setAuditLedger] = useState<{ id: string; type: string; airmanCode: string; by: string; at: string }[]>([]);
+
+  // Phase 4: state for the "New session note" / "New note" modals (M1, M2, M3).
+  const [showNewNoteModal, setShowNewNoteModal] = useState(false);
+  const [notesList, setNotesList] = useState<{ id: string; airmanCode: string; type: string; subject: string; status: string; createdAt: string }[]>([
+    { id: "N-0001", airmanCode: "A-1042", type: "SOAP", subject: "Sleep diary review", status: "Draft", createdAt: "25 Jul" },
+    { id: "N-0002", airmanCode: "A-1087", type: "Follow-up", subject: "Pre-deployment stress", status: "Draft", createdAt: "27 Jul" }
+  ]);
+
+  // Phase 4: state for the "New message" modal (M4).
+  const [showNewMessageModal, setShowNewMessageModal] = useState(false);
+  const [inboxThreads, setInboxThreads] = useState<{ initials: string; name: string; time: string; txt: string; unread: boolean; active: boolean }[]>([
+    { initials: "TP", name: "A-1042 · T.P.", time: "08:14", txt: "Sleep diary — used the 4-7-8 twice last night", unread: true, active: true },
+    { initials: "ML", name: "A-1087 · M.L.", time: "Yest", txt: "Can we shift our Tuesday slot?", unread: true, active: false },
+    { initials: "RK", name: "A-1101 · R.K.", time: "26 Jul", txt: "The grounding exercise helped during the sim", unread: true, active: false },
+    { initials: "DS", name: "A-1218 · D.S.", time: "24 Jul", txt: "Confirmed for Friday review", unread: false, active: false },
+    { initials: "JW", name: "A-1356 · J.W.", time: "22 Jul", txt: "Thanks — the breathing script is on my phone now", unread: false, active: false }
+  ]);
+
+  // Dashboard Tab caseload queue filter pill state
+  const [caseloadFilter, setCaseloadFilter] = useState<string>("Active");
+
+  // Notes Tab filter pill state
+  const [activeNoteFilter, setActiveNoteFilter] = useState<string>("All");
+
   // Records Tab unredacted state
   const [unredactTargetId, setUnredactTargetId] = useState<string>("A-1101");
   const [isUnredacted, setIsUnredacted] = useState(false);
   const [accessReason, setAccessReason] = useState("");
 
+  // Phase 5: Note-editor visibility selector (Set A)
+  const [noteVisibility, setNoteVisibility] = useState<"Care team" | "IDMT only" | "Aggregated">("Care team");
+
+  // Phase 5: Records-tab access-reason category picker (Set B)
+  const [accessReasonCategory, setAccessReasonCategory] = useState<string>("");
+  const [showReasonPicker, setShowReasonPicker] = useState<boolean>(false);
+  type ReasonCategory = "Routine" | "Escalation" | "Follow-up" | "Audit" | "Other";
+  const [reasonPickerSelection, setReasonPickerSelection] = useState<ReasonCategory | "">("");
+
   // Messaging Tab Chat state
   const [chatMessage, setChatMessage] = useState("");
+  const [viewingThread, setViewingThread] = useState<InboxThread | null>(null);
   const [chatMessagesList, setChatMessagesList] = useState([
     { sender: "coach", text: "Welcome back, T.P. — bringing the sleep diary to next session? Let me know if the wind-down anchor is holding.", time: "09:58", date: "25 JULY" },
     { sender: "airman", text: "Hi doc — used the 4-7-8 twice last night, felt calmer. Caffeine after 14:00 only twice.", time: "26 Jul · 21:05", date: "25 JULY" },
@@ -180,7 +229,7 @@ export default function MpDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard" && !editingNoteId
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <Users className="size-4" />
@@ -191,7 +240,7 @@ export default function MpDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "notes" || editingNoteId
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <ClipboardList className="size-4" />
@@ -202,7 +251,7 @@ export default function MpDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "records"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <Lock className="size-4" />
@@ -213,7 +262,7 @@ export default function MpDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "messages"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <MessageSquare className="size-4" />
@@ -226,14 +275,14 @@ export default function MpDashboard() {
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
             onClick={() => router.push("/dashboard/profile")}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
             My profile
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-650 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50/20 dark:hover:bg-red-950/20 transition cursor-pointer"
           >
             <LogOut className="size-4" />
             Log out
@@ -325,13 +374,13 @@ export default function MpDashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setEditingNoteId(null)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Specialist notes
                   </button>
                   <button
                     onClick={() => { setActiveTab("records"); setEditingNoteId(null); }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
@@ -339,7 +388,7 @@ export default function MpDashboard() {
               </div>
 
               {/* Warning box */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Shield className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
@@ -359,19 +408,48 @@ export default function MpDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-mono">Anonymized identifier - A-1042</h3>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-mono flex items-center gap-2">
+                          Anonymized identifier - A-1042
+                          {noteLocked["A-1042"] && (
+                            <Lock className="size-3.5 text-emerald-500" />
+                          )}
+                        </h3>
                         <p className="text-[10px] text-slate-500">Initials: T.P. &middot; cohort opt-in &middot; assigned 12 Jul</p>
                       </div>
 
                       <div className="flex items-center gap-3">
                         <button
-                          onClick={() => triggerToast("Note locked against modifications")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                          onClick={() => {
+                            const airmanCode = "A-1042";
+                            setNoteLocked((prev) => ({ ...prev, [airmanCode]: true }));
+                            triggerToast("Note locked against modifications");
+                          }}
+                          disabled={noteLocked["A-1042"]}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-bold transition cursor-pointer ${
+                            noteLocked["A-1042"]
+                              ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 cursor-default"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300"
+                          }`}
                         >
-                          <Lock className="size-3.5" /> Lock
+                          <Lock className="size-3.5" /> {noteLocked["A-1042"] ? "Locked" : "Lock"}
                         </button>
                         <button
-                          onClick={() => triggerToast("Specialist note draft saved")}
+                          onClick={() => {
+                            const id = `N-${String(notesList.length + 1).padStart(4, "0")}`;
+                            const createdAt = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+                            setNotesList((prev) => [
+                              {
+                                id,
+                                airmanCode: "A-1042",
+                                type: "Coaching",
+                                subject: "Sleep diary review · draft",
+                                status: "draft",
+                                createdAt,
+                              },
+                              ...prev,
+                            ]);
+                            triggerToast("Specialist note draft saved");
+                          }}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                         >
                           Save note
@@ -495,18 +573,18 @@ export default function MpDashboard() {
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       {[
-                        { title: "Care team", desc: "MP staff on caseload · IDMT on request", active: true },
-                        { title: "IDMT only", desc: "Restricted to Integrated Delivery Medical Team", active: false },
-                        { title: "Aggregated", desc: "Non-identifiable cohort summary · k>5", active: false }
-                      ].map((vis, i) => (
+                        { title: "Care team", desc: "MP staff on caseload · IDMT on request" },
+                        { title: "IDMT only", desc: "Restricted to Integrated Delivery Medical Team" },
+                        { title: "Aggregated", desc: "Non-identifiable cohort summary · k>5" }
+                      ].map((vis) => (
                         <button
-                          key={i}
+                          key={vis.title}
                           type="button"
-                          onClick={() => triggerToast(`Visibility adjusted to: ${vis.title}`)}
+                          onClick={() => setNoteVisibility(vis.title as "Care team" | "IDMT only" | "Aggregated")}
                           className={`p-3.5 rounded-xl border cursor-pointer transition text-left space-y-1.5 ${
-                            vis.active
+                            noteVisibility === vis.title
                               ? "bg-[#0da2b3]/10 border-[#0da2b3]/30"
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/10"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/10"
                           }`}
                         >
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white">{vis.title}</h4>
@@ -519,18 +597,71 @@ export default function MpDashboard() {
                         <PrivacyStateBadge state={PRIVACY_STATES.ACCESS_DENIED} showReason />
                       </div>
                     </div>
+
+                    {/* Visibility indicator — updates with active selection */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-white/5">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
+                        Visibility: <span className="font-bold text-slate-700 dark:text-slate-200">{noteVisibility}</span>
+                        {noteVisibility === "Care team" && " · shared with all specialists"}
+                        {noteVisibility === "IDMT only" && " · restricted to medical staff"}
+                        {noteVisibility === "Aggregated" && " · anonymized metrics only"}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Note save action buttons */}
                   <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => triggerToast("Authoring note draft saved")}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    <button
+                      onClick={() => {
+                        const airmanCode = "A-1042";
+                        const body = `${noteConcern}\n\n${noteActionAssigned}`;
+                        const savedAt = new Date().toISOString();
+                        setDraftNotes((prev) => ({ ...prev, [airmanCode]: { body, savedAt } }));
+                        triggerToast("Authoring note draft saved");
+                      }}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                     >
                       Save draft
                     </button>
-                    <button 
+                    {draftNotes["A-1042"] && (
+                      <span className="text-[10px] text-emerald-500 font-mono font-bold">
+                        Last saved: {new Date(draftNotes["A-1042"].savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false })}
+                      </span>
+                    )}
+                    <button
                       onClick={() => {
+                        const airmanCode = "A-1042";
+                        const id = `N-${String(notesList.length + 1).padStart(4, "0")}`;
+                        const createdAt = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+                        setNotesList((prev) => [
+                          {
+                            id,
+                            airmanCode,
+                            type: "Coaching",
+                            subject: "Sealed coaching note",
+                            status: "sealed",
+                            createdAt,
+                          },
+                          ...prev,
+                        ]);
+                        setAuditLedger((prev) => [
+                          {
+                            id: `audit-${Date.now()}`,
+                            type: "note.sealed",
+                            airmanCode,
+                            by: "MP",
+                            at: new Date().toISOString(),
+                          },
+                          ...prev,
+                        ]);
+                        setNoteLocked((prev) => ({ ...prev, [airmanCode]: true }));
+                        setNoteConcern("");
+                        setNoteActionAssigned("");
+                        setDraftNotes((prev) => {
+                          const next = { ...prev };
+                          delete next[airmanCode];
+                          return next;
+                        });
                         triggerToast("Confidential note signed and sealed in ledger");
                         setEditingNoteId(null);
                       }}
@@ -544,8 +675,9 @@ export default function MpDashboard() {
 
                 {/* Right Side Cards */}
                 <div className="lg:col-span-4 space-y-6">
-                  
-                  {/* Recent notes */}
+
+                  {/* Recent notes — hidden when visibility is Aggregated (no individual rows surface) */}
+                  {noteVisibility !== "Aggregated" && (
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-white/5 pb-2 font-sans">Recent notes - A-1042</h3>
                     <div className="space-y-3 font-sans text-xs">
@@ -560,12 +692,18 @@ export default function MpDashboard() {
                       ))}
                     </div>
                   </div>
+                  )}
 
                   {/* Audit log */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3">
                     <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-white/5 pb-2 font-sans">Audit log</h3>
                     <div className="space-y-3 font-mono text-[10px]">
                       {[
+                        ...auditLedger.map((entry) => ({
+                          time: new Date(entry.at).toLocaleString([], { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hour12: false }),
+                          actor: entry.by,
+                          log: `${entry.type} · ${entry.airmanCode}`,
+                        })),
                         { time: "28 Jul · 08:14", actor: "Dr. M. Khan", log: "Edited subjective section" },
                         { time: "28 Jul · 08:11", actor: "Dr. M. Khan", log: "Opened note - reason: routine" },
                         { time: "27 Jul · 16:42", actor: "System", log: "Auto-save checkpoint" },
@@ -632,12 +770,12 @@ export default function MpDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("records")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
-                  <button 
-                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Opening new specialist note"); }}
+                  <button
+                    onClick={() => setShowNewNoteModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New session note
@@ -684,8 +822,9 @@ export default function MpDashboard() {
                       {["Active", "Scheduled", "Follow-up", "New"].map((pill, idx) => (
                         <button
                           key={idx}
+                          onClick={() => setCaseloadFilter(pill)}
                           className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                            pill === "Active"
+                            pill === caseloadFilter
                               ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
                               : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                           }`}
@@ -716,8 +855,8 @@ export default function MpDashboard() {
                           { code: "A-1145", reason: "Family adjustment", last: "22 Jul", next: "30 Jul · 13:30", status: "Scheduled", col: "teal" },
                           { code: "A-1058", reason: "Sleep concern", last: "\u2014", next: "New referral", status: "New", col: "badge" },
                           { code: "A-1176", reason: "Pre-deployment stress", last: "\u2014", next: "Awaiting intake", status: "New", col: "badge" }
-                        ].map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        ].filter((row) => row.status === caseloadFilter).map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/20 transition">
                             <td className="py-3 font-bold text-slate-800 dark:text-white font-mono">{row.code}</td>
                             <td className="py-3 text-slate-700 dark:text-slate-300">{row.reason}</td>
                             <td className="py-3 text-slate-500 font-mono text-[10px]">{row.last}</td>
@@ -865,7 +1004,7 @@ export default function MpDashboard() {
             <div className="space-y-8 animate-fade-in pb-16">
               
               {/* Privacy Warning banner */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Lock className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold">Mental Performance view &middot; anonymized identifiers only</span>
@@ -886,8 +1025,8 @@ export default function MpDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Starting new specialist note"); }}
+                  <button
+                    onClick={() => setShowNewNoteModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New note
@@ -909,8 +1048,9 @@ export default function MpDashboard() {
                     {["All", "Drafts", "Signed", "Escalated"].map((noteFilter, idx) => (
                       <button
                         key={idx}
+                        onClick={() => setActiveNoteFilter(noteFilter)}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                          noteFilter === "All"
+                          noteFilter === activeNoteFilter
                             ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
@@ -947,8 +1087,14 @@ export default function MpDashboard() {
                         { code: "A-1533", sessions: "4 contacts", date: "20 Jul", type: "Follow-up", focus: "Team cohesion", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
                         { code: "A-1087", sessions: "3 contacts", date: "18 Jul", type: "Intake", focus: "Pre-deployment stress", escalated: true, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
                         { code: "A-1101", sessions: "8 contacts", date: "17 Jul", type: "Follow-up", focus: "Performance anxiety", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" }
-                      ].map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                      ].filter((row) => {
+                        if (activeNoteFilter === "All") return true;
+                        if (activeNoteFilter === "Drafts") return row.status === RECORD_STATUSES.DRAFT;
+                        if (activeNoteFilter === "Signed") return row.status === RECORD_STATUSES.SIGNED;
+                        if (activeNoteFilter === "Escalated") return row.escalated;
+                        return true;
+                      }).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white font-mono block">{row.code}</span>
                             <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.sessions}</span>
@@ -979,7 +1125,7 @@ export default function MpDashboard() {
                                 setEditingNoteId(row.code);
                                 triggerToast(`Opening specialist note for: ${row.code}`);
                               }}
-                              className="px-3 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-55 dark:hover:bg-slate-900 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                              className="px-3 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                             >
                               Open
                             </button>
@@ -997,7 +1143,7 @@ export default function MpDashboard() {
                     <button aria-label="Previous page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
                     <button aria-label="Page 1" aria-current="page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
                     <button aria-label="Page 2" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-600 rounded hover:bg-slate-50">2</button>
-                    <button aria-label="Next page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-600 rounded hover:bg-slate-55">&gt;</button>
+                    <button aria-label="Next page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-600 rounded hover:bg-slate-50">&gt;</button>
                   </div>
                 </div>
 
@@ -1021,7 +1167,7 @@ export default function MpDashboard() {
             <div className="space-y-8 animate-fade-in pb-16">
               
               {/* Confidentials access check banner */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Lock className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
@@ -1044,12 +1190,12 @@ export default function MpDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Dashboard
                   </button>
-                  <button 
-                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Starting new note draft template"); }}
+                  <button
+                    onClick={() => setShowNewNoteModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New note
@@ -1069,15 +1215,66 @@ export default function MpDashboard() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-1 space-y-1">
                       <label id="mp-reason-category-label" className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Reason category</label>
-                      <button
-                        type="button"
-                        aria-labelledby="mp-reason-category-label"
-                        onClick={() => triggerToast("Reason category picker opened")}
-                        className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-500 select-none cursor-pointer"
-                      >
-                        <span>Select category</span>
-                        <ChevronDown className="size-4 text-slate-400" />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-labelledby="mp-reason-category-label"
+                          onClick={() => setShowReasonPicker((s) => !s)}
+                          className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-500 select-none cursor-pointer"
+                        >
+                          <span>{accessReasonCategory || "Select category"}</span>
+                          <ChevronDown className="size-4 text-slate-400" />
+                        </button>
+                        {accessReasonCategory && (
+                          <span className="text-[10px] font-mono text-slate-500 whitespace-nowrap">
+                            Selected: {accessReasonCategory}
+                          </span>
+                        )}
+                      </div>
+
+                      {showReasonPicker && (
+                        <div className="mt-2 p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/10 rounded-xl space-y-2">
+                          {(["Routine", "Escalation", "Follow-up", "Audit", "Other"] as ReasonCategory[]).map((cat) => (
+                            <label key={cat} className="flex items-center gap-2 text-[10px] font-mono text-slate-600 dark:text-slate-300 cursor-pointer">
+                              <input
+                                type="radio"
+                                name="mp-reason-category"
+                                value={cat}
+                                checked={reasonPickerSelection === cat}
+                                onChange={() => setReasonPickerSelection(cat)}
+                                className="size-3 accent-[#0da2b3]"
+                              />
+                              {cat}
+                            </label>
+                          ))}
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              disabled={!reasonPickerSelection}
+                              onClick={() => {
+                                if (reasonPickerSelection) {
+                                  setAccessReasonCategory(reasonPickerSelection);
+                                  setShowReasonPicker(false);
+                                }
+                              }}
+                              className={`px-3 py-1 rounded-lg text-[10px] font-bold transition cursor-pointer ${
+                                reasonPickerSelection
+                                  ? "bg-[#0da2b3] text-white hover:bg-[#0c8a99]"
+                                  : "bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
+                              }`}
+                            >
+                              Confirm
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowReasonPicker(false)}
+                              className="px-3 py-1 rounded-lg text-[10px] font-bold border border-slate-200 dark:border-white/10 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="md:col-span-2 space-y-1">
                       <label htmlFor="mp-access-narrative" className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Narrative (optional)</label>
@@ -1159,7 +1356,7 @@ export default function MpDashboard() {
                             className={`transition cursor-pointer ${
                               unredactTargetId === row.code && row.isTarget
                                 ? "bg-slate-50 dark:bg-slate-900/40 font-bold"
-                                : "hover:bg-slate-55/20"
+                                : "hover:bg-slate-50/20"
                             }`}
                           >
                             <td className="py-3">
@@ -1182,7 +1379,7 @@ export default function MpDashboard() {
                               }`}>
                                 <span className={`size-1 rounded-full ${
                                   row.statCol === "blue" ? "bg-blue-500" :
-                                  row.statCol === "teal" ? "bg-emerald-500" : "bg-slate-450"
+                                  row.statCol === "teal" ? "bg-emerald-500" : "bg-slate-400"
                                 }`}></span>
                                 {row.status}
                               </span>
@@ -1258,7 +1455,7 @@ export default function MpDashboard() {
                         setIsUnredacted(false);
                         triggerToast("Record fields sealed successfully");
                       }}
-                      className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-650 transition cursor-pointer"
+                      className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-bold hover:bg-rose-600 transition cursor-pointer"
                     >
                       Lock records
                     </button>
@@ -1341,7 +1538,7 @@ export default function MpDashboard() {
             <div className="space-y-8 animate-fade-in pb-16">
               
               {/* Privacy strip notice banner */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Lock className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
@@ -1362,8 +1559,8 @@ export default function MpDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Outreach thread draft initialized")}
+                  <button
+                    onClick={() => setShowNewMessageModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New message
@@ -1395,7 +1592,7 @@ export default function MpDashboard() {
                   </div>
 
                   {/* List of chat items */}
-                  <div className="divide-y divide-slate-150/40 dark:divide-white/5 overflow-y-auto max-h-96 pr-1 space-y-1">
+                  <div className="divide-y divide-slate-100/40 dark:divide-white/5 overflow-y-auto max-h-96 pr-1 space-y-1">
                     {[
                       { initials: "TP", name: "A-1042 · T.P.", time: "08:14", txt: "Sleep diary \u2014 used the 4-7-8 twice last night", unread: 2, active: true },
                       { initials: "ML", name: "A-1087 · M.L.", time: "Yest", txt: "Can we shift our Tuesday slot?", unread: 1, active: false },
@@ -1403,9 +1600,9 @@ export default function MpDashboard() {
                       { initials: "DS", name: "A-1218 · D.S.", time: "24 Jul", txt: "Confirmed for Friday review", unread: 0, active: false },
                       { initials: "JW", name: "A-1356 · J.W.", time: "22 Jul", txt: "Thanks \u2014 the breathing script is on my phone now", unread: 0, active: false }
                     ].map((item, idx) => (
-                      <div 
+                      <div
                         key={idx}
-                        onClick={() => triggerToast(`Opened message history with: ${item.name}`)}
+                        onClick={() => setViewingThread(item)}
                         className={`py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
                           item.active 
                             ? "bg-[#0da2b3]/10" 
@@ -1449,7 +1646,7 @@ export default function MpDashboard() {
                       </div>
                     </div>
 
-                    <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-250 dark:border-white/10 text-[9px] font-bold rounded-full uppercase tracking-wider text-slate-500 font-mono">
+                    <span className="px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold rounded-full uppercase tracking-wider text-slate-500 font-mono">
                       Confidential
                     </span>
                   </div>
@@ -1533,6 +1730,86 @@ export default function MpDashboard() {
 
         </main>
       </div>
+
+      {viewingThread && (
+        <RecordDetailDialog
+          open={!!viewingThread}
+          onClose={() => setViewingThread(null)}
+          title={viewingThread.name}
+          subtitle={viewingThread.txt}
+          fields={[
+            { label: "Last activity", value: viewingThread.time },
+            { label: "Unread", value: viewingThread.unread },
+            { label: "Status", value: viewingThread.active ? "Active thread" : "Inactive" },
+          ]}
+        />
+      )}
+
+      <CreateRecordModal
+        open={showNewNoteModal}
+        onClose={() => setShowNewNoteModal(false)}
+        title="New session note"
+        subtitle="Bound by coaching confidentiality — non-clinical."
+        fields={[
+          { name: "airmanCode", label: "Airman code", type: "text", placeholder: "e.g. A-1042", required: true },
+          { name: "type", label: "Note type", type: "select", options: ["SOAP", "Consult", "Triage", "Follow-up"], defaultValue: "SOAP" },
+          { name: "subject", label: "Subject", type: "text", required: true }
+        ]}
+        submitLabel="Create note"
+        onSubmit={(values) => {
+          const id = `N-${String(notesList.length + 1).padStart(4, "0")}`;
+          const createdAt = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+          setNotesList([
+            {
+              id,
+              airmanCode: values.airmanCode,
+              type: values.type,
+              subject: values.subject,
+              status: "Draft",
+              createdAt
+            },
+            ...notesList
+          ]);
+          setShowNewNoteModal(false);
+          triggerToast(`Created: note for ${values.airmanCode}`);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showNewMessageModal}
+        onClose={() => setShowNewMessageModal(false)}
+        title="Start new outreach thread"
+        subtitle="Threads are audit-logged and confidentiality-bounded."
+        fields={[
+          { name: "recipientName", label: "Recipient name", type: "text", placeholder: "e.g. Capt Reyes", required: true },
+          { name: "recipientCode", label: "Recipient code", type: "text", placeholder: "e.g. A-1042" },
+          { name: "initialMessage", label: "Initial message", type: "textarea", required: true }
+        ]}
+        submitLabel="Start thread"
+        onSubmit={(values) => {
+          const parts = values.recipientName.trim().split(/\s+/).filter(Boolean);
+          const initials = parts.length === 0
+            ? "NA"
+            : parts.length === 1
+              ? parts[0].slice(0, 2).toUpperCase()
+              : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+          const code = values.recipientCode?.trim();
+          const name = code ? `${code} · ${values.recipientName}` : values.recipientName;
+          setInboxThreads([
+            {
+              initials,
+              name,
+              time: "now",
+              txt: values.initialMessage,
+              unread: false,
+              active: false
+            },
+            ...inboxThreads
+          ]);
+          setShowNewMessageModal(false);
+          triggerToast(`Created: thread with ${values.recipientName}`);
+        }}
+      />
 
       {/* TOAST NOTIFICATION */}
       {showConfirmToast && (

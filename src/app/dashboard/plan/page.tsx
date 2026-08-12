@@ -11,6 +11,8 @@ import { POPULATION_LEVELS, PRIVACY_STATES, PLAN_STATUSES, PLAN_HEALTH } from "@
 import { PrivacyStateBadge } from "@/components/privacy/privacy-state-badge";
 import { IconButton } from "@/components/ui/icon-button";
 import { AscendLogo } from "@/components/ascend-logo";
+import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+import { CreateRecordModal } from "@/components/ui/create-record-modal";
 import {
   Home,
   Sliders,
@@ -40,6 +42,39 @@ import {
 
 type TabType = "dashboard" | "assignment" | "reconditioning";
 
+type RecentPlan = {
+  title: string;
+  desc: string;
+  owners: string;
+  k: string;
+  status: string;
+  col: string;
+  time: string;
+};
+
+const INITIAL_RECENT_PLANS: RecentPlan[] = [
+  { title: "4-week recovery · Bravo", desc: "Recovery · strength", owners: "SCS · PT/IM", k: "k=24", status: PLAN_STATUSES.ACTIVE, col: "green", time: "28 Jul · 06:00" },
+  { title: "Stress & sleep reset", desc: "Mental · 4-week", owners: "MP · SCS", k: "k=12", status: "Opt-in", col: "teal", time: "27 Jul · 22:18" },
+  { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutritionist · SCS", k: "k=18", status: PLAN_STATUSES.ACTIVE, col: "green", time: "27 Jul · 14:55" },
+  { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose Coach · SCS", k: "k=10", status: PLAN_STATUSES.ACTIVE, col: "green", time: "26 Jul · 11:03" },
+  { title: "Mission purpose cohort", desc: "Purpose · 6-week", owners: "Purpose Coach · SCS", k: "k=10", status: "Opt-in", col: "teal", time: "25 Jul · 09:14" },
+  { title: "OFT prep · Alpha", desc: "Strength · 6-week", owners: "SCS · PT/IM", k: "k=22", status: PLAN_STATUSES.ACTIVE, col: "green", time: "24 Jul · 07:00" },
+];
+
+type AssignmentQueueItem = {
+  title: string;
+  desc: string;
+  badge: string;
+  col: string;
+};
+
+const ASSIGNMENT_QUEUE: AssignmentQueueItem[] = [
+  { title: "Recovery block · Charlie", desc: "Authored · needs SCS + PT/IM owner · 6d", badge: "6d", col: "orange" },
+  { title: "Sleep reset · Bravo", desc: "Authored · needs MP · 3d", badge: "3d", col: "orange" },
+  { title: "Nutrition prep · OFT", desc: "Authored · needs Nutritionist + SCS · 2d", badge: "2d", col: "teal" },
+  { title: "Pre-deployment brief", desc: "Authored · needs Purpose Coach + SCS · 1d", badge: "1d", col: "teal" },
+];
+
 export default function PlanDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout } = useAuthStore();
@@ -48,6 +83,28 @@ export default function PlanDashboard() {
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
   const [hasMounted, setHasMounted] = useState(false);
+  const [viewingAllPlans, setViewingAllPlans] = useState(false);
+  const [viewingAssignmentQueue, setViewingAssignmentQueue] = useState(false);
+  const [recentPlans, setRecentPlans] = useState<RecentPlan[]>(INITIAL_RECENT_PLANS);
+  const [showNewPlanModal, setShowNewPlanModal] = useState(false);
+
+  // Phase 6: Dashboard overview panel toggle
+  const [showOverview, setShowOverview] = useState<boolean>(false);
+
+  // Phase 6: Sent plans (pending review) + active template + switch-template panel
+  const [sentPlans, setSentPlans] = useState<Array<{ id: string; title: string; recipients: string[]; status: string; sentAt: string }>>([]);
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [showSwitchTemplate, setShowSwitchTemplate] = useState<boolean>(false);
+
+  // Phase 6: Plan composer drafts
+  type PlanDraftEntry = { id: string; title: string; desc: string; cadence: string; status: string; savedAt: string; queuedFor?: string[] };
+  const [planDrafts, setPlanDrafts] = useState<PlanDraftEntry[]>([]);
+
+  type PlanBlock = { title: string; desc: string; badge: string; k: string };
+  const [showNewBlockModal, setShowNewBlockModal] = useState(false);
+  const [reconditioningBlocks, setReconditioningBlocks] = useState<PlanBlock[]>([
+    { title: "4-week recovery · Bravo", desc: "Recovery · wk 2 of 4", badge: "Strength", k: "k=24" }
+  ]);
 
   const setActiveTab = (tab: TabType) => {
     setActiveTabInternal(tab);
@@ -118,7 +175,7 @@ export default function PlanDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <ClipboardList className="size-4" />
@@ -129,7 +186,7 @@ export default function PlanDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "assignment"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <Layers className="size-4" />
@@ -140,7 +197,7 @@ export default function PlanDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "reconditioning"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)] dark:text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <Activity className="size-4" />
@@ -160,7 +217,7 @@ export default function PlanDashboard() {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-650 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50/20 dark:hover:bg-red-950/20 transition cursor-pointer"
           >
             <LogOut className="size-4" />
             Log out
@@ -244,20 +301,41 @@ export default function PlanDashboard() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Opening full scheduling overview")}
+                  <button
+                    onClick={() => setShowOverview((prev) => !prev)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Overview
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Creating new custom readiness plan")}
+                  <button
+                    onClick={() => setShowNewPlanModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New plan
                   </button>
                 </div>
               </div>
+
+              {/* Overview inline panel */}
+              {showOverview && (
+                <section className="bg-[var(--brand-color)]/10 border border-[var(--brand-color)]/30 rounded-2xl p-5 shadow-sm text-left space-y-3">
+                  <div className="flex items-center justify-between border-b border-[var(--brand-color)]/20 pb-3">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Scheduling overview</h3>
+                    <button
+                      onClick={() => setShowOverview(false)}
+                      className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    >
+                      Close
+                    </button>
+                  </div>
+                  <ul className="text-xs text-slate-700 dark:text-slate-300 space-y-1.5 list-disc list-inside">
+                    <li><strong>24 active plans</strong> across 3 flights — 6 awaiting assignment, 8 in reconditioning.</li>
+                    <li><strong>4 drafts in pipeline</strong> — author pending, queued for owner routing.</li>
+                    <li><strong>12 cross-persona plans</strong> touching ≥ 2 roles (SCS, PT/IM, MP, Nutritionist, Purpose Coach).</li>
+                    <li><strong>Reconditioning velocity:</strong> 82% avg adherence over the last 30 days, up ▲4.1.</li>
+                  </ul>
+                </section>
+              )}
 
               {/* 4 Cards Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -290,7 +368,7 @@ export default function PlanDashboard() {
                       5 workspaces
                     </span>
                     <button
-                      onClick={() => triggerToast("Opening general assignments queue")}
+                      onClick={() => setViewingAssignmentQueue(true)}
                       className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                     >
                       Open assignment
@@ -299,7 +377,7 @@ export default function PlanDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 items-start">
-                  
+
                   {/* SCS Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
@@ -434,9 +512,9 @@ export default function PlanDashboard() {
                       <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Recent plans</h3>
                       <p className="text-[10px] text-slate-500 mt-0.5">Last 6 &middot; any status</p>
                     </div>
-                    <button 
-                      onClick={() => triggerToast("Showing all historical readiness plans")}
-                      className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+                    <button
+                      onClick={() => setViewingAllPlans(true)}
+                      className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
                     >
                       View all
                     </button>
@@ -454,15 +532,8 @@ export default function PlanDashboard() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
-                        {[
-                          { title: "4-week recovery · Bravo", desc: "Recovery · strength", owners: "SCS · PT/IM", k: "k=24", status: PLAN_STATUSES.ACTIVE, col: "green", time: "28 Jul · 06:00" },
-                          { title: "Stress & sleep reset", desc: "Mental · 4-week", owners: "MP · SCS", k: "k=12", status: "Opt-in", col: "teal", time: "27 Jul · 22:18" },
-                          { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutritionist · SCS", k: "k=18", status: PLAN_STATUSES.ACTIVE, col: "green", time: "27 Jul · 14:55" },
-                          { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose Coach · SCS", k: "k=10", status: PLAN_STATUSES.ACTIVE, col: "green", time: "26 Jul · 11:03" },
-                          { title: "Mission purpose cohort", desc: "Purpose · 6-week", owners: "Purpose Coach · SCS", k: "k=10", status: "Opt-in", col: "teal", time: "25 Jul · 09:14" },
-                          { title: "OFT prep · Alpha", desc: "Strength · 6-week", owners: "SCS · PT/IM", k: "k=22", status: PLAN_STATUSES.ACTIVE, col: "green", time: "24 Jul · 07:00" }
-                        ].map((p, idx) => (
-                          <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        {recentPlans.map((p, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/20 transition">
                             <td className="py-3.5">
                               <span className="font-bold text-slate-800 dark:text-white block">{p.title}</span>
                               <span className="text-[10px] text-slate-500 mt-0.5 block font-sans">{p.desc}</span>
@@ -498,12 +569,7 @@ export default function PlanDashboard() {
                   </div>
 
                   <div className="space-y-4">
-                    {[
-                      { title: "Recovery block · Charlie", desc: "Authored · needs SCS + PT/IM owner · 6d", badge: "6d", col: "orange" },
-                      { title: "Sleep reset · Bravo", desc: "Authored · needs MP · 3d", badge: "3d", col: "orange" },
-                      { title: "Nutrition prep · OFT", desc: "Authored · needs Nutritionist + SCS · 2d", badge: "2d", col: "teal" },
-                      { title: "Pre-deployment brief", desc: "Authored · needs Purpose Coach + SCS · 1d", badge: "1d", col: "teal" }
-                    ].map((item, idx) => (
+                    {ASSIGNMENT_QUEUE.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4 p-3.5 bg-[#f8fafc] dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl hover:shadow-sm transition cursor-pointer">
                         <div className="space-y-0.5 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white font-sans">{item.title}</h4>
@@ -547,24 +613,66 @@ export default function PlanDashboard() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => triggerToast("Authoring draft saved to local database")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button
+                    onClick={() => {
+                      const newDraft: PlanDraftEntry = {
+                        id: `DRAFT-${Date.now()}`,
+                        title: "4-week recovery · Bravo",
+                        desc: "Recovery · strength",
+                        cadence: "Daily",
+                        status: "draft",
+                        savedAt: new Date().toISOString(),
+                      };
+                      setPlanDrafts([newDraft, ...planDrafts]);
+                      triggerToast("Authoring draft saved to local database");
+                    }}
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Save draft
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Readiness plan sent to owner specialists for approval")}
+                  <button
+                    onClick={() => {
+                      const recipients = ["SCS", "PT/IM"];
+                      const sentId = `PLAN-${Date.now()}`;
+                      const sentAt = new Date().toISOString();
+                      setSentPlans([
+                        {
+                          id: sentId,
+                          title: "4-week recovery · Bravo",
+                          recipients,
+                          status: "pending_review",
+                          sentAt,
+                        },
+                        ...sentPlans,
+                      ]);
+                      setPlanDrafts([
+                        {
+                          id: sentId,
+                          title: "4-week recovery · Bravo",
+                          desc: "Recovery · strength",
+                          cadence: "Daily",
+                          status: "pending_review",
+                          savedAt: sentAt,
+                        },
+                        ...planDrafts,
+                      ]);
+                      triggerToast("Readiness plan sent to owner specialists for approval");
+                    }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Send className="size-3.5" /> Send to owners
                   </button>
+                  {planDrafts[0] && planDrafts[0].status === "draft" && (
+                    <span className="text-[10px] text-slate-400 font-mono">
+                      Last saved: {new Date(planDrafts[0].savedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
                 </div>
               </div>
 
               {/* Draft Info Banner */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 md:p-6 text-left space-y-4">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 md:p-6 text-left space-y-4">
                 <div className="flex items-center gap-3">
                   <span className="bg-slate-900 text-white dark:bg-slate-800 rounded px-2.5 py-0.5 text-[9px] font-mono inline-block">
                     DRAFT
@@ -798,15 +906,54 @@ export default function PlanDashboard() {
                         </button>
                       </div>
 
-                      <div className="flex items-center gap-3 pt-2">
-                        <button 
-                          onClick={() => triggerToast("Authoring draft saved for routing later")}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                      <div className="flex items-center gap-3 pt-2 flex-wrap">
+                        <button
+                          onClick={() => {
+                            const newDraft: PlanDraftEntry = {
+                              id: `DRAFT-${Date.now()}`,
+                              title: "4-week recovery · Bravo",
+                              desc: "Recovery · strength",
+                              cadence: "Daily",
+                              status: "draft",
+                              savedAt: new Date().toISOString(),
+                              queuedFor: ["MP", "Nutritionist", "SCS"],
+                            };
+                            setPlanDrafts([newDraft, ...planDrafts]);
+                            triggerToast("Authoring draft saved for routing later");
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                         >
                           Save & route later
                         </button>
-                        <button 
-                          onClick={() => triggerToast("Readiness plan sent to owners for review")}
+                        <button
+                          onClick={() => {
+                            const recipients = ["MP", "Nutritionist", "SCS"];
+                            const sentId = `PLAN-${Date.now()}`;
+                            const sentAt = new Date().toISOString();
+                            setSentPlans([
+                              {
+                                id: sentId,
+                                title: "4-week recovery · Bravo",
+                                recipients,
+                                status: "pending_review",
+                                sentAt,
+                              },
+                              ...sentPlans,
+                            ]);
+                            setPlanDrafts([
+                              {
+                                id: sentId,
+                                title: "4-week recovery · Bravo",
+                                desc: "Recovery · strength",
+                                cadence: "Daily",
+                                status: "pending_review",
+                                savedAt: sentAt,
+                                queuedFor: recipients,
+                              },
+                              ...planDrafts,
+                            ]);
+                            triggerToast("Readiness plan sent to owners for review");
+                          }}
                           className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                         >
                           <Send className="size-3.5" /> Send to owners
@@ -836,10 +983,17 @@ export default function PlanDashboard() {
                     { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutritionist + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" },
                     { cat: "Purpose", title: "Purpose cohort", desc: "Purpose Coach-led · opt-in · 6 weeks", b1: "6 weeks", b2: "Opt-in" }
                   ].map((tpl, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55] rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setActiveTemplateId(tpl.title);
+                        triggerToast(`Switched active template to: ${tpl.title}`);
+                      }}
+                      className={`bg-white dark:bg-[#0e1628] border ${
+                        activeTemplateId === tpl.title
+                          ? "border-[var(--brand-color)] shadow-md ring-1 ring-[var(--brand-color)]/40"
+                          : "border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55]"
+                      } rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition`}
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
@@ -885,12 +1039,12 @@ export default function PlanDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Plan dashboard
                   </button>
-                  <button 
-                    onClick={() => triggerToast("Initializing new reconditioning block")}
+                  <button
+                    onClick={() => setShowNewBlockModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New block
@@ -940,13 +1094,54 @@ export default function PlanDashboard() {
                     <h3 className="text-base font-bold text-slate-900 dark:text-white">Reconditioning templates</h3>
                     <p className="text-xs text-slate-500">Pre-defined cadences · cross-persona by default · k &ge; 5 at every aggregate view</p>
                   </div>
-                  <button 
-                    onClick={() => triggerToast("Opening switch templates dialog")}
+                  <button
+                    onClick={() => setShowSwitchTemplate((prev) => !prev)}
                     className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Switch template
                   </button>
                 </div>
+
+                {showSwitchTemplate && (
+                  <div className="bg-[var(--brand-color)]/10 border border-[var(--brand-color)]/30 rounded-2xl p-5 shadow-sm text-left space-y-3">
+                    <div className="flex items-center justify-between border-b border-[var(--brand-color)]/20 pb-3">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-white">Choose a template</h4>
+                      <button
+                        onClick={() => setShowSwitchTemplate(false)}
+                        className="px-3 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {[
+                        { cat: "Recovery", title: "4-week reconditioning" },
+                        { cat: "Strength", title: "6-week strength block" },
+                        { cat: "Mental", title: "Sleep reset" },
+                        { cat: "Nutrition", title: "Hydration ramp" },
+                        { cat: "Pre-deployment", title: "Nutrition prep" },
+                        { cat: "Purpose", title: "Purpose cohort" }
+                      ].map((tpl, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            setActiveTemplateId(tpl.title);
+                            setShowSwitchTemplate(false);
+                            triggerToast(`Switched active template to: ${tpl.title}`);
+                          }}
+                          className={`text-left px-3 py-2 rounded-lg border transition cursor-pointer ${
+                            activeTemplateId === tpl.title
+                              ? "border-[var(--brand-color)] bg-[var(--brand-color)]/15"
+                              : "border-slate-200 dark:border-white/10 hover:border-[var(--brand-color)]/50"
+                          }`}
+                        >
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">{tpl.cat}</span>
+                          <span className="text-xs font-bold text-slate-800 dark:text-white">{tpl.title}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
                   {[
@@ -956,10 +1151,17 @@ export default function PlanDashboard() {
                     { cat: "Nutrition", title: "Hydration ramp", desc: "Nutritionist-led · 4 weeks · daily intake check-in", b1: "4 weeks", b2: "Caseload" },
                     { cat: "Pre-deployment", title: "Nutrition prep", desc: "Nutritionist + SCS · pre-deployment · 3 weeks", b1: "3 weeks", b2: "Cross-persona" }
                   ].map((tpl, idx) => (
-                    <div 
-                      key={idx} 
-                      onClick={() => triggerToast(`Switched active template to: ${tpl.title}`)}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55] rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition"
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setActiveTemplateId(tpl.title);
+                        triggerToast(`Switched active template to: ${tpl.title}`);
+                      }}
+                      className={`bg-white dark:bg-[#0e1628] border ${
+                        activeTemplateId === tpl.title
+                          ? "border-[var(--brand-color)] shadow-md ring-1 ring-[var(--brand-color)]/40"
+                          : "border-slate-200 dark:border-white/5 hover:border-[var(--brand-color)/55]"
+                      } rounded-2xl p-5 shadow-sm hover:shadow flex flex-col justify-between h-44 cursor-pointer text-left transition`}
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
@@ -1022,7 +1224,7 @@ export default function PlanDashboard() {
                           { name: "Caseload: Lower-back RTD", details: "k=8 · PT/IM", block: "6-week rehab", wk: "3 of 6", adh: "85%", pct: 85, owners: ["PT/IM"], status: PLAN_HEALTH.ON_TRACK, col: "green" },
                           { name: "Caseload: Pre-OFT clearance", details: "k=14 · PT/IM", block: "1-week clearance", wk: "1 of 1", adh: "92%", pct: 100, owners: ["PT/IM"], status: PLAN_HEALTH.CLEARED, col: "green" }
                         ].map((c, i) => (
-                          <tr key={i} className="hover:bg-slate-55/20 transition">
+                          <tr key={i} className="hover:bg-slate-50/20 transition">
                             <td className="py-3">
                               <span className="font-bold text-slate-800 dark:text-white block">{c.name}</span>
                               <span className="text-[10px] text-slate-500 mt-0.5 block font-sans">{c.details}</span>
@@ -1087,7 +1289,7 @@ export default function PlanDashboard() {
                       5 workspaces
                     </span>
                     <button
-                      onClick={() => triggerToast("Opening general assignments queue")}
+                      onClick={() => setViewingAssignmentQueue(true)}
                       className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                     >
                       Open assignment
@@ -1096,7 +1298,7 @@ export default function PlanDashboard() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-5 items-start">
-                  
+
                   {/* SCS Column */}
                   <div className="space-y-3 bg-white/40 dark:bg-slate-950/10 border border-slate-200/50 dark:border-white/5 p-3 rounded-2xl">
                     <div className="flex items-center justify-between px-1">
@@ -1239,6 +1441,58 @@ export default function PlanDashboard() {
         </main>
       </div>
 
+      {viewingAllPlans && (
+        <RecordDetailDialog
+          open={viewingAllPlans}
+          onClose={() => setViewingAllPlans(false)}
+          title="All readiness plans"
+          subtitle={`${recentPlans.length} plans · last 6 · any status`}
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
+            {recentPlans.map((p, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{p.title}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{p.owners} · {p.k} · {p.time}</span>
+                </span>
+                <span className={`flex-shrink-0 text-[9px] font-bold uppercase ${
+                  p.col === "green" ? "text-emerald-500" : "text-[var(--brand-color)]"
+                }`}>
+                  {p.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
+      {viewingAssignmentQueue && (
+        <RecordDetailDialog
+          open={viewingAssignmentQueue}
+          onClose={() => setViewingAssignmentQueue(false)}
+          title="Assignment queue"
+          subtitle={`${ASSIGNMENT_QUEUE.length} plans awaiting routing`}
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
+            {ASSIGNMENT_QUEUE.map((item, idx) => (
+              <div key={idx} className="flex items-center justify-between gap-3 px-3 py-2.5">
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{item.title}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{item.desc}</span>
+                </span>
+                <span className={`flex-shrink-0 px-2 py-0.5 text-[9px] font-bold rounded ${
+                  item.col === "orange" ? "bg-amber-500/15 text-amber-600" : "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]"
+                }`}>
+                  {item.badge}
+                </span>
+              </div>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
+
       {/* TOAST NOTIFICATION */}
       {showConfirmToast && (
         <div className="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2 z-50 animate-slide-up border border-slate-800 dark:border-white/5 font-sans">
@@ -1246,6 +1500,64 @@ export default function PlanDashboard() {
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
+
+      <CreateRecordModal
+        open={showNewPlanModal}
+        onClose={() => setShowNewPlanModal(false)}
+        title="New plan"
+        subtitle="Create a custom readiness plan. k \u2265 5 is enforced on every aggregate view."
+        submitLabel="Create plan"
+        fields={[
+          { name: "Title", label: "Plan title", type: "text", required: true, placeholder: "e.g. 6-week strength · Alpha" },
+          { name: "Description", label: "Description", type: "textarea", required: true, placeholder: "Brief summary · cohort scope · intent" },
+          { name: "Owner", label: "Owner", type: "text", required: true, placeholder: "e.g. PT, Chaplain" },
+          { name: "Status", label: "Status", type: "select", required: true, options: ["Draft", "Active", "Review"], defaultValue: "Draft" }
+        ]}
+        onSubmit={(values) => {
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: false });
+          const dayStr = now.toLocaleDateString([], { day: "2-digit", month: "short" });
+          const status = values.Status || "Draft";
+          const isActive = status === "Active";
+          const newPlan: RecentPlan = {
+            title: values.Title || "Untitled plan",
+            desc: values.Description || "Custom plan · just created",
+            owners: values.Owner || "SCS",
+            k: "k=0",
+            status: status,
+            col: isActive ? "green" : "teal",
+            time: `${dayStr} · ${timeStr}`,
+          };
+          setRecentPlans([newPlan, ...recentPlans]);
+          setShowNewPlanModal(false);
+          triggerToast(`Created: ${newPlan.title}`);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showNewBlockModal}
+        onClose={() => setShowNewBlockModal(false)}
+        title="New reconditioning block"
+        subtitle="Initialize a new block. Cross-persona coordination by default."
+        submitLabel="Add block"
+        fields={[
+          { name: "Title", label: "Block title", type: "text", required: true, placeholder: "e.g. Mobility reset · Charlie" },
+          { name: "Description", label: "Description", type: "textarea", required: true, placeholder: "Cadence · cohort · focus" },
+          { name: "Badge", label: "Badge label", type: "text", placeholder: "e.g. Strength, Mobility" },
+          { name: "KeyMetric", label: "Key metric", type: "text", placeholder: "e.g. 12 sessions" }
+        ]}
+        onSubmit={(values) => {
+          const newBlock: PlanBlock = {
+            title: values.Title || "Untitled block",
+            desc: values.Description || "New block · just created",
+            badge: values.Badge || "General",
+            k: values.KeyMetric || "",
+          };
+          setReconditioningBlocks([...reconditioningBlocks, newBlock]);
+          setShowNewBlockModal(false);
+          triggerToast(`Created: ${newBlock.title}`);
+        }}
+      />
 
     </div>
   );

@@ -9,6 +9,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { IconButton } from "@/components/ui/icon-button";
 import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+import { CreateRecordModal } from "@/components/ui/create-record-modal";
 import {
   POPULATION_LEVELS,
   PRIVACY_STATES,
@@ -108,6 +109,46 @@ const WORKOUT_LOG: WorkoutRecord[] = [
   { status: "Done", date: "18 Jul", type: "Strength · deadlift", dur: "45 min", rpe: "6", plan: "Rehab Block 2", lim: "Sub-80% 1RM", rev: "Reviewed", col: "green" },
 ];
 
+// Shared matcher for the "Needs review / OFT / Reconditioning / L4+" queue filter
+// pills used on both the Dashboard tab queue and the People roster table.
+// "Needs review" = rows with an active concern driver (red/orange coloring),
+// distinct from neutral/positive drivers (badge-teal, badge-slate).
+function matchesQueuePill(pill: string, row: { dr: string; drCol: string; plan?: string }): boolean {
+  switch (pill) {
+    case "All 112":
+      return true;
+    case "OFT":
+      return row.dr.includes("OFT") || !!row.plan?.includes("OFT");
+    case "Reconditioning":
+      return !!row.plan?.includes("Recond");
+    case "L4+": {
+      const match = row.dr.match(/^L(\d+)/);
+      return !!match && Number(match[1]) >= 4;
+    }
+    case "Needs review":
+    default:
+      return row.drCol === "red" || row.drCol === "orange" || row.drCol === "badge-orange";
+  }
+}
+
+// Matcher for the "Active / Rehab / Performance / Reconditioning / Draft"
+// filter pills above the Active Assignments table on the Plans tab.
+function matchesAssignmentPill(pill: string, row: { status: string; plan: string }): boolean {
+  switch (pill) {
+    case PLAN_STATUSES.DRAFT:
+      return row.status === PLAN_STATUSES.DRAFT;
+    case "Rehab":
+      return row.plan.startsWith("Rehab");
+    case "Performance":
+      return row.plan.includes("Performance");
+    case "Reconditioning":
+      return row.plan.includes("Reconditioning");
+    case PLAN_STATUSES.ACTIVE:
+    default:
+      return row.status === PLAN_STATUSES.ACTIVE;
+  }
+}
+
 export default function ScsDashboard() {
   const router = useRouter();
   const { isAuthenticated, logout } = useAuthStore();
@@ -127,6 +168,55 @@ export default function ScsDashboard() {
   const [viewingTemplate, setViewingTemplate] = useState<TemplateRecord | null>(null);
   const [viewingAssignment, setViewingAssignment] = useState<AssignmentRecord | null>(null);
   const [viewingQueueItem, setViewingQueueItem] = useState<QueueRecord | null>(null);
+
+  // Create-record modal open flags + owned state arrays (Phase 4)
+  const [showPlanModal, setShowPlanModal] = useState(false);
+  const [showPerfNoteModal, setShowPerfNoteModal] = useState(false);
+  const [showAssignPlanModal, setShowAssignPlanModal] = useState(false);
+  const [showRecondPlanModal, setShowRecondPlanModal] = useState(false);
+  const [showNewDmModal, setShowNewDmModal] = useState(false);
+
+  type PerformancePlan = { title: string; badge: string; desc: string; details: string; cad: string; win: string; owner: string };
+  const [performancePlans, setPerformancePlans] = useState<PerformancePlan[]>([]);
+
+  type PerformanceNote = { id: string; date: string; text: string; author: string };
+  const [performanceNotes, setPerformanceNotes] = useState<PerformanceNote[]>([
+    {
+      id: "pn-seed-1",
+      date: "28 Jul",
+      text: "Deadlift session went well today, mobility reset held through warm-up.",
+      author: "TSgt Lee",
+    },
+  ]);
+
+  type AssignedPlanRow = { id: string; status: string; plan: string; air: string; airUnit: string; win: string; owner: string; comp: string; col: string; sign: string; signBold?: boolean };
+  const [assignedPlans, setAssignedPlans] = useState<AssignedPlanRow[]>([]);
+
+  type ReconditioningPlan = { id: string; title: string; badge: string; desc: string; cad: string; win: string; owner: string };
+  const [reconditioningPlans, setReconditioningPlans] = useState<ReconditioningPlan[]>([]);
+
+  // Phase 6 — Workflow action wiring
+  // ① Edit plan wizard (Rehab Block 2) — inline editing panel
+  const [editingPlanBlock, setEditingPlanBlock] = useState(false);
+  const [editingPlanDraft, setEditingPlanDraft] = useState<PerformancePlan | null>(null);
+
+  // ② Assignment form "Save draft" — draft assignments
+  type AssignmentDraft = { id: string; airman: string; plan: string; window: string; coOwner: string; status: string; savedAt: string };
+  const [assignmentDrafts, setAssignmentDrafts] = useState<AssignmentDraft[]>([]);
+
+  // ④ Queue item modal "Save changes" — pending edits to queue items
+  type QueueItemEdit = { id: string; queueItemId: string; airman: string; fields: { status: string; notes: string }; editedAt: string };
+  const [queueItemEdits, setQueueItemEdits] = useState<QueueItemEdit[]>([]);
+
+  // ⑤ Queue item modal "Send to PT/IM" — sent-for-sign-off audit log
+  type SentForSignOff = { id: string; airman: string; sentAt: string; by: string };
+  const [sentForSignOff, setSentForSignOff] = useState<SentForSignOff[]>([]);
+
+  // Phase 5: J. Reyes profile drill-in sub-tabs (Overview / Trends / Plans / Records / Notes)
+  const [personTab, setPersonTab] = useState<"Overview" | "Trends" | "Plans" | "Records" | "Notes">("Overview");
+
+  type DmThread = { initials: string; name: string; time: string; txt: string; unread: boolean; active: boolean };
+  const [dmThreads, setDmThreads] = useState<DmThread[]>([]);
 
   // Chat/Messages states
   const [selectedChatId, setSelectedChatId] = useState<string>("J. Reyes");
@@ -160,6 +250,14 @@ export default function ScsDashboard() {
   const [assignWindow, setAssignWindow] = useState("28 Jul - 25 Aug");
   const [assignCoOwner, setAssignCoOwner] = useState("SCS + PT/IM");
 
+  // Filter pill states (scope which records show in nearby tables/queues)
+  const [dashboardDateRange, setDashboardDateRange] = useState("Today");
+  const [dashboardQueueFilter, setDashboardQueueFilter] = useState("Needs review");
+  const [peopleQueueFilter, setPeopleQueueFilter] = useState("Needs review");
+  const [plansView, setPlansView] = useState("Templates");
+  const [assignmentsFilter, setAssignmentsFilter] = useState<string>(PLAN_STATUSES.ACTIVE);
+  const [coverageWeek, setCoverageWeek] = useState("This week");
+
   const handleSendMessage = () => {
     if (!typedMessage.trim()) return;
     const currentThread = chatThreads[selectedChatId] || [];
@@ -176,7 +274,41 @@ export default function ScsDashboard() {
 
   const handleAssignPlanSubmit = (e: React.SubmitEvent) => {
     e.preventDefault();
+    // Push to existing assignedPlans (Phase 4) with PENDING_REVIEW status
+    const newAssignment: AssignedPlanRow = {
+      id: `ap-form-${Date.now()}`,
+      status: PLAN_STATUSES.PENDING_REVIEW,
+      plan: assignPlan,
+      air: assignAirman,
+      airUnit: "23 SFS",
+      win: assignWindow,
+      owner: assignCoOwner,
+      comp: "0%",
+      col: "orange",
+      sign: "PT/IM",
+      signBold: false,
+    };
+    setAssignedPlans((prev) => [newAssignment, ...prev]);
     triggerToast(`Plan "${assignPlan}" assigned successfully to ${assignAirman}`);
+    // Clear form
+    setAssignAirman("J. Reyes");
+    setAssignPlan("Rehab Block 2");
+    setAssignWindow("28 Jul - 25 Aug");
+    setAssignCoOwner("SCS + PT/IM");
+  };
+
+  const handleSaveAssignmentDraft = () => {
+    const draft: AssignmentDraft = {
+      id: `d-${Date.now()}`,
+      airman: assignAirman,
+      plan: assignPlan,
+      window: assignWindow,
+      coOwner: assignCoOwner,
+      status: "Draft",
+      savedAt: new Date().toISOString(),
+    };
+    setAssignmentDrafts((prev) => [draft, ...prev]);
+    triggerToast("Plan assignment saved as draft");
   };
 
   const setActiveTab = (tab: TabType) => {
@@ -297,7 +429,7 @@ export default function ScsDashboard() {
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-650 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
           >
             <LogOut className="size-4" />
             Log out
@@ -454,13 +586,13 @@ export default function ScsDashboard() {
 
               {/* Navigation tabs inside J Reyes details */}
               <div className="flex gap-4 border-b border-slate-100 dark:border-white/5 pb-2 text-xs font-bold text-left select-none">
-                {["Overview", "Trends", "Plans", "Records", "Notes"].map((tabName, i) => (
-                  <span 
+                {(["Overview", "Trends", "Plans", "Records", "Notes"] as const).map((tabName, i) => (
+                  <span
                     key={i}
-                    onClick={() => triggerToast(`Displaying J. Reyes ${tabName} records`)}
+                    onClick={() => setPersonTab(tabName)}
                     className={`cursor-pointer pb-1 border-b-2 transition ${
-                      tabName === "Overview" 
-                        ? "border-[var(--brand-color)] text-[var(--brand-color)]" 
+                      personTab === tabName
+                        ? "border-[var(--brand-color)] text-[var(--brand-color)]"
                         : "border-transparent text-slate-400 hover:text-slate-700"
                     }`}
                   >
@@ -469,8 +601,9 @@ export default function ScsDashboard() {
                 ))}
               </div>
 
-              {/* Split layout parameters */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              {/* Split layout parameters - rendered per active sub-tab */}
+              {personTab === "Overview" && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
                 
                 {/* Left Side: Drivers and Recommendations */}
                 <div className="lg:col-span-8 space-y-6">
@@ -522,9 +655,9 @@ export default function ScsDashboard() {
                         <h3 className="text-xs font-bold text-slate-900 dark:text-white">Recommendations</h3>
                         <p className="text-[9px] text-slate-500">Coordinated with PT/IM &middot; next sync 14:00</p>
                       </div>
-                      <button 
-                        onClick={() => triggerToast("Add new performance recommendation wizard opened")}
-                        className="px-2 py-0.5 bg-[var(--brand-color)] text-white rounded text-[10px] font-bold transition hover:bg-[var(--brand-color-hover)]"
+                      <button
+                        onClick={() => setShowPlanModal(true)}
+                        className="px-2 py-0.5 bg-[var(--brand-color)] text-white rounded text-[10px] font-bold transition hover:bg-[var(--brand-color-hover)] cursor-pointer"
                       >
                         + Plan
                       </button>
@@ -593,13 +726,94 @@ export default function ScsDashboard() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                      <button onClick={() => triggerToast("Edit Rehab Block 2 wizard opened")} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition">
+                      <button
+                        onClick={() => {
+                          setEditingPlanBlock(true);
+                          setEditingPlanDraft({
+                            title: "Rehab Block 2",
+                            badge: "Rehab · Active",
+                            desc: "Lower back reconditioning block 1 (week 1 of 3).",
+                            details: "Daily mobility reset - 12 min · Sub-60% 1RM deadlift x 3 · Mobility 3 x 4 sets · Loaded carry progression.",
+                            cad: "3x/wk · 45 min",
+                            win: "22 Jul - 8 Aug · 3 blocks",
+                            owner: "SCS + PT/IM",
+                          });
+                          triggerToast("Edit Rehab Block 2 wizard opened");
+                        }}
+                        className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                      >
                         Edit plan
                       </button>
-                      <button onClick={() => triggerToast("New performance note initialized")} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition">
+                      <button onClick={() => setShowPerfNoteModal(true)} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition cursor-pointer">
                         Add performance note
                       </button>
                     </div>
+
+                    {editingPlanBlock && editingPlanDraft && (
+                      <div className="mt-3 p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl text-left space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans">Edit inline · Rehab Block 2</span>
+                          <button
+                            onClick={() => { setEditingPlanBlock(false); setEditingPlanDraft(null); }}
+                            className="text-[10px] font-bold text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                            aria-label="Close edit panel"
+                          >
+                            Close
+                          </button>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="block space-y-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans block">Title</span>
+                            <input
+                              type="text"
+                              value={editingPlanDraft.title}
+                              onChange={(e) => setEditingPlanDraft({ ...editingPlanDraft, title: e.target.value })}
+                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans block">Description</span>
+                            <textarea
+                              rows={2}
+                              value={editingPlanDraft.desc}
+                              onChange={(e) => setEditingPlanDraft({ ...editingPlanDraft, desc: e.target.value })}
+                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white resize-none"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans block">Cadence</span>
+                            <input
+                              type="text"
+                              value={editingPlanDraft.cad}
+                              onChange={(e) => setEditingPlanDraft({ ...editingPlanDraft, cad: e.target.value })}
+                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white font-mono"
+                            />
+                          </label>
+                          <label className="block space-y-1">
+                            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider font-sans block">Owner</span>
+                            <input
+                              type="text"
+                              value={editingPlanDraft.owner}
+                              onChange={(e) => setEditingPlanDraft({ ...editingPlanDraft, owner: e.target.value })}
+                              className="w-full px-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 focus:outline-none focus:border-[var(--brand-color)] text-slate-800 dark:text-white"
+                            />
+                          </label>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (editingPlanDraft) {
+                              setPerformancePlans((prev) => [editingPlanDraft, ...prev]);
+                            }
+                            setEditingPlanBlock(false);
+                            setEditingPlanDraft(null);
+                            triggerToast("Plan changes saved");
+                          }}
+                          className="w-full py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                        >
+                          Save changes
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Recent Activity logs */}
@@ -628,7 +842,7 @@ export default function ScsDashboard() {
                             { time: "20 Jul - 08:30", actor: "System", act: "OFE completed - 54" },
                             { time: "18 Jul - 16:30", actor: "A. Mendez", act: "Peer-acknowledged" }
                           ].map((actRow, idx) => (
-                            <tr key={idx} className="hover:bg-slate-55/20 transition">
+                            <tr key={idx} className="hover:bg-slate-50/20 transition">
                               <td className="py-2 text-slate-500">{actRow.time}</td>
                               <td className="py-2 text-slate-700 dark:text-slate-300 font-sans font-bold">{actRow.actor}</td>
                               <td className="py-2 text-right text-slate-500 font-sans">{actRow.act}</td>
@@ -642,6 +856,140 @@ export default function ScsDashboard() {
                 </div>
 
               </div>
+              )}
+
+              {personTab === "Trends" && (
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
+                    <div>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">OFE trend · 14d / 28d</h3>
+                      <p className="text-[9px] text-slate-500">Drivers · OFE composite · sleep duration (h)</p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">OFE composite · 14d</span>
+                        <div className="flex items-end justify-between h-24 px-1 gap-1">
+                          {[48, 50, 52, 49, 54, 51, 53, 55, 52, 54, 56, 53, 54, 54].map((h, idx) => (
+                            <div key={idx} style={{ height: `${h}%` }} className="flex-1 bg-cyan-500/80 rounded-t"></div>
+                          ))}
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-500 block">7d avg: 54.0 · 14d avg: 52.9</span>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">OFE composite · 28d</span>
+                        <div className="flex items-end justify-between h-24 px-1 gap-1">
+                          {[56, 55, 54, 52, 53, 51, 50, 52, 49, 54, 51, 53, 55, 52, 54, 56, 53, 54, 54, 52, 50, 49, 51, 53, 55, 52, 54, 54].map((h, idx) => (
+                            <div key={idx} style={{ height: `${h}%` }} className="flex-1 bg-cyan-500/60 rounded-t"></div>
+                          ))}
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-500 block">28d avg: 52.6 · declining</span>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">Sleep duration (h) · 14d</span>
+                        <div className="flex items-end justify-between h-24 px-1 gap-1">
+                          {[7.5, 7.0, 6.5, 7.2, 6.8, 7.5, 7.3, 7.0, 6.5, 7.2, 6.8, 7.5, 7.3, 7.0].map((h, idx) => (
+                            <div key={idx} style={{ height: `${(h / 9) * 100}%` }} className="flex-1 bg-blue-500/70 rounded-t"></div>
+                          ))}
+                        </div>
+                        <span className="text-[9px] font-mono text-slate-500 block">avg: 7.07 h · anchor 22:30</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {personTab === "Plans" && (
+                <div className="space-y-6">
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
+                    <div className="flex items-start justify-between border-b border-slate-100 dark:border-white/5 pb-3">
+                      <div className="text-left">
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Assigned plan &mdash; Rehab Block 2</h3>
+                        <p className="text-[9px] text-slate-500">SCS + PT/IM &middot; 22 Jul - 8 Aug &middot; week 1 of 3</p>
+                      </div>
+                      <span className="px-2.5 py-1 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded-full uppercase tracking-wider font-mono">
+                        71% compliance
+                      </span>
+                    </div>
+                    <div className="space-y-2 font-sans text-xs">
+                      {[
+                        { txt: "Daily mobility reset - 12 min", col: "green" },
+                        { txt: "Sub-60% 1RM deadlift x 3", col: "green" },
+                        { txt: "Mobility 3 x 4 sets", col: "orange" },
+                        { txt: "Loaded carry progression", col: "blue" }
+                      ].map((planTask, i) => (
+                        <div key={i} className="flex items-center gap-2">
+                          <span className={`size-1.5 rounded-full ${
+                            planTask.col === "green" ? "bg-emerald-500" :
+                            planTask.col === "orange" ? "bg-amber-500" : "bg-sky-500"
+                          }`}></span>
+                          <span className="text-slate-700 dark:text-slate-300">{planTask.txt}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
+                      <button
+                        onClick={() => {
+                          setEditingPlanBlock(true);
+                          setEditingPlanDraft({
+                            title: "Rehab Block 2",
+                            badge: "Rehab · Active",
+                            desc: "Lower back reconditioning block 1 (week 1 of 3).",
+                            details: "Daily mobility reset - 12 min · Sub-60% 1RM deadlift x 3 · Mobility 3 x 4 sets · Loaded carry progression.",
+                            cad: "3x/wk · 45 min",
+                            win: "22 Jul - 8 Aug · 3 blocks",
+                            owner: "SCS + PT/IM",
+                          });
+                          triggerToast("Edit Rehab Block 2 wizard opened");
+                        }}
+                        className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition cursor-pointer"
+                      >
+                        Edit plan
+                      </button>
+                      <button onClick={() => setShowPerfNoteModal(true)} className="py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-slate-50 text-xs font-bold rounded-lg text-slate-700 dark:text-slate-300 transition cursor-pointer">
+                        Add performance note
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {personTab === "Records" && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-2 text-left">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">OFT clearance</span>
+                    <span className="font-bold text-rose-500 block text-sm">NC - Not Cleared</span>
+                    <span className="text-[10px] text-slate-500 block">15 Jul · score 71/100 · next due 22 Jul</span>
+                  </div>
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-2 text-left">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Visit log</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block text-sm">3 visits · last 30d</span>
+                    <span className="text-[10px] text-slate-500 block">27 Jul Capt Chen · 22 Jul Capt Chen · 14 Jul SSgt Lin</span>
+                  </div>
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-2 text-left">
+                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Performance summary</span>
+                    <span className="font-bold text-emerald-500 block text-sm">Authorized · versioned</span>
+                    <span className="text-[10px] text-slate-500 block">PT/IM approved · minimum-necessary</span>
+                  </div>
+                </div>
+              )}
+
+              {personTab === "Notes" && (
+                <div className="space-y-3">
+                  {[
+                    { title: "Wind-down anchor", body: "Dim-evening routine holding. Lights low by 21:30, anchor at 22:30.", tag: "Sleep" },
+                    { title: "Sleep diary", body: "7.5 h average. Daytime alertness improved per self-report.", tag: "Sleep" },
+                    { title: "Mobility reset adherence", body: "Completed 5 of last 7 days. Lower back reports easier mornings.", tag: "Compliance" }
+                  ].map((noteRow, i) => (
+                    <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm text-left space-y-1">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-xs font-bold text-slate-800 dark:text-white">{noteRow.title}</h4>
+                        <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[8px] font-bold rounded uppercase">{noteRow.tag}</span>
+                      </div>
+                      <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed font-sans">{noteRow.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* OFT clearance complete record banner */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
@@ -780,7 +1128,7 @@ export default function ScsDashboard() {
                         { status: "Done", date: "20 Jul", type: "Mobility reset", dur: "10 min", rpe: "2", plan: "Rehab Block 2", lim: "\u2014", rev: "Reviewed", col: "green" },
                         { status: "Done", date: "18 Jul", type: "McGill Big 3", dur: "25 min", rpe: "5", plan: "Rehab Block 2", lim: "\u2014", rev: "Reviewed", col: "green" }
                       ].map((workRow, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-2.5">
                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
                               workRow.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
@@ -884,7 +1232,7 @@ export default function ScsDashboard() {
                     <button
                       key={i}
                       onClick={() => { setActiveTab(card.tab); triggerToast(`Opening ${card.name.toLowerCase()} queue`); }}
-                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 text-left transition cursor-pointer"
+                      className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 text-left transition cursor-pointer"
                     >
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider font-sans">{card.name}</span>
                       <div className="flex items-baseline gap-2">
@@ -958,7 +1306,7 @@ export default function ScsDashboard() {
                       }
                       triggerToast(`Navigating to ${sfc.title} surface`);
                     }}
-                    className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 cursor-pointer transition"
+                    className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 hover:border-slate-300 dark:hover:border-white/15 rounded-2xl p-5 shadow-sm space-y-3 cursor-pointer transition"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -1057,10 +1405,10 @@ export default function ScsDashboard() {
                     {["Today", "Week", "Month"].map((opt) => (
                       <button
                         key={opt}
-                        onClick={() => triggerToast(`Filtering dashboard queue by: ${opt}`)}
+                        onClick={() => { setDashboardDateRange(opt); triggerToast(`Filtering dashboard queue by: ${opt}`); }}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "Today"
-                            ? "bg-slate-100 dark:bg-slate-855 text-slate-800 dark:text-white font-bold"
+                          opt === dashboardDateRange
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-700"
                         }`}
                       >
@@ -1069,7 +1417,7 @@ export default function ScsDashboard() {
                     ))}
                   </div>
                   <button
-                    onClick={() => { setActiveTab("plans"); triggerToast("Assign new plan process initialized"); }}
+                    onClick={() => { setActiveTab("plans"); setShowAssignPlanModal(true); }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New plan
@@ -1131,8 +1479,9 @@ export default function ScsDashboard() {
                         {["Needs review", "OFT", "Reconditioning", "L4+"].map((fPill, idx) => (
                           <button
                             key={idx}
+                            onClick={() => { setDashboardQueueFilter(fPill); triggerToast(`Filtering queue by: ${fPill}`); }}
                             className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                              fPill === "Needs review"
+                              fPill === dashboardQueueFilter
                                 ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                                 : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                             }`}
@@ -1156,15 +1505,15 @@ export default function ScsDashboard() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                           {[
-                            { code: "J. Reyes", details: "SrA · 23 SFS", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High" },
-                            { code: "A. Mendez", details: "A1C · 23 SFS", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium" },
-                            { code: "T. Cho", details: "SSgt · 23 SFS", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High" },
-                            { code: "B. Ndiaye", details: "A1C · 23 SFS", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High" },
-                            { code: "K. Patel", details: "A1C · 23 SFS", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High" },
-                            { code: "M. Hayes", details: "SrA · 23 SFS", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High" },
-                            { code: "D. Okafor", details: "SSgt · 23 SFS", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium" }
-                          ].map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-55/20 transition">
+                            { code: "J. Reyes", details: "SrA · 23 SFS", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High", plan: "Rehab Block 2", date: "28 Jul" },
+                            { code: "A. Mendez", details: "A1C · 23 SFS", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
+                            { code: "T. Cho", details: "SSgt · 23 SFS", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                            { code: "B. Ndiaye", details: "A1C · 23 SFS", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High", plan: "Reconditioning", date: "26 Jul" },
+                            { code: "K. Patel", details: "A1C · 23 SFS", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High", plan: "OFT Tempo Prep", date: "28 Jul" },
+                            { code: "M. Hayes", details: "SrA · 23 SFS", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                            { code: "D. Okafor", details: "SSgt · 23 SFS", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium", plan: "Hip Recond.", date: "25 Jul" }
+                          ].filter((row) => matchesQueuePill(dashboardQueueFilter, row) && (dashboardDateRange !== "Today" || row.date === "28 Jul")).map((row, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/20 transition">
                               <td className="py-2.5">
                                 <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
                                 <span className="text-[10px] text-slate-500 block mt-0.5">{row.details}</span>
@@ -1317,7 +1666,7 @@ export default function ScsDashboard() {
                         <div key={i} className="p-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1">
                           <h4 className={`text-[11px] font-extrabold inline-flex items-center gap-1.5 ${
                             rec.col === "red" ? "text-rose-500" :
-                            rec.col === "teal" ? "text-cyan-555" : "text-amber-500"
+                            rec.col === "teal" ? "text-cyan-500" : "text-amber-500"
                           }`}>
                             {rec.title}
                           </h4>
@@ -1352,7 +1701,7 @@ export default function ScsDashboard() {
                             { time: "14:00", grp: "OFT prep - 5", fcs: "Tempo", lead: "SSgt Park" },
                             { time: "16:00", grp: "Mobility - 8", fcs: "Recovery", lead: "TSgt Lee" }
                           ].map((lineRow, idx) => (
-                            <tr key={idx} className="hover:bg-slate-55/20 transition">
+                            <tr key={idx} className="hover:bg-slate-50/20 transition">
                               <td className="py-2 font-mono text-slate-500 font-bold">{lineRow.time}</td>
                               <td className="py-2 text-slate-800 dark:text-white font-bold">{lineRow.grp}</td>
                               <td className="py-2 text-slate-500 font-medium">{lineRow.fcs}</td>
@@ -1397,7 +1746,7 @@ export default function ScsDashboard() {
                         { name: "R. Singh", date: "20 Jul", stat: "Exempt · profile", code: "badge-slate", score: "\u2014", due: "20 Oct", plan: "Mobility Reset" },
                         { name: "S. Bauer", date: "25 Jul", stat: "Exempt · profile", code: "badge-slate", score: "\u2014", due: "25 Oct", plan: "Sleep Reset" }
                       ].map((clRow, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-2.5 font-bold text-slate-800 dark:text-white">{clRow.name}</td>
                           <td className="py-2.5 font-mono text-slate-500">{clRow.date}</td>
                           <td className="py-2.5">
@@ -1469,7 +1818,7 @@ export default function ScsDashboard() {
 
                   <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[9px] font-mono">
                     <span className="text-slate-500">RSD coverage (separate)</span>
-                    <span className="font-bold text-amber-505 font-sans">36 / 20</span>
+                    <span className="font-bold text-amber-500 font-sans">36 / 20</span>
                   </div>
                   <p className="text-[9px] text-slate-500 leading-relaxed font-sans mt-1">
                     Restricted-status duty sessions &mdash; tracked separate from regular SCS hours.
@@ -1528,7 +1877,7 @@ export default function ScsDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {WORKOUT_LOG.map((workRow, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-2.5">
                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
                               workRow.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
@@ -1608,7 +1957,7 @@ export default function ScsDashboard() {
                   </span>
                   <button
                     onClick={() => setActiveTab("coverage")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-850 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Coverage
                   </button>
@@ -1659,8 +2008,9 @@ export default function ScsDashboard() {
                     {["Needs review", "OFT", "Reconditioning", "L4+", "All 112"].map((fPill, idx) => (
                       <button
                         key={idx}
+                        onClick={() => { setPeopleQueueFilter(fPill); triggerToast(`Filtering roster by: ${fPill}`); }}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                          fPill === "Needs review"
+                          fPill === peopleQueueFilter
                             ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
@@ -1696,8 +2046,8 @@ export default function ScsDashboard() {
                         { code: "R. Singh", details: "SrA · 23 SFS · Bravo", dr: "Profile · exempt", drCol: "badge-slate", ops: "70 \u2014 1", opsCol: "slate", conf: "Medium", plan: "Mobility Reset", date: "24 Jul" },
                         { code: "S. Bauer", details: "A1C · 23 SFS · Alpha", dr: "Sleep · 3 nights", drCol: "badge-orange", ops: "64 \u25bc 2", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
                         { code: "L. Soto", details: "SSgt · 23 SFS · Charlie", dr: "L2 · shoulder", drCol: "orange", ops: "69 \u25b2 3", opsCol: "green", conf: "High", plan: "Upper Recond.", date: "26 Jul" }
-                      ].map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                      ].filter((row) => matchesQueuePill(peopleQueueFilter, row)).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
                             <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
@@ -1789,10 +2139,10 @@ export default function ScsDashboard() {
                     {["Templates", "Active", "History"].map((opt) => (
                       <button
                         key={opt}
-                        onClick={() => triggerToast(`Filtering plans by: ${opt}`)}
+                        onClick={() => { setPlansView(opt); triggerToast(`Filtering plans by: ${opt}`); }}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "Templates"
-                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold"
+                          opt === plansView
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-700"
                         }`}
                       >
@@ -1801,7 +2151,7 @@ export default function ScsDashboard() {
                     ))}
                   </div>
                   <button
-                    onClick={() => triggerToast("Create new reconditioning plan template form opened")}
+                    onClick={() => setShowRecondPlanModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New plan
@@ -1810,6 +2160,7 @@ export default function ScsDashboard() {
               </div>
 
               {/* 6 Plan Template Cards Grid */}
+              {plansView === "Templates" && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-left font-sans">
                 {[
                   { title: "4-week reconditioning", badge: `Reconditioning · ${PLAN_STATUSES.ACTIVE}`, star: true, desc: "Lower back, post-OFT mobility focus · 12 sessions", details: "BLOCK 1 - WEEKS 1-2: Daily mobility reset - 12 min · Sub-60% 1RM deadlift x 3 · Mobility 3 x 4 sets · Loaded carry progression. BLOCK 2 - WEEKS 3-4: Tempo runs x 4 · Box squat progression · Mobility work - 8 min.", cad: "3x/wk · 45 min", win: "28 days · 3 blocks", owner: "SCS + PT/IM · Sign-off: Capt Shah" },
@@ -1850,9 +2201,14 @@ export default function ScsDashboard() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-white/5">
-                      <button 
-                        onClick={() => { setAssignPlan(tpl.title); triggerToast(`Selected plan template: ${tpl.title}`); }}
-                        className="py-1.5 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white text-[10px] font-bold rounded-lg transition"
+                      <button
+                        onClick={() => {
+                          // Pre-fill the assign-plan form with the template's title and open the assign modal
+                          setAssignPlan(tpl.title);
+                          setShowAssignPlanModal(true);
+                          triggerToast(`Selected plan template: ${tpl.title}`);
+                        }}
+                        className="py-1.5 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white text-[10px] font-bold rounded-lg transition cursor-pointer"
                       >
                         Use template
                       </button>
@@ -1866,10 +2222,12 @@ export default function ScsDashboard() {
                   </div>
                 ))}
               </div>
+              )}
 
               {/* Active Plan Assignments */}
+              {plansView === "Active" && (
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
-                
+
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white">Active Assignments</h3>
@@ -1880,8 +2238,9 @@ export default function ScsDashboard() {
                     {[PLAN_STATUSES.ACTIVE, "Rehab", "Performance", "Reconditioning", PLAN_STATUSES.DRAFT].map((pill, idx) => (
                       <button
                         key={idx}
+                        onClick={() => { setAssignmentsFilter(pill); triggerToast(`Filtering assignments by: ${pill}`); }}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                          pill === "Active"
+                          pill === assignmentsFilter
                             ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]"
                             : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
@@ -1913,8 +2272,8 @@ export default function ScsDashboard() {
                         { status: PLAN_STATUSES.DRAFT, plan: "Sleep Reset · Sleep focus", air: "D. Mendez", airUnit: "SSgt · Alpha", win: "30 Jul - 6 Aug", owner: "SCS", comp: "0%", col: "slate", sign: "\u2014" },
                         { status: PLAN_STATUSES.PENDING_REVIEW, plan: "Reconditioning · Chest/T-block", air: "B. Ndiaye", airUnit: "A1C · Bravo", win: "1 Aug - 22 Aug", owner: "SCS + PT/IM", comp: "\u2014", col: "orange", sign: "PT/IM lead" },
                         { status: PLAN_STATUSES.ACTIVE, plan: "OFT Tempo Prep · High intensity", air: "K. Patel", airUnit: "A1C · Charlie", win: "20 Jul - 12 Aug", owner: "SCS + OFT", comp: "52%", col: "green", sign: "OFT Lead" }
-                      ].map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                      ].filter((row) => matchesAssignmentPill(assignmentsFilter, row)).map((row, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-2.5">
                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
                               row.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
@@ -1958,8 +2317,10 @@ export default function ScsDashboard() {
                   </table>
                 </div>
               </div>
+              )}
 
               {/* Workout log last 14 days table */}
+              {plansView === "History" && (
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div>
                   <h3 className="text-xs font-bold text-slate-900 dark:text-white">Workout log &middot; last 14 days</h3>
@@ -1990,7 +2351,7 @@ export default function ScsDashboard() {
                         { status: "Done", date: "20 Jul", type: "Mobility reset", dur: "12 min", rpe: "2", plan: "Rehab Block 2", lim: "\u2014", rev: "Reviewed", col: "green" },
                         { status: "Done", date: "18 Jul", type: "Deadlift", dur: "45 min", rpe: "6", plan: "Rehab Block 2", lim: "Sub-80% 1RM", rev: "Reviewed", col: "green" }
                       ].map((workRow, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-2.5">
                             <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
                               workRow.col === "green" ? "bg-emerald-500/10 text-emerald-500" :
@@ -2012,6 +2373,7 @@ export default function ScsDashboard() {
                   </table>
                 </div>
               </div>
+              )}
 
               {/* View Authorized performance summary block */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left flex flex-col md:flex-row md:items-center justify-between gap-4 font-sans text-xs">
@@ -2112,9 +2474,9 @@ export default function ScsDashboard() {
                     </div>
 
                     <div className="flex gap-2 justify-end pt-2 border-t border-slate-100 dark:border-white/5">
-                      <button 
-                        type="button" 
-                        onClick={() => triggerToast("Plan assignment saved as draft")}
+                      <button
+                        type="button"
+                        onClick={handleSaveAssignmentDraft}
                         className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition cursor-pointer"
                       >
                         Save draft
@@ -2191,10 +2553,10 @@ export default function ScsDashboard() {
                     {["This week", "Next week", "Month"].map((opt) => (
                       <button
                         key={opt}
-                        onClick={() => triggerToast(`Displaying coverage for: ${opt}`)}
+                        onClick={() => { setCoverageWeek(opt); triggerToast(`Displaying coverage for: ${opt}`); }}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
-                          opt === "This week"
-                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold"
+                          opt === coverageWeek
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold"
                             : "text-slate-400 hover:text-slate-700"
                         }`}
                       >
@@ -2263,7 +2625,7 @@ export default function ScsDashboard() {
                         { fl: "Charlie", air: "32", pt: "7", oft: "1/1", rehab: "1", cond: "1", cap: "8", pct: "60%", col: "bg-emerald-500" },
                         { fl: "Total · 23 SFS", air: "112", pt: "28", oft: "5/7", rehab: "6", cond: "5", cap: "32", pct: "70%", col: "bg-[var(--brand-color)]", bold: true }
                       ].map((row, idx) => (
-                        <tr key={idx} className={`hover:bg-slate-55/20 transition ${row.bold ? "font-bold text-slate-800 dark:text-white" : ""}`}>
+                        <tr key={idx} className={`hover:bg-slate-50/20 transition ${row.bold ? "font-bold text-slate-800 dark:text-white" : ""}`}>
                           <td className="py-3 font-bold">{row.fl}</td>
                           <td className="py-3 text-right font-mono text-slate-500">{row.air}</td>
                           <td className="py-3 text-right font-mono text-slate-500">{row.pt}</td>
@@ -2325,7 +2687,7 @@ export default function ScsDashboard() {
                         { scs: "Capt Shah", title: "PT/IM", mon: 3, tue: 4, wed: 3, thu: 3, fri: 2, sat: 0, sun: 0 },
                         { scs: "CPT Lead", title: "OFT - tempo", mon: 2, tue: 3, wed: 3, thu: 2, fri: 2, sat: 4, sun: 0 }
                       ].map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3 text-left font-bold font-sans">
                             <span className="text-slate-800 dark:text-white block leading-tight">{row.scs}</span>
                             <span className="text-[10px] text-slate-400 block font-normal mt-0.5">{row.title}</span>
@@ -2337,7 +2699,7 @@ export default function ScsDashboard() {
                               val === 3 ? "bg-amber-500/15 text-amber-500 border border-amber-500/25" :
                               val === 2 ? "bg-cyan-500/15 text-cyan-500 border border-cyan-500/25" :
                               val === 1 ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/25" :
-                              "bg-slate-100 dark:bg-slate-850 text-slate-400";
+                              "bg-slate-100 dark:bg-slate-800 text-slate-400";
                             return (
                               <td key={i} className="py-3 text-center">
                                 <span className={`inline-block size-6 rounded-md font-bold text-xs flex items-center justify-center mx-auto ${bg}`}>
@@ -2388,7 +2750,7 @@ export default function ScsDashboard() {
                           { name: "R. Singh", fl: "Charlie", ops: "70", lane: "Tempo", status: PLAN_STATUSES.DRAFT, col: "blue" },
                           { name: "S. Bauer", fl: "Alpha", ops: "64", lane: "Standard", status: PLAN_STATUSES.DRAFT, col: "blue" }
                         ].map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-55/20 transition">
+                          <tr key={idx} className="hover:bg-slate-50/20 transition">
                             <td className="py-2.5 font-bold">{row.name}</td>
                             <td className="py-2.5 text-slate-500">{row.fl}</td>
                             <td className="py-2.5 font-mono text-slate-500">{row.ops}</td>
@@ -2428,15 +2790,17 @@ export default function ScsDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
-                          { date: "Mon 27 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" },
-                          { date: "Mon 27 Jul", time: "14:00", grp: "OFT prep - Tempo", lead: "SSgt Park", pct: "60%", col: "bg-[var(--brand-color)]" },
-                          { date: "Tue 28 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" },
-                          { date: "Tue 28 Jul", time: "11:00", grp: "Rehab - 4", lead: "TSgt Lee", pct: "40%", col: "bg-amber-500" },
-                          { date: "Wed 29 Jul", time: "09:00", grp: "Bravo - Endurance", lead: "SSgt Park", pct: "40%", col: "bg-amber-500" },
-                          { date: "Wed 29 Jul", time: "16:00", grp: "Mobility - 8", lead: "SrA Diaz", pct: "60%", col: "bg-[var(--brand-color)]" },
-                          { date: "Thu 30 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500" }
-                        ].map((row, idx) => (
-                          <tr key={idx} className="hover:bg-slate-55/20 transition">
+                          { date: "Mon 27 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500", week: "this" },
+                          { date: "Mon 27 Jul", time: "14:00", grp: "OFT prep - Tempo", lead: "SSgt Park", pct: "60%", col: "bg-[var(--brand-color)]", week: "this" },
+                          { date: "Tue 28 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500", week: "this" },
+                          { date: "Tue 28 Jul", time: "11:00", grp: "Rehab - 4", lead: "TSgt Lee", pct: "40%", col: "bg-amber-500", week: "this" },
+                          { date: "Wed 29 Jul", time: "09:00", grp: "Bravo - Endurance", lead: "SSgt Park", pct: "40%", col: "bg-amber-500", week: "this" },
+                          { date: "Wed 29 Jul", time: "16:00", grp: "Mobility - 8", lead: "SrA Diaz", pct: "60%", col: "bg-[var(--brand-color)]", week: "this" },
+                          { date: "Thu 30 Jul", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "80%", col: "bg-emerald-500", week: "this" },
+                          { date: "Mon 3 Aug", time: "07:00", grp: "Alpha - Strength", lead: "TSgt Lee", pct: "70%", col: "bg-emerald-500", week: "next" },
+                          { date: "Tue 4 Aug", time: "14:00", grp: "OFT prep - Tempo", lead: "SSgt Park", pct: "50%", col: "bg-amber-500", week: "next" }
+                        ].filter((row) => coverageWeek === "Month" || (coverageWeek === "This week" ? row.week === "this" : row.week === "next")).map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/20 transition">
                             <td className="py-2 font-bold">{row.date}</td>
                             <td className="py-2 font-mono text-slate-500">{row.time}</td>
                             <td className="py-2 text-slate-700 dark:text-slate-300 font-medium">{row.grp}</td>
@@ -2595,7 +2959,7 @@ export default function ScsDashboard() {
                     Population: {POPULATION_LEVELS.INDIVIDUAL}
                   </span>
                   <button
-                    onClick={() => triggerToast("Search and open new direct message channel")}
+                    onClick={() => setShowNewDmModal(true)}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     + New message
@@ -2647,7 +3011,7 @@ export default function ScsDashboard() {
                         className={`p-3 rounded-xl border text-left cursor-pointer transition ${
                           selectedChatId === chat.name 
                             ? "bg-[var(--brand-color)]/10 border-[var(--brand-color)]/30 text-[var(--brand-color)]" 
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center justify-between font-mono text-[9px] gap-2">
@@ -2875,6 +3239,7 @@ export default function ScsDashboard() {
               <button
                 onClick={() => {
                   setAssignPlan(viewingTemplate.title);
+                  setShowAssignPlanModal(true);
                   triggerToast(`Selected plan template: ${viewingTemplate.title}`);
                   setViewingTemplate(null);
                 }}
@@ -2945,6 +3310,65 @@ export default function ScsDashboard() {
               </button>
               <button
                 onClick={() => {
+                  // Save changes: record edit and mutate the matched assignedPlans row
+                  const matched = assignedPlans.find((p) => p.air === viewingQueueItem.name);
+                  const editEntry: QueueItemEdit = {
+                    id: `qe-${Date.now()}`,
+                    queueItemId: matched?.id ?? `qi-${viewingQueueItem.name}`,
+                    airman: viewingQueueItem.name,
+                    fields: { status: viewingQueueItem.status, notes: viewingQueueItem.details },
+                    editedAt: new Date().toISOString(),
+                  };
+                  setQueueItemEdits((prev) => [editEntry, ...prev]);
+                  if (matched) {
+                    setAssignedPlans((prev) =>
+                      prev.map((p) =>
+                        p.id === matched.id ? { ...p, plan: viewingQueueItem.details } : p
+                      )
+                    );
+                  }
+                  triggerToast("Changes saved");
+                  setViewingQueueItem(null);
+                }}
+                type="button"
+                className="flex-1 py-2 px-4 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Save changes
+              </button>
+              <button
+                onClick={() => {
+                  // Update or insert the assignedPlans row with PENDING_REVIEW
+                  const matched = assignedPlans.find((p) => p.air === viewingQueueItem.name);
+                  if (matched) {
+                    setAssignedPlans((prev) =>
+                      prev.map((p) =>
+                        p.id === matched.id ? { ...p, status: PLAN_STATUSES.PENDING_REVIEW } : p
+                      )
+                    );
+                  } else {
+                    const newAssignment: AssignedPlanRow = {
+                      id: `ap-qi-${Date.now()}`,
+                      status: PLAN_STATUSES.PENDING_REVIEW,
+                      plan: viewingQueueItem.details,
+                      air: viewingQueueItem.name,
+                      airUnit: "23 SFS",
+                      win: "TBD",
+                      owner: "SCS + PT/IM",
+                      comp: "0%",
+                      col: "orange",
+                      sign: "PT/IM",
+                      signBold: false,
+                    };
+                    setAssignedPlans((prev) => [newAssignment, ...prev]);
+                  }
+                  // Push sent-for-sign-off audit
+                  const sentEntry: SentForSignOff = {
+                    id: `so-${Date.now()}`,
+                    airman: viewingQueueItem.name,
+                    sentAt: new Date().toISOString(),
+                    by: "SCS",
+                  };
+                  setSentForSignOff((prev) => [sentEntry, ...prev]);
                   triggerToast(`Sign-off request sent for ${viewingQueueItem.name}`);
                   setViewingQueueItem(null);
                 }}
@@ -2965,6 +3389,171 @@ export default function ScsDashboard() {
           <span className="text-xs font-semibold">{toastMessage}</span>
         </div>
       )}
+
+      {/* Create-record modals (Phase 4 wiring) */}
+      <CreateRecordModal
+        open={showPlanModal}
+        onClose={() => setShowPlanModal(false)}
+        title="Add performance plan"
+        subtitle="Add a new recommendation to J. Reyes' plan stack."
+        submitLabel="Add plan"
+        fields={[
+          { name: "title", label: "Plan title", type: "text", required: true },
+          {
+            name: "discipline",
+            label: "Discipline",
+            type: "select",
+            required: true,
+            defaultValue: "Strength",
+            options: ["Strength", "Mobility", "Endurance", "Reconditioning"],
+          },
+          { name: "desc", label: "Description", type: "textarea", required: true },
+          { name: "owner", label: "Owner", type: "text", placeholder: "e.g. PT" },
+        ]}
+        onSubmit={(values) => {
+          const discipline = values.discipline || "Strength";
+          const badge = `${discipline} - Active`;
+          const cad = discipline === "Mobility" ? "Daily - 12 min" : discipline === "Endurance" ? "3x/wk - 45 min" : "3x/wk - 60 min";
+          const win = "28 days - 3 blocks";
+          setPerformancePlans((prev) => [
+            { title: values.title, badge, desc: values.desc, details: values.desc, cad, win, owner: values.owner || "SCS" },
+            ...prev,
+          ]);
+          triggerToast(`Created: ${values.title}`);
+          setShowPlanModal(false);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showPerfNoteModal}
+        onClose={() => setShowPerfNoteModal(false)}
+        title="Add performance note"
+        subtitle="Log a quick observation against J. Reyes' active plan."
+        submitLabel="Add note"
+        fields={[
+          { name: "date", label: "Date", type: "date", required: true },
+          { name: "author", label: "Author", type: "text", placeholder: "e.g. SCS Reeves", required: true },
+          { name: "text", label: "Note", type: "textarea", required: true },
+        ]}
+        onSubmit={(values) => {
+          const entry: PerformanceNote = {
+            id: `pn-${Date.now()}`,
+            date: values.date,
+            text: values.text,
+            author: values.author,
+          };
+          setPerformanceNotes((prev) => [entry, ...prev]);
+          triggerToast(`Created: note by ${values.author}`);
+          setShowPerfNoteModal(false);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showAssignPlanModal}
+        onClose={() => setShowAssignPlanModal(false)}
+        title="Assign new plan"
+        subtitle="Push a template to a single airman - routed through PT/IM sign-off."
+        submitLabel="Assign plan"
+        fields={[
+          { name: "plan", label: "Plan title", type: "text", required: true },
+          { name: "air", label: "Airman code", type: "text", placeholder: "e.g. A-1042", required: true },
+          { name: "airUnit", label: "Airman unit", type: "text", placeholder: "e.g. 4th FLT" },
+          { name: "owner", label: "Owner", type: "text", placeholder: "e.g. SCS" },
+        ]}
+        onSubmit={(values) => {
+          const entry: AssignedPlanRow = {
+            id: `ap-${Date.now()}`,
+            status: "Pending Review",
+            plan: values.plan,
+            air: values.air,
+            airUnit: values.airUnit || "23 SFS",
+            win: "TBD",
+            owner: values.owner || "SCS",
+            comp: "0%",
+            col: "slate",
+            sign: "-",
+            signBold: false,
+          };
+          setAssignedPlans((prev) => [entry, ...prev]);
+          triggerToast(`Created: ${values.plan}`);
+          setShowAssignPlanModal(false);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showRecondPlanModal}
+        onClose={() => setShowRecondPlanModal(false)}
+        title="Create reconditioning plan"
+        subtitle="Draft a new template and add it to the Templates gallery."
+        submitLabel="Create plan"
+        fields={[
+          { name: "title", label: "Plan title", type: "text", required: true },
+          {
+            name: "cad",
+            label: "Cadence",
+            type: "select",
+            required: true,
+            defaultValue: "Weekly",
+            options: ["Daily", "Weekly", "Bi-weekly", "Ad-hoc"],
+          },
+          { name: "desc", label: "Description", type: "textarea", required: true },
+          { name: "owner", label: "Owner", type: "text", placeholder: "e.g. SCS" },
+        ]}
+        onSubmit={(values) => {
+          const cadMap: Record<string, string> = {
+            Daily: "Daily - 30 min",
+            Weekly: "3x/wk - 45 min",
+            "Bi-weekly": "Every 2 weeks - 60 min",
+            "Ad-hoc": "As needed - 30 min",
+          };
+          const entry: ReconditioningPlan = {
+            id: `rp-${Date.now()}`,
+            title: values.title,
+            badge: "Reconditioning - Draft",
+            desc: values.desc,
+            cad: cadMap[values.cad] || values.cad,
+            win: "28 days - 3 blocks",
+            owner: values.owner || "SCS",
+          };
+          setReconditioningPlans((prev) => [entry, ...prev]);
+          triggerToast(`Created: ${values.title}`);
+          setShowRecondPlanModal(false);
+        }}
+      />
+
+      <CreateRecordModal
+        open={showNewDmModal}
+        onClose={() => setShowNewDmModal(false)}
+        title="New direct message"
+        subtitle="Open a thread with a new recipient - audit-logged on send."
+        submitLabel="Start thread"
+        fields={[
+          { name: "name", label: "Recipient name", type: "text", placeholder: "e.g. Capt Reyes", required: true },
+          { name: "code", label: "Recipient code", type: "text", placeholder: "e.g. A-1042" },
+          { name: "text", label: "First message", type: "textarea", required: true },
+        ]}
+        onSubmit={(values) => {
+          const initials = values.name
+            .split(/\s+/)
+            .map((p) => p[0])
+            .filter(Boolean)
+            .slice(0, 2)
+            .join("")
+            .toUpperCase() || "?";
+          const entry: DmThread = {
+            initials,
+            name: values.name,
+            time: "Just now",
+            txt: values.text,
+            unread: false,
+            active: true,
+          };
+          setDmThreads((prev) => [entry, ...prev]);
+          setSelectedChatId(values.name);
+          triggerToast(`Created: ${values.name}`);
+          setShowNewDmModal(false);
+        }}
+      />
 
     </div>
   );
