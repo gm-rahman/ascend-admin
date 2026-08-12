@@ -280,7 +280,7 @@ export default function ScsDashboard() {
       status: PLAN_STATUSES.PENDING_REVIEW,
       plan: assignPlan,
       air: assignAirman,
-      airUnit: "23 SFS",
+      airUnit: "",
       win: assignWindow,
       owner: assignCoOwner,
       comp: "0%",
@@ -354,7 +354,7 @@ export default function ScsDashboard() {
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
-                SCS &middot; 23rd SFS
+                SCS
               </span>
             </div>
           </div>
@@ -540,7 +540,7 @@ export default function ScsDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-sans">
-                      SrA &middot; 23 SFS &middot; L4 lower back pain &middot; PT/IM duty restriction: limited duty &middot; 4 yr TIS &middot; k=1 view &middot; {POPULATION_LEVELS.INDIVIDUAL} (not cohort eligible)
+                      SrA &middot; L4 lower back pain &middot; PT/IM duty restriction: limited duty &middot; 4 yr TIS &middot; k=1 view &middot; {POPULATION_LEVELS.INDIVIDUAL} (not cohort eligible)
                     </p>
                   </div>
                 </div>
@@ -1198,7 +1198,7 @@ export default function ScsDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider uppercase font-mono">SCS · Workspace</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Strength & Conditioning</h1>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    Queue, drill-in, plans, coverage, and messages for the 23 SFS flight. Calm under load &mdash; decision-support, not dashboard noise.
+                    Queue, drill-in, plans, coverage, and messages for the flight. Calm under load &mdash; decision-support, not dashboard noise.
                   </p>
                 </div>
 
@@ -1219,7 +1219,7 @@ export default function ScsDashboard() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">Work Queue &middot; requires your action</h3>
-                  <span className="text-[9px] text-slate-500 font-mono">{POPULATION_LEVELS.CASELOAD} &middot; 23 SFS</span>
+                  <span className="text-[9px] text-slate-500 font-mono">{POPULATION_LEVELS.CASELOAD}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                   {[
@@ -1505,13 +1505,13 @@ export default function ScsDashboard() {
                         </thead>
                         <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                           {[
-                            { code: "J. Reyes", details: "SrA · 23 SFS", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High", plan: "Rehab Block 2", date: "28 Jul" },
-                            { code: "A. Mendez", details: "A1C · 23 SFS", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
-                            { code: "T. Cho", details: "SSgt · 23 SFS", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
-                            { code: "B. Ndiaye", details: "A1C · 23 SFS", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High", plan: "Reconditioning", date: "26 Jul" },
-                            { code: "K. Patel", details: "A1C · 23 SFS", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High", plan: "OFT Tempo Prep", date: "28 Jul" },
-                            { code: "M. Hayes", details: "SrA · 23 SFS", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
-                            { code: "D. Okafor", details: "SSgt · 23 SFS", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium", plan: "Hip Recond.", date: "25 Jul" }
+                            { code: "J. Reyes", details: "SrA", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High", plan: "Rehab Block 2", date: "28 Jul" },
+                            { code: "A. Mendez", details: "A1C", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
+                            { code: "T. Cho", details: "SSgt", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                            { code: "B. Ndiaye", details: "A1C", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High", plan: "Reconditioning", date: "26 Jul" },
+                            { code: "K. Patel", details: "A1C", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High", plan: "OFT Tempo Prep", date: "28 Jul" },
+                            { code: "M. Hayes", details: "SrA", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                            { code: "D. Okafor", details: "SSgt", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium", plan: "Hip Recond.", date: "25 Jul" }
                           ].filter((row) => matchesQueuePill(dashboardQueueFilter, row) && (dashboardDateRange !== "Today" || row.date === "28 Jul")).map((row, idx) => (
                             <tr key={idx} className="hover:bg-slate-50/20 transition">
                               <td className="py-2.5">
@@ -1947,7 +1947,7 @@ export default function ScsDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">SCS - PEOPLE</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">People</h1>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    112 airmen &middot; 23 SFS &middot; {POPULATION_LEVELS.CASELOAD}. Sorted by severity then confidence. Opening a row is a {POPULATION_LEVELS.INDIVIDUAL} (k=1) drill-in and is audit logged.
+                    112 airmen &middot; {POPULATION_LEVELS.CASELOAD}. Sorted by severity then confidence. Opening a row is a {POPULATION_LEVELS.INDIVIDUAL} (k=1) drill-in and is audit logged.
                   </p>
                 </div>
 
@@ -2036,16 +2036,16 @@ export default function ScsDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { code: "J. Reyes", details: "SrA · 23 SFS · Alpha", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High", plan: "Rehab Block 2", date: "28 Jul" },
-                        { code: "A. Mendez", details: "A1C · 23 SFS · Bravo", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
-                        { code: "T. Cho", details: "SSgt · 23 SFS · Alpha", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
-                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Charlie", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High", plan: "Reconditioning", date: "26 Jul" },
-                        { code: "K. Patel", details: "A1C · 23 SFS · Bravo", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High", plan: "OFT Tempo Prep", date: "28 Jul" },
-                        { code: "M. Hayes", details: "SrA · 23 SFS · Alpha", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
-                        { code: "D. Okafor", details: "SSgt · 23 SFS · Charlie", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium", plan: "Hip Recond.", date: "25 Jul" },
-                        { code: "R. Singh", details: "SrA · 23 SFS · Bravo", dr: "Profile · exempt", drCol: "badge-slate", ops: "70 \u2014 1", opsCol: "slate", conf: "Medium", plan: "Mobility Reset", date: "24 Jul" },
-                        { code: "S. Bauer", details: "A1C · 23 SFS · Alpha", dr: "Sleep · 3 nights", drCol: "badge-orange", ops: "64 \u25bc 2", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
-                        { code: "L. Soto", details: "SSgt · 23 SFS · Charlie", dr: "L2 · shoulder", drCol: "orange", ops: "69 \u25b2 3", opsCol: "green", conf: "High", plan: "Upper Recond.", date: "26 Jul" }
+                        { code: "J. Reyes", details: "SrA · Alpha", dr: "L4 · Pain - lower back", drCol: "red", ops: "54 \u25bc 8", opsCol: "red", conf: "High", plan: "Rehab Block 2", date: "28 Jul" },
+                        { code: "A. Mendez", details: "A1C · Bravo", dr: "Sleep · 5 nights", drCol: "badge-orange", ops: "62 \u25bc 3", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
+                        { code: "T. Cho", details: "SSgt · Alpha", dr: "OFT · clearance", drCol: "badge-teal", ops: "68 \u25b2 2", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                        { code: "B. Ndiaye", details: "A1C · Charlie", dr: "Mobility", drCol: "badge-teal", ops: "71 \u25b2 4", opsCol: "green", conf: "High", plan: "Reconditioning", date: "26 Jul" },
+                        { code: "K. Patel", details: "A1C · Bravo", dr: "Load mgmt", drCol: "badge-orange", ops: "66 \u2014 0", opsCol: "slate", conf: "High", plan: "OFT Tempo Prep", date: "28 Jul" },
+                        { code: "M. Hayes", details: "SrA · Alpha", dr: "Cycle 4", drCol: "badge-teal", ops: "74 \u25b2 1", opsCol: "green", conf: "High", plan: "Cycle 4 Perf.", date: "28 Jul" },
+                        { code: "D. Okafor", details: "SSgt · Charlie", dr: "L3 · hip", drCol: "orange", ops: "58 \u25bc 5", opsCol: "red", conf: "Medium", plan: "Hip Recond.", date: "25 Jul" },
+                        { code: "R. Singh", details: "SrA · Bravo", dr: "Profile · exempt", drCol: "badge-slate", ops: "70 \u2014 1", opsCol: "slate", conf: "Medium", plan: "Mobility Reset", date: "24 Jul" },
+                        { code: "S. Bauer", details: "A1C · Alpha", dr: "Sleep · 3 nights", drCol: "badge-orange", ops: "64 \u25bc 2", opsCol: "red", conf: "Medium", plan: "Sleep Reset", date: "27 Jul" },
+                        { code: "L. Soto", details: "SSgt · Charlie", dr: "L2 · shoulder", drCol: "orange", ops: "69 \u25b2 3", opsCol: "green", conf: "High", plan: "Upper Recond.", date: "26 Jul" }
                       ].filter((row) => matchesQueuePill(peopleQueueFilter, row)).map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3">
@@ -2541,7 +2541,7 @@ export default function ScsDashboard() {
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">SCS - COVERAGE</p>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Workload coverage</h1>
                   <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                    PT session capacity, OFT lane coverage, leave overlap, and SCS availability for the 23 SFS flight.
+                    PT session capacity, OFT lane coverage, leave overlap, and SCS availability for the flight.
                   </p>
                 </div>
 
@@ -2623,7 +2623,7 @@ export default function ScsDashboard() {
                         { fl: "Alpha", air: "38", pt: "10", oft: "2/3", rehab: "3", cond: "2", cap: "12", pct: "80%", col: "bg-emerald-500" },
                         { fl: "Bravo", air: "42", pt: "11", oft: "2/3", rehab: "2", cond: "2", cap: "12", pct: "75%", col: "bg-amber-500" },
                         { fl: "Charlie", air: "32", pt: "7", oft: "1/1", rehab: "1", cond: "1", cap: "8", pct: "60%", col: "bg-emerald-500" },
-                        { fl: "Total · 23 SFS", air: "112", pt: "28", oft: "5/7", rehab: "6", cond: "5", cap: "32", pct: "70%", col: "bg-[var(--brand-color)]", bold: true }
+                        { fl: "Total", air: "112", pt: "28", oft: "5/7", rehab: "6", cond: "5", cap: "32", pct: "70%", col: "bg-[var(--brand-color)]", bold: true }
                       ].map((row, idx) => (
                         <tr key={idx} className={`hover:bg-slate-50/20 transition ${row.bold ? "font-bold text-slate-800 dark:text-white" : ""}`}>
                           <td className="py-3 font-bold">{row.fl}</td>
@@ -3045,7 +3045,7 @@ export default function ScsDashboard() {
                       <div className="text-left">
                         <span className="font-bold text-slate-800 dark:text-white block text-sm">{selectedChatId}</span>
                         <span className="text-[10px] text-slate-500 block mt-0.5">
-                          {selectedChatId === "J. Reyes" ? "SrA · Alpha flight · Rehab Block 2" : "Active chat recipient · 23rd SFS"}
+                          {selectedChatId === "J. Reyes" ? "SrA · Alpha flight · Rehab Block 2" : "Active chat recipient"}
                         </span>
                       </div>
                     </div>
@@ -3351,7 +3351,7 @@ export default function ScsDashboard() {
                       status: PLAN_STATUSES.PENDING_REVIEW,
                       plan: viewingQueueItem.details,
                       air: viewingQueueItem.name,
-                      airUnit: "23 SFS",
+                      airUnit: "",
                       win: "TBD",
                       owner: "SCS + PT/IM",
                       comp: "0%",
@@ -3466,7 +3466,7 @@ export default function ScsDashboard() {
             status: "Pending Review",
             plan: values.plan,
             air: values.air,
-            airUnit: values.airUnit || "23 SFS",
+            airUnit: values.airUnit || "",
             win: "TBD",
             owner: values.owner || "SCS",
             comp: "0%",

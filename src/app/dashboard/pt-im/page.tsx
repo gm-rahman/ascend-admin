@@ -98,26 +98,26 @@ export default function PtImDashboard() {
 
   // Dashboard "Injury queue" widget rows (subset of the full injury queue)
   const dashboardQueueRows = [
-    { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red", isJ: true },
-    { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green", isJ: false },
-    { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange", isJ: false },
-    { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate", isJ: false },
-    { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange", isJ: false }
+    { code: "J. Reyes", details: "SrA · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red", isJ: true },
+    { code: "D. Mendez", details: "SSgt · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green", isJ: false },
+    { code: "T. Cho", details: "A1C · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange", isJ: false },
+    { code: "B. Ndiaye", details: "A1C · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate", isJ: false },
+    { code: "R. Patel", details: "SrA · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange", isJ: false }
   ];
   const filteredDashboardQueueRows = dashboardQueueRows.filter((row) => matchesQueueFilter(row, dashboardQueueFilter));
 
   // Injury tab "All active cases" rows (full caseload page — 10 of 12 shown, page 1)
   const injuryQueueRows = [
-    { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red" },
-    { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green" },
-    { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange" },
-    { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" },
-    { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange" },
-    { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", type: "Lumbar strain", limitation: "No lifting", prio: "Low", prioCol: "teal", status: "Limited duty · no lift", sev: "L2", sevCol: "orange", days: "2", oft: "Pre-OFT eval", oftCol: "teal" },
-    { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", type: "Lateral ankle", limitation: "Braced", prio: "Low", prioCol: "teal", status: "Full duty · brace", sev: "L1", sevCol: "blue", days: "1", oft: "No OFT", oftCol: "slate" },
-    { code: "E. Vega", details: "SrA · 23 SFS · Flight C", type: "Wrist sprain", limitation: "No pushup", prio: "Low", prioCol: "teal", status: "Modified · no pushup", sev: "L2", sevCol: "orange", days: "4", oft: "No OFT", oftCol: "slate" },
-    { code: "K. Park", details: "A1C · 23 SFS · Flight B", type: "Achilles tendinitis", limitation: "Run capped", prio: "Medium", prioCol: "orange", status: "Modified · run cap", sev: "L2", sevCol: "orange", days: "6", oft: "Due 5 Aug", oftCol: "orange" },
-    { code: "L. Soto", details: "SrA · 23 SFS · Flight C", type: "Calf strain", limitation: "Pace capped", prio: "Low", prioCol: "teal", status: "Full duty · pace", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" }
+    { code: "J. Reyes", details: "SrA · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red" },
+    { code: "D. Mendez", details: "SSgt · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green" },
+    { code: "T. Cho", details: "A1C · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange" },
+    { code: "B. Ndiaye", details: "A1C · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" },
+    { code: "R. Patel", details: "SrA · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange" },
+    { code: "S. Hayes", details: "SSgt · Flight D", type: "Lumbar strain", limitation: "No lifting", prio: "Low", prioCol: "teal", status: "Limited duty · no lift", sev: "L2", sevCol: "orange", days: "2", oft: "Pre-OFT eval", oftCol: "teal" },
+    { code: "R. Brooks", details: "Amn · Flight A", type: "Lateral ankle", limitation: "Braced", prio: "Low", prioCol: "teal", status: "Full duty · brace", sev: "L1", sevCol: "blue", days: "1", oft: "No OFT", oftCol: "slate" },
+    { code: "E. Vega", details: "SrA · Flight C", type: "Wrist sprain", limitation: "No pushup", prio: "Low", prioCol: "teal", status: "Modified · no pushup", sev: "L2", sevCol: "orange", days: "4", oft: "No OFT", oftCol: "slate" },
+    { code: "K. Park", details: "A1C · Flight B", type: "Achilles tendinitis", limitation: "Run capped", prio: "Medium", prioCol: "orange", status: "Modified · run cap", sev: "L2", sevCol: "orange", days: "6", oft: "Due 5 Aug", oftCol: "orange" },
+    { code: "L. Soto", details: "SrA · Flight C", type: "Calf strain", limitation: "Pace capped", prio: "Low", prioCol: "teal", status: "Full duty · pace", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" }
   ];
   const filteredInjuryQueueRows = injuryQueueRows.filter((row) => matchesQueueFilter(row, injuryQueueFilter));
 
@@ -139,16 +139,16 @@ export default function PtImDashboard() {
 
   // Medical records list — filterable by caseload / openable / expiring access
   const recordsRows = [
-    { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", enc: "28 Jul", type: "MSK · lower back", case: "INJ-0142", privacy: PRIVACY_STATES.RESTRICTED, exp: "31 Jul 18:00" },
-    { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", enc: "27 Jul", type: "MSK · ankle", case: "INJ-0139", privacy: PRIVACY_STATES.AUTH_REQUIRED, exp: "30 Jul 18:00" },
-    { code: "T. Cho", details: "A1C · 23 SFS · Flight A", enc: "26 Jul", type: "MSK · knee", case: "INJ-0136", privacy: PRIVACY_STATES.RESTRICTED, exp: "29 Jul 18:00" },
-    { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", enc: "26 Jul", type: "MSK · shoulder", case: "INJ-0134", privacy: PRIVACY_STATES.RESTRICTED, exp: "2 Aug 18:00" },
-    { code: "R. Patel", details: "SrA · 23 SFS · Flight B", enc: "25 Jul", type: "MSK · hamstring", case: "INJ-0131", privacy: PRIVACY_STATES.ACCESS_EXPIRED, exp: "24 Jul 18:00" },
-    { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", enc: "25 Jul", type: "MSK · lumbar", case: "INJ-0129", privacy: PRIVACY_STATES.RESTRICTED, exp: "28 Jul 18:00" },
-    { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", enc: "24 Jul", type: "MSK · lateral ankle", case: "INJ-0127", privacy: PRIVACY_STATES.CONSENT_REQUIRED, exp: "1 Aug 18:00" },
-    { code: "E. Vega", details: "SrA · 23 SFS · Flight C", enc: "24 Jul", type: "MSK · wrist", case: "INJ-0125", privacy: PRIVACY_STATES.RESTRICTED, exp: "27 Jul 18:00" },
-    { code: "K. Park", details: "A1C · 23 SFS · Flight B", enc: "23 Jul", type: "MSK · achilles", case: "INJ-0122", privacy: PRIVACY_STATES.CONSENT_WITHDRAWN, exp: "26 Jul 18:00" },
-    { code: "L. Soto", details: "SrA · 23 SFS · Flight C", enc: "22 Jul", type: "MSK · calf", case: "INJ-0119", privacy: PRIVACY_STATES.ACCESS_DENIED, exp: "30 Jul 18:00" }
+    { code: "J. Reyes", details: "SrA · Flight A", enc: "28 Jul", type: "MSK · lower back", case: "INJ-0142", privacy: PRIVACY_STATES.RESTRICTED, exp: "31 Jul 18:00" },
+    { code: "D. Mendez", details: "SSgt · Flight B", enc: "27 Jul", type: "MSK · ankle", case: "INJ-0139", privacy: PRIVACY_STATES.AUTH_REQUIRED, exp: "30 Jul 18:00" },
+    { code: "T. Cho", details: "A1C · Flight A", enc: "26 Jul", type: "MSK · knee", case: "INJ-0136", privacy: PRIVACY_STATES.RESTRICTED, exp: "29 Jul 18:00" },
+    { code: "B. Ndiaye", details: "A1C · Flight C", enc: "26 Jul", type: "MSK · shoulder", case: "INJ-0134", privacy: PRIVACY_STATES.RESTRICTED, exp: "2 Aug 18:00" },
+    { code: "R. Patel", details: "SrA · Flight B", enc: "25 Jul", type: "MSK · hamstring", case: "INJ-0131", privacy: PRIVACY_STATES.ACCESS_EXPIRED, exp: "24 Jul 18:00" },
+    { code: "S. Hayes", details: "SSgt · Flight D", enc: "25 Jul", type: "MSK · lumbar", case: "INJ-0129", privacy: PRIVACY_STATES.RESTRICTED, exp: "28 Jul 18:00" },
+    { code: "R. Brooks", details: "Amn · Flight A", enc: "24 Jul", type: "MSK · lateral ankle", case: "INJ-0127", privacy: PRIVACY_STATES.CONSENT_REQUIRED, exp: "1 Aug 18:00" },
+    { code: "E. Vega", details: "SrA · Flight C", enc: "24 Jul", type: "MSK · wrist", case: "INJ-0125", privacy: PRIVACY_STATES.RESTRICTED, exp: "27 Jul 18:00" },
+    { code: "K. Park", details: "A1C · Flight B", enc: "23 Jul", type: "MSK · achilles", case: "INJ-0122", privacy: PRIVACY_STATES.CONSENT_WITHDRAWN, exp: "26 Jul 18:00" },
+    { code: "L. Soto", details: "SrA · Flight C", enc: "22 Jul", type: "MSK · calf", case: "INJ-0119", privacy: PRIVACY_STATES.ACCESS_DENIED, exp: "30 Jul 18:00" }
   ];
   const filteredRecordsRows = recordsRows.filter((row) =>
     recordsFilter === "My caseload" ? true :
@@ -429,7 +429,7 @@ export default function PtImDashboard() {
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
               <span className="text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
-                PT/IM &middot; 23rd SFS
+                PT/IM
               </span>
             </div>
           </div>
@@ -693,7 +693,7 @@ export default function PtImDashboard() {
               {/* Access reason log strip */}
               <div className="bg-[#f8fafc] dark:bg-slate-900 border border-slate-200 dark:border-white/5 rounded-xl p-4 text-left text-xs leading-relaxed flex flex-col md:flex-row justify-between items-baseline md:items-center gap-4">
                 <p className="text-slate-600 dark:text-slate-400 font-normal">
-                  <span className="font-extrabold text-slate-700 dark:text-slate-300">Access reason logged:</span> Pre-OFT clearance review &middot; J. Reyes (SrA, 23 SFS) &middot; opened 27 Jul 14:02 by Capt Chen &middot; note PT/IM &middot; session #A-2207
+                  <span className="font-extrabold text-slate-700 dark:text-slate-300">Access reason logged:</span> Pre-OFT clearance review &middot; J. Reyes (SrA) &middot; opened 27 Jul 14:02 by Capt Chen &middot; note PT/IM &middot; session #A-2207
                 </p>
                 <div className="flex gap-2 flex-shrink-0">
                   {["PT/IM", "IDMT", "Admin audit"].map((pill, i) => (
@@ -713,7 +713,7 @@ export default function PtImDashboard() {
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Rank / Unit</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">SrA · 23 SFS · Flight A</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">SrA · Flight A</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Last visit</span>
@@ -848,7 +848,7 @@ export default function PtImDashboard() {
                       <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider font-sans">Prior injuries & encounters</span>
                       <div className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
-                          { title: "L2 lateral ankle sprain · L23 MSG · 1 wk limited duty · resolved", date: "Apr 2024", badge: "Resolved", col: "green" },
+                          { title: "L2 lateral ankle sprain · 1 wk limited duty · resolved", date: "Apr 2024", badge: "Resolved", col: "green" },
                           { title: "L1 wrist strain · RSelf-limited · 4 days", date: "Sep 2023", badge: "Resolved", col: "green" },
                           { title: "URI eval Sick call · no duty restriction", date: "Jan 2025", badge: "Resolved", col: "green" }
                         ].map((inj, idx) => (
@@ -1127,7 +1127,7 @@ export default function PtImDashboard() {
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
-                      SrA &middot; 23 SFS &middot; Flight A &middot; DOB 1998-04-12 &middot; 14 days since onset
+                      SrA &middot; Flight A &middot; DOB 1998-04-12 &middot; 14 days since onset
                     </p>
                   </div>
 
@@ -2192,7 +2192,7 @@ export default function PtImDashboard() {
                   </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Injury queue</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    12 active cases across 23 SFS, sorted by priority then functional status. Opening a case is audit logged.
+                    12 active cases sorted by priority then functional status. Opening a case is audit logged.
                   </p>
                 </div>
 
@@ -2531,7 +2531,7 @@ export default function PtImDashboard() {
                   </div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">{quarterlyPeriod} injury review</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                    Aggregate injury trends &middot; no individual exposure &middot; k&ge;5 per cohort &middot; 23rd MSG, {quarterData.dateRange}.
+                    Aggregate injury trends &middot; no individual exposure &middot; k&ge;5 per cohort &middot; {quarterData.dateRange}.
                   </p>
                 </div>
 
@@ -2778,7 +2778,7 @@ export default function PtImDashboard() {
 
               {/* Refresh Footer */}
               <div className="text-[10px] text-slate-400 select-none font-mono text-left pt-4">
-                Quarterly review &middot; {quarterlyPeriod} &middot; 23rd MSG &middot; k&ge;5 enforced &middot; CUI // OPSEC
+                Quarterly review &middot; {quarterlyPeriod} &middot; k&ge;5 enforced &middot; CUI // OPSEC
               </div>
 
             </div>
@@ -2943,7 +2943,7 @@ export default function PtImDashboard() {
                 <div>
                   <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">IDMT Handoff Channels</h3>
                   <p className="text-xs text-slate-600 leading-relaxed mt-1">
-                    Export structured, read-receipted clinical reconditioning statuses directly into the 23rd MSG Medical Operations corridor. This app is not an official medical record — exports are performance-informed summaries only.
+                    Export structured, read-receipted clinical reconditioning statuses directly into the Medical Operations corridor. This app is not an official medical record — exports are performance-informed summaries only.
                   </p>
                 </div>
 

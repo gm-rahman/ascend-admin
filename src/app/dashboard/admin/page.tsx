@@ -1685,12 +1685,10 @@ function ScopeView({
 
           <div className="space-y-4 text-xs font-mono">
             <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border dark:border-white/5 space-y-1">
-              <span className="text-[9px] font-bold text-slate-400 uppercase">432 WG</span>
               <p className="text-slate-800 dark:text-slate-300 font-bold">Wing-level</p>
               <p className="text-[10px] text-slate-400">Det 1 Ops · Det 2 Maint · Fit 1A</p>
             </div>
             <div className="p-3 rounded-lg bg-slate-50 dark:bg-slate-900 border dark:border-white/5 space-y-1">
-              <span className="text-[9px] font-bold text-slate-400 uppercase">355 WG</span>
               <p className="text-slate-800 dark:text-slate-300 font-bold">Wing-level</p>
               <p className="text-[10px] text-slate-400">Det 1 Ops · Det 2 Maint</p>
             </div>
