@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, type SubmitEvent } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Mail,
@@ -8,32 +9,33 @@ import {
   Sun,
   Clock,
   Lock,
+  KeyRound,
   Loader2,
 } from "lucide-react";
 import { AscendLogo } from "@/components/ascend-logo";
 import { AscendBanner } from "@/components/ascend-banner";
 import { useAuthStore } from "@/store/auth-store";
+import { useUsersStore } from "@/store/users-store";
 
 export default function Home() {
   const router = useRouter();
-  const { isAuthenticated, selectedRole, login } = useAuthStore();
+  const { isAuthenticated, currentUserRole, login } = useAuthStore();
+  const verifyCredentials = useUsersStore((state) => state.verifyCredentials);
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authStep, setAuthStep] = useState(0);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [authError, setAuthError] = useState("");
 
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      if (selectedRole) {
-        const route = selectedRole.toLowerCase().replace("/", "-");
-        router.push(`/dashboard/${route}`);
-      } else {
-        router.push("/roles");
-      }
+      router.push(currentUserRole ? `/dashboard/${currentUserRole}` : "/roles");
     }
-  }, [isAuthenticated, selectedRole, router]);
+  }, [isAuthenticated, currentUserRole, router]);
 
   // Sync theme with document class list
   useEffect(() => {
@@ -65,11 +67,22 @@ export default function Home() {
 
   const handleSignIn = (e: SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
+    let hasError = false;
     if (!isValidEmail(email)) {
       setEmailError("Enter the email address assigned to your account.");
-      return;
+      hasError = true;
+    } else {
+      setEmailError("");
     }
-    setEmailError("");
+    if (!password) {
+      setPasswordError("Enter your password.");
+      hasError = true;
+    } else {
+      setPasswordError("");
+    }
+    if (hasError) return;
+
+    setAuthError("");
     setIsAuthenticating(true);
     setAuthStep(0);
 
@@ -78,9 +91,20 @@ export default function Home() {
     const timer2 = setTimeout(() => setAuthStep(2), 1000);
     const timer3 = setTimeout(() => setAuthStep(3), 1500);
     const timer4 = setTimeout(() => {
-      login();
+      const result = verifyCredentials(email, password);
+      if (result === "invalid") {
+        setIsAuthenticating(false);
+        setAuthError("Incorrect email or password.");
+        return;
+      }
+      if (result === "deactivated") {
+        setIsAuthenticating(false);
+        setAuthError("This account has been deactivated — contact your administrator.");
+        return;
+      }
+      login(result);
       setIsAuthenticating(false);
-      router.push("/roles");
+      router.push(`/dashboard/${result.role}`);
     }, 2000);
 
     return () => {
@@ -269,6 +293,44 @@ export default function Home() {
                       <p className="mt-1.5 text-xs font-medium text-rose-500">{emailError}</p>
                     )}
                   </div>
+
+                  <div>
+                    <div className="mb-1.5 flex items-center justify-between">
+                      <label htmlFor="password" className="block text-xs font-semibold text-foreground">
+                        Password
+                      </label>
+                      <Link
+                        href="/forgot-password"
+                        className="text-xs font-semibold text-[var(--brand-color)] hover:text-[var(--brand-color-hover)] transition-colors duration-150"
+                      >
+                        Forgot password?
+                      </Link>
+                    </div>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
+                      <input
+                        id="password"
+                        type="password"
+                        autoComplete="current-password"
+                        value={password}
+                        onChange={(e) => {
+                          setPassword(e.target.value);
+                          if (passwordError) setPasswordError("");
+                        }}
+                        placeholder="••••••••"
+                        className="w-full rounded-xl border border-border bg-surface py-3.5 pl-10 pr-4 text-sm text-foreground shadow-sm placeholder:text-muted/60 focus:outline-none focus:border-[var(--brand-color)] focus:ring-2 focus:ring-[var(--brand-color)]/20 transition-all duration-150"
+                      />
+                    </div>
+                    {passwordError && (
+                      <p className="mt-1.5 text-xs font-medium text-rose-500">{passwordError}</p>
+                    )}
+                  </div>
+
+                  {authError && (
+                    <p className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400">
+                      {authError}
+                    </p>
+                  )}
 
                   <button
                     type="submit"

@@ -1,0 +1,202 @@
+ASCEND ADMIN — SESSION HANDOFF NOTES
+Written: 2026-08-12, because the user was about to hit today's usage limit.
+Read this first in the next session before doing anything else.
+
+====================================================================
+WHAT THIS TASK IS
+====================================================================
+User reported two bugs, both being fixed under one approved plan:
+
+1. HOVER-INVISIBLE-TEXT BUG (accessibility) — FIXED, DONE.
+   Root cause: --brand-color-hover CSS custom property was only ever
+   set by a JS helper (initBrandColor() in src/lib/constants.ts) that
+   only 2 of 9 pages called. Everywhere else, hover:bg-[var(--brand-color-hover)]
+   resolved to nothing -> background-color reverted to transparent on
+   hover while text (often explicit white) stayed -> invisible text.
+   Fix: added --brand-color-hover: #0c8a99 as a static var in
+   src/app/globals.css :root block (alongside the existing --brand-color).
+   Verified live via getComputedStyle in-browser. DONE, no further action.
+
+2. ~90 NON-FUNCTIONAL "STUB" BUTTONS across all 8 role dashboards —
+   IN PROGRESS. Buttons/table rows labeled "Open"/"View"/"Preview"/etc.
+   that only call triggerToast(...) with zero other effect. User's
+   concrete example: Leadership > Reports > "Open" on any row did
+   nothing. Same pattern repeats in every dashboard.
+
+Full plan (already written, already approved, do NOT re-plan or
+re-enter plan mode) is saved at:
+  C:\Users\Asus\.claude\plans\wondrous-discovering-quiche.md
+Read that file for the full Phase 0-6 breakdown and archetype
+definitions (A: Open/View -> detail dialog, B: filter pills, C: New X
+creation modals, D: sub-tab pills inside detail cards, E: workflow
+actions like Save/Send/Export).
+
+====================================================================
+STATUS BY PHASE
+====================================================================
+Phase 0 (CSS bug fix) — DONE.
+Phase 1 (shared RecordDetailDialog component) — DONE.
+  File: src/components/ui/record-detail-dialog.tsx
+  Full API:
+    type DetailField = { label: string; value: ReactNode };
+    type RecordDetailDialogProps = {
+      open: boolean;
+      onClose: () => void;
+      title: string;
+      subtitle?: string;
+      badge?: ReactNode;
+      fields: DetailField[];   // label/value grid, pass [] to skip
+      children?: ReactNode;    // extra content below the grid
+      actions?: ReactNode;     // defaults to one "Close" button
+    };
+  Import: import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
+  Built on the existing AccessibleDialog (role=dialog, focus trap, Escape).
+
+Phase 2 (wire every genuine Open/View stub to RecordDetailDialog):
+  - leadership/page.tsx  — DONE by me directly. tsc clean.
+      Wired: Reports table "Open" (the user's exact reported bug),
+      template "Use", Recent Reports "View all" (extracted array to
+      module-level RECENT_REPORTS const, reused by table + a compact
+      "all reports" list dialog that drills into the per-report dialog).
+  - scs/page.tsx — DONE by me directly. tsc clean.
+      Wired: "View Summary"/"Audit log" pair (appeared twice, wired
+      to 2 shared boolean states viewingSummary/viewingAuditLog reused
+      by both locations), "All workouts" (extracted WORKOUT_LOG const),
+      "Plan references", template "Preview", assignment row "Edit",
+      queue item "Review". Left alone (already functional, not stubs):
+      "Open" on roster rows (already calls setReviewingAirmanId),
+      surface-directory card clicks (already navigate via setActiveTab).
+      ALSO FIXED 2 invalid-Tailwind-shade accessibility bugs found
+      while in this file: text-rose-455 -> text-rose-500 (2 spots),
+      text-amber-550 -> text-amber-600 (2 spots). Tailwind v4's valid
+      shade scale is ONLY {50,100,200,300,400,500,600,700,800,900,950}
+      — anything else silently renders NO color at all (invisible/
+      uncolored text, same class of bug as the hover issue). Worth
+      grepping the rest of the repo for this pattern:
+        grep -nE "(text|bg|border)-[a-z]+-[0-9]{3}\b" <file>
+      then check every 3-digit number is in the valid set above.
+  - pt-im/page.tsx, nutritionist/page.tsx, mp/page.tsx, pc/page.tsx,
+    admin/page.tsx, plan/page.tsx — DISPATCHED to 4 background agents
+    (subagent_type "khan") with the exact same pattern instructions
+    (full prompts included the RecordDetailDialog API, the archetype
+    scope boundary "wire Open/View only, skip filters/New-X/Save-
+    Send-Export", the literal-unicode-escape gotcha below, and the
+    invalid-Tailwind-shade check).
+
+    IMPORTANT — as of writing this file, `git status --short` shows
+    all 6 of these files already marked Modified on disk:
+      M src/app/dashboard/admin/page.tsx
+      M src/app/dashboard/mp/page.tsx
+      M src/app/dashboard/nutritionist/page.tsx
+      M src/app/dashboard/pc/page.tsx
+      M src/app/dashboard/plan/page.tsx
+      M src/app/dashboard/pt-im/page.tsx
+    So the agents WERE actively editing these files. I never received
+    their completion notifications before the session ended (hit the
+    usage limit). DO NOT assume they finished cleanly or ran tsc.
+    NEXT SESSION MUST:
+      1. Run `git diff --stat` and `git diff <file>` on each of the 6
+         files above to see what actually changed.
+      2. Run `npx tsc --noEmit` from repo root — this is the fastest
+         way to know if any agent left broken/half-finished edits.
+      3. For each of the 6 files, grep for remaining stub buttons:
+         grep -n "triggerToast(" src/app/dashboard/<file>/page.tsx
+         and manually check whether any onClick is STILL bare
+         triggerToast-only (i.e. the agent missed it or didn't finish).
+      4. If an agent's work looks incomplete or broken, finish/fix it
+         directly rather than re-dispatching (avoid duplicate/conflicting
+         edits).
+      5. Background agent IDs from this session (almost certainly NOT
+         resumable in a new session/conversation, listed only for
+         reference in case they are):
+           pt-im.tsx        -> a201a1c5bcdca573f
+           nutritionist.tsx -> a9a8b0efccdd3171d
+           mp.tsx + pc.tsx  -> a7f5353ca93502d03
+           admin.tsx + plan.tsx -> a7bc7dfb8b78bfcdd
+
+Phase 3 (filter pills actually filter) — NOT STARTED.
+Phase 4 (New X / Add X creation modals) — NOT STARTED.
+Phase 5 (sub-tab pills inside detail cards) — NOT STARTED.
+Phase 6 (workflow actions get visible effect) — NOT STARTED.
+Final verification (tsc + eslint diff + browser spot-check) — NOT STARTED.
+
+====================================================================
+GOTCHAS LEARNED THIS SESSION (don't rediscover these)
+====================================================================
+1. Literal unicode escapes in source: some files contain the LITERAL
+   6-character text — (backslash-u-2-0-1-4) inside string
+   literals, not an actual em-dash glyph. The Edit tool's string
+   matching will silently fail if you paste a real "—" character
+   instead of the literal escape text, or vice versa — always grep/Read
+   the exact bytes first (or check with `cat -A` in Bash) before
+   writing an old_string that spans such a line. When Edit keeps
+   failing for no visible reason, fall back to a small Python script
+   that reads/writes the file with explicit UTF-8 encoding and does
+   line-range replacement by index (this is what worked for scs.tsx's
+   workout array — see conversation history for the exact script).
+
+2. Invalid Tailwind v4 shades produce ZERO CSS silently (not a fallback
+   color — literally no rule generated), which can make text invisible
+   or uncolored depending on inherited color. Valid shade scale is
+   exactly {50,100,200,300,400,500,600,700,800,900,950}. Grep pattern:
+     grep -nE "(text|bg|border)-[a-z]+-[0-9]{3}\b" <file>
+   Two instances already fixed in scs.tsx (see above). Worth a repo-wide
+   sweep before final verification (Phase 6 / Final step is the natural
+   place for this).
+
+3. Don't re-enter plan mode / call ExitPlanMode again — the plan is
+   already approved and implementation is already underway. The user
+   flagged this exact confusion once already this session.
+
+4. This is a mock/prototype app, no backend. All "records" are local
+   arrays in each page component. Wiring a stub button to a detail
+   dialog is just "pass the already-in-scope row object's fields into
+   RecordDetailDialog" — no data fetching needed.
+
+5. Skip scope for Phase 2 (don't over-wire): filter pills (Today/Week/
+   Month, Q1-Q4, etc.), "New X"/"Add X" creation buttons, and pure
+   "Save draft"/"Send"/"Export PDF" workflow buttons are OTHER phases
+   (3, 4, 6 respectively) — leave those as toast-only for now, they're
+   not "missing screens," they're different archetypes with their own
+   phase.
+
+6. Verification method used throughout: `npx tsc --noEmit` after every
+   file. No dev server / browser check has been run yet this round
+   (Chrome extension was flaky earlier in the session for the CSS bug
+   diagnosis — javascript_tool's getComputedStyle worked better than
+   `computer screenshot` via CDP if browser verification is needed again).
+
+====================================================================
+TASK LIST STATE (as tracked via TaskCreate/TaskUpdate tools this
+session — may or may not be visible in the next session; this file
+is the source of truth if not)
+====================================================================
+#37 [completed] Phase 0: Fix --brand-color-hover CSS bug
+#38 [completed] Phase 1: Build RecordDetailDialog shared component
+#39 [completed] Phase 2: Wire Open/View stubs - leadership.tsx
+#40 [completed] Phase 2: Wire Open/View stubs - scs.tsx
+#41 [in_progress] Phase 2: Wire Open/View stubs - pt-im.tsx  (agent dispatched, unconfirmed)
+#42 [pending] Phase 2: Wire Open/View stubs - nutritionist.tsx  (agent dispatched, unconfirmed)
+#43 [pending] Phase 2: Wire Open/View stubs - mp.tsx + pc.tsx  (agent dispatched, unconfirmed)
+#44 [pending] Phase 2: Wire Open/View stubs - admin.tsx + plan.tsx  (agent dispatched, unconfirmed)
+#45 [pending] Phase 3: Wire filter pills repo-wide
+#46 [pending] Phase 4: New X / Add X creation modals repo-wide
+#47 [pending] Phase 5: Sub-tab pills inside detail cards
+#48 [pending] Phase 6: Workflow actions get visible effect
+#49 [pending] Final: verify tsc/eslint + browser check
+
+====================================================================
+IMMEDIATE NEXT STEPS FOR NEXT SESSION
+====================================================================
+1. Read this file (you're doing that now).
+2. Run `git status --short` and `git diff --stat` to see the real
+   current state of the 6 agent-dispatched files.
+3. Run `npx tsc --noEmit` to check for breakage.
+4. Grep each of the 6 files for leftover triggerToast-only stubs to
+   confirm/finish each agent's work; update task list #41-44 to
+   completed once confirmed.
+5. Resume Phase 3 onward per the plan file once Phase 2 is fully
+   confirmed done across all 8 dashboards.
+6. This file (SESSION-HANDOFF.txt) is NOT committed to git and is not
+   meant to be — delete it once the whole plan is complete, or update
+   it again if you hit the limit mid-way through Phase 3-6.

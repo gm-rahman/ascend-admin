@@ -34,10 +34,16 @@ export const READINESS_CATEGORIES = {
 } as const;
 
 // ----------------------------------------------------------------
+// PERSON TERM (Req 1 — one approved term for the tracked person,
+// used everywhere instead of "Soldier"/"Patient"/generic "user")
+// ----------------------------------------------------------------
+export const PERSON_TERM = "Airman";
+
+// ----------------------------------------------------------------
 // POPULATION LEVELS (Req 6 — every view must show one)
 // ----------------------------------------------------------------
 export const POPULATION_LEVELS = {
-  INDIVIDUAL: "Individual Soldier",
+  INDIVIDUAL: `Individual ${PERSON_TERM}`,
   CASELOAD: "Assigned Caseload",
   COHORT: "Cohort",
   UNIT: "Unit",
@@ -52,6 +58,7 @@ export const PRIVACY_STATES = {
   AUTH_REQUIRED: "Authorization Required",
   ACCESS_EXPIRED: "Access Expired",
   CONSENT_REQUIRED: "Consent Required",
+  CONSENT_GRANTED: "Opted In",
   CONSENT_WITHDRAWN: "Consent Withdrawn",
   ACCESS_DENIED: "Access Denied",
 } as const;
@@ -190,4 +197,68 @@ export const DEVICE_STATUS = {
   HANDSHAKE: "Handshake",
   SECURE: "Secure",
   UNSYNCED: "Unsynced",
+} as const;
+
+// ----------------------------------------------------------------
+// WORKFLOW STATUSES — AUDIT / COMPLIANCE / EXPORT REQUESTS (Admin)
+// ----------------------------------------------------------------
+export const REPORT_STATUSES = {
+  OPEN: "Open",
+  APPROVED: "Approved",
+  PASS: "Pass",
+  CONSENTED: "Consented",
+  PENDING_LINK: "Pending Link",
+  ACTIVE: "Active",
+  PAUSED: "Paused",
+} as const;
+
+// ----------------------------------------------------------------
+// WORKFLOW STATUSES — LEADERSHIP BRIEFINGS
+// Reuses PLAN_STATUSES wording where the concept overlaps (Draft,
+// Pending Review) instead of inventing synonyms.
+// ----------------------------------------------------------------
+export const BRIEFING_STATUSES = {
+  DRAFT: PLAN_STATUSES.DRAFT,
+  PENDING_REVIEW: PLAN_STATUSES.PENDING_REVIEW,
+  READY: "Ready",
+  SENT: "Sent",
+  ARCHIVED: PLAN_STATUSES.ARCHIVED,
+} as const;
+
+// ----------------------------------------------------------------
+// PLAN HEALTH (progress/trend indicator — kept separate from
+// PLAN_STATUSES, which is the true lifecycle state, so a plan can
+// show both without conflating "what stage" with "how it's going")
+// ----------------------------------------------------------------
+export const PLAN_HEALTH = {
+  ON_TRACK: "On Track",
+  RAMPING: "Ramping",
+  WATCH: "Watch",
+  CLEARED: "Cleared",
+} as const;
+
+// ----------------------------------------------------------------
+// WORKOUT STATUSES (SCS)
+// ----------------------------------------------------------------
+export const WORKOUT_STATUSES = {
+  DONE: "Done",
+  MODIFIED: "Modified",
+  SKIPPED: "Skipped",
+} as const;
+
+// ----------------------------------------------------------------
+// REVIEW STATUS (SCS/PT-IM coordination — single wording, no
+// singular/plural drift like "PT/IM review" vs "PT/IM reviews")
+// ----------------------------------------------------------------
+export const REVIEW_STATUS = {
+  PENDING: "PT/IM Review Pending",
+  REVIEWED: "PT/IM Reviewed",
+} as const;
+
+// ----------------------------------------------------------------
+// RECORD STATUSES (specialist notes/records — MP, others)
+// ----------------------------------------------------------------
+export const RECORD_STATUSES = {
+  DRAFT: "Draft",
+  SIGNED: "Signed",
 } as const;

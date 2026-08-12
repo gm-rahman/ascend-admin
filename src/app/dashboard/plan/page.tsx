@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { initBrandColor } from "@/lib/constants";
-import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
+import { POPULATION_LEVELS, PRIVACY_STATES, PLAN_STATUSES, PLAN_HEALTH } from "@/lib/terminology";
+import { PrivacyStateBadge } from "@/components/privacy/privacy-state-badge";
+import { IconButton } from "@/components/ui/icon-button";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Home,
@@ -33,14 +36,14 @@ import {
   ClipboardList,
   User,
   Users,
-  Lock,
 } from "lucide-react";
 
 type TabType = "dashboard" | "assignment" | "reconditioning";
 
 export default function PlanDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
@@ -79,11 +82,6 @@ export default function PlanDashboard() {
   useEffect(() => {
     initBrandColor();
   }, []);
-
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
 
   const handleLogout = () => {
     logout();
@@ -154,11 +152,11 @@ export default function PlanDashboard() {
         {/* User Session Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-550 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
+            onClick={() => router.push("/dashboard/profile")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
@@ -179,33 +177,42 @@ export default function PlanDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">Plan</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Plan</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
-              <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
-                <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer"
+              <IconButton
+                icon={Bell}
+                aria-label="Notifications"
+                className="relative p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
               >
-                {theme === "light" ? <Moon className="size-4.5" /> : <Sun className="size-4.5" />}
-              </button>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
+              </IconButton>
+              <IconButton
+                icon={theme === "light" ? Moon : Sun}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleTheme}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
+              />
             </div>
 
             {/* Profile context */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-3 cursor-pointer"
+              type="button"
+            >
               <div className="text-right">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">Lt Col A. Park</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">Plan · Wing scheduler</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">{currentUser?.name}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">{currentUser?.unit}</span>
               </div>
               <div className="size-8 rounded-full bg-[#3b82f6]/10 text-[#3b82f6] border border-[#3b82f6]/20 font-sans font-black text-xs flex items-center justify-center select-none">
-                AP
+                {currentUser?.initials}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -226,8 +233,8 @@ export default function PlanDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · DASHBOARD</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Plan dashboard</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Plan dashboard</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     KPIs, recent plans, assignment queue, and coordination activity across all linked workspaces.
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -239,7 +246,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Opening full scheduling overview")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Overview
                   </button>
@@ -261,7 +268,7 @@ export default function PlanDashboard() {
                   { name: "Cross-persona", count: "12", desc: "touching \u2265 2 roles" }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                     <p className="text-[10px] text-slate-500 font-mono">{kpi.desc}</p>
                   </div>
@@ -273,7 +280,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">CROSS-PERSONA ROUTING</span>
-                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Active plans by owner</h3>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active plans by owner</h3>
                     <p className="text-xs text-slate-500">Each plan is owned by at least one role &middot; moves through the linked workspaces</p>
                   </div>
 
@@ -308,7 +315,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{item.badge}</span>
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>
@@ -332,7 +339,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{item.badge}</span>
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>
@@ -356,7 +363,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{item.badge}</span>
                             {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
@@ -380,7 +387,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{item.badge}</span>
                             {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
@@ -404,7 +411,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-500 dark:text-slate-400 uppercase">{item.badge}</span>
                             {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
@@ -424,12 +431,12 @@ export default function PlanDashboard() {
                 <div className="lg:col-span-7 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4 mb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Recent plans</h3>
-                      <p className="text-[10px] text-slate-455 mt-0.5">Last 6 &middot; any status</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Recent plans</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Last 6 &middot; any status</p>
                     </div>
                     <button 
                       onClick={() => triggerToast("Showing all historical readiness plans")}
-                      className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-655 dark:text-slate-350 hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+                      className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
                     >
                       View all
                     </button>
@@ -448,17 +455,17 @@ export default function PlanDashboard() {
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
-                          { title: "4-week recovery · Bravo", desc: "Recovery · strength", owners: "SCS · PT/IM", k: "k=24", status: "Active", col: "green", time: "28 Jul · 06:00" },
+                          { title: "4-week recovery · Bravo", desc: "Recovery · strength", owners: "SCS · PT/IM", k: "k=24", status: PLAN_STATUSES.ACTIVE, col: "green", time: "28 Jul · 06:00" },
                           { title: "Stress & sleep reset", desc: "Mental · 4-week", owners: "MP · SCS", k: "k=12", status: "Opt-in", col: "teal", time: "27 Jul · 22:18" },
-                          { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutritionist · SCS", k: "k=18", status: "Active", col: "green", time: "27 Jul · 14:55" },
-                          { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose Coach · SCS", k: "k=10", status: "Active", col: "green", time: "26 Jul · 11:03" },
+                          { title: "Hydration ramp · Foxtrot", desc: "Nutrition · 4-week", owners: "Nutritionist · SCS", k: "k=18", status: PLAN_STATUSES.ACTIVE, col: "green", time: "27 Jul · 14:55" },
+                          { title: "Pre-deployment purpose", desc: "Purpose · one-off", owners: "Purpose Coach · SCS", k: "k=10", status: PLAN_STATUSES.ACTIVE, col: "green", time: "26 Jul · 11:03" },
                           { title: "Mission purpose cohort", desc: "Purpose · 6-week", owners: "Purpose Coach · SCS", k: "k=10", status: "Opt-in", col: "teal", time: "25 Jul · 09:14" },
-                          { title: "OFT prep · Alpha", desc: "Strength · 6-week", owners: "SCS · PT/IM", k: "k=22", status: "Active", col: "green", time: "24 Jul · 07:00" }
+                          { title: "OFT prep · Alpha", desc: "Strength · 6-week", owners: "SCS · PT/IM", k: "k=22", status: PLAN_STATUSES.ACTIVE, col: "green", time: "24 Jul · 07:00" }
                         ].map((p, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
                             <td className="py-3.5">
                               <span className="font-bold text-slate-800 dark:text-white block">{p.title}</span>
-                              <span className="text-[10px] text-slate-455 mt-0.5 block font-sans">{p.desc}</span>
+                              <span className="text-[10px] text-slate-500 mt-0.5 block font-sans">{p.desc}</span>
                             </td>
                             <td className="py-3.5 text-slate-700 dark:text-slate-300 font-bold font-sans">{p.owners}</td>
                             <td className="py-3.5 text-slate-500 font-mono">{p.k}</td>
@@ -482,8 +489,8 @@ export default function PlanDashboard() {
                 <div className="lg:col-span-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4 mb-2">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Assignment queue</h3>
-                      <p className="text-[10px] text-slate-455 mt-0.5">Plans drafted, awaiting routing</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Assignment queue</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Plans drafted, awaiting routing</p>
                     </div>
                     <span className="px-2.5 py-1 bg-amber-500/10 text-amber-500 text-[10px] font-bold rounded-full uppercase">
                       6 open
@@ -530,8 +537,8 @@ export default function PlanDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · AUTHORING</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">New plan · 4-week recovery · Bravo</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">New plan · 4-week recovery · Bravo</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Author a structured plan from a template. Route to roles. Assign cohort.
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -543,7 +550,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Authoring draft saved to local database")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Save draft
                   </button>
@@ -565,7 +572,7 @@ export default function PlanDashboard() {
                   <span className="text-[10px] text-slate-400 font-mono">Auto-saved</span>
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-850 dark:text-white">Plan authoring &mdash; structured doc</h2>
+                  <h2 className="text-xl font-black text-slate-800 dark:text-white">Plan authoring &mdash; structured doc</h2>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
                     Author a plan like a doc with structured sections and clear routing metadata, not a form. Seven sections, every one routed.
                   </p>
@@ -576,7 +583,7 @@ export default function PlanDashboard() {
                     "5 linked workspaces",
                     "template - 4-week reconditioning"
                   ].map((ind, idx) => (
-                    <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-550 dark:text-slate-400 leading-normal uppercase">
+                    <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-500 dark:text-slate-400 leading-normal uppercase">
                       <span className="size-1.5 rounded-full bg-emerald-500"></span>
                       {ind}
                     </span>
@@ -590,8 +597,8 @@ export default function PlanDashboard() {
                 {/* Left Outline panel */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left h-fit space-y-3">
                   <div className="border-b border-slate-100 dark:border-white/5 pb-3">
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Outline</h3>
-                    <p className="text-[10px] text-slate-455 mt-0.5">Drag to reorder · click to edit</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Outline</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Drag to reorder · click to edit</p>
                   </div>
 
                   <div className="space-y-1.5">
@@ -625,15 +632,16 @@ export default function PlanDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
                     <div>
                       <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 01</span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Plan metadata</h3>
-                      <p className="text-[10px] text-slate-455">Name the plan, pick a template, and define the lifecycle.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Plan metadata</h3>
+                      <p className="text-[10px] text-slate-500">Name the plan, pick a template, and define the lifecycle.</p>
                     </div>
 
                     <div className="space-y-4 pt-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 block uppercase">Plan name</label>
-                        <input 
-                          type="text" 
+                        <label htmlFor="plan-name" className="text-[10px] font-bold text-slate-400 block uppercase">Plan name</label>
+                        <input
+                          id="plan-name"
+                          type="text"
                           defaultValue="4-week recovery · Bravo"
                           className="w-full px-3 py-2 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none focus:border-[var(--brand-color)/50] font-bold"
                         />
@@ -641,18 +649,28 @@ export default function PlanDashboard() {
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 block uppercase">Template</label>
-                          <div className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-455 select-none cursor-pointer">
+                          <label id="plan-template-label" className="text-[10px] font-bold text-slate-400 block uppercase">Template</label>
+                          <button
+                            type="button"
+                            aria-labelledby="plan-template-label"
+                            onClick={() => triggerToast("Template picker opened")}
+                            className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-500 select-none cursor-pointer"
+                          >
                             <span>Select template</span>
                             <ChevronDown className="size-4 text-slate-400" />
-                          </div>
+                          </button>
                         </div>
                         <div className="space-y-1">
-                          <label className="text-[10px] font-bold text-slate-400 block uppercase">Window</label>
-                          <div className="w-full h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between px-3 text-xs text-slate-700 dark:text-slate-350 cursor-pointer">
+                          <label id="plan-window-label" className="text-[10px] font-bold text-slate-400 block uppercase">Window</label>
+                          <button
+                            type="button"
+                            aria-labelledby="plan-window-label"
+                            onClick={() => triggerToast("Date range picker opened")}
+                            className="w-full h-9 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 flex items-center justify-between px-3 text-xs text-slate-700 dark:text-slate-300 cursor-pointer"
+                          >
                             <span className="font-bold">20 Jul &mdash; 15 Aug 2025 · 4 weeks</span>
                             <ChevronDown className="size-4 text-slate-400" />
-                          </div>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -662,8 +680,8 @@ export default function PlanDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
                     <div>
                       <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 02</span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Goal & rationale</h3>
-                      <p className="text-[10px] text-slate-455">Author the cohort-level rationale. Members may reference aggregate trends; identifiers are not allowed here.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Goal & rationale</h3>
+                      <p className="text-[10px] text-slate-500">Author the cohort-level rationale. Members may reference aggregate trends; identifiers are not allowed here.</p>
                     </div>
 
                     <div className="pt-2">
@@ -679,8 +697,8 @@ export default function PlanDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
                     <div>
                       <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 03</span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Cadence & schedule</h3>
-                      <p className="text-[10px] text-slate-455">Define the schedule. Daily capture is encouraged but never mandatory; weekly aggregate is the minimum cadence for k &ge; 5 reporting.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Cadence & schedule</h3>
+                      <p className="text-[10px] text-slate-500">Define the schedule. Daily capture is encouraged but never mandatory; weekly aggregate is the minimum cadence for k &ge; 5 reporting.</p>
                     </div>
 
                     <div className="flex flex-wrap gap-2.5 pt-2">
@@ -688,7 +706,7 @@ export default function PlanDashboard() {
                         Daily
                       </button>
                       {["Weekly", "Bi-weekly", "Ad-hoc"].map((c, i) => (
-                        <button key={i} className="px-4 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-655 dark:text-slate-350 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition">
+                        <button key={i} className="px-4 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition">
                           {c}
                         </button>
                       ))}
@@ -699,8 +717,8 @@ export default function PlanDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
                     <div>
                       <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 04</span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Owner routing</h3>
-                      <p className="text-[10px] text-slate-455">Route the plan to one or more owners across linked workspaces. Each owner inherits a role-keyed scope.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Owner routing</h3>
+                      <p className="text-[10px] text-slate-500">Route the plan to one or more owners across linked workspaces. Each owner inherits a role-keyed scope.</p>
                     </div>
 
                     <div className="overflow-x-auto pt-2">
@@ -720,37 +738,39 @@ export default function PlanDashboard() {
                             { role: "PT/IM", req: "Secondary", col: "indigo", r: true, w: true, n: true },
                             { role: "MP", req: "Advisory", col: "orange", r: false, w: false, n: true },
                             { role: "NUTRITIONIST", req: null, col: null, r: false, w: false, n: false },
-                            { role: "PURPOSE COACH", req: null, col: null, r: "lock", w: false, n: false }
-                          ].map((row, idx) => (
-                            <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/10">
-                              <td className="py-3 font-bold text-slate-700 dark:text-slate-300 font-sans">{row.role}</td>
-                              <td className="py-3">
-                                {row.req ? (
-                                  <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
-                                    row.col === "teal" ? "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]" :
-                                    row.col === "indigo" ? "bg-indigo-500/15 text-indigo-500" :
-                                    "bg-amber-500/15 text-amber-500"
-                                  }`}>
-                                    {row.req}
-                                  </span>
-                                ) : "—"}
-                              </td>
-                              <td className="py-3">
-                                {row.r === "lock" ? (
-                                  <span className="inline-flex items-center gap-1 text-[8px] font-bold text-slate-400 uppercase">
-                                    <Lock className="size-3" />
-                                    {PRIVACY_STATES.AUTH_REQUIRED}
-                                  </span>
-                                ) : row.r ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
-                              </td>
-                              <td className="py-3">
-                                {row.w ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
-                              </td>
-                              <td className="py-3">
-                                {row.n ? <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span> : "—"}
-                              </td>
-                            </tr>
-                          ))}
+                            { role: "PURPOSE COACH", req: null, col: null, r: "lock", w: "lock", n: "lock" }
+                          ].map((row, idx) => {
+                            const renderGrant = (value: boolean | string) =>
+                              value === "lock" ? (
+                                <PrivacyStateBadge state={PRIVACY_STATES.AUTH_REQUIRED} />
+                              ) : value ? (
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-500">
+                                  <span className="size-1.5 rounded-full bg-emerald-500 inline-block"></span>
+                                  Granted
+                                </span>
+                              ) : (
+                                "—"
+                              );
+                            return (
+                              <tr key={idx} className="hover:bg-slate-50/30 dark:hover:bg-slate-900/10">
+                                <td className="py-3 font-bold text-slate-700 dark:text-slate-300 font-sans">{row.role}</td>
+                                <td className="py-3">
+                                  {row.req ? (
+                                    <span className={`px-2 py-0.5 rounded text-[8px] font-bold uppercase ${
+                                      row.col === "teal" ? "bg-[var(--brand-color)/15] text-[var(--brand-color-hover)]" :
+                                      row.col === "indigo" ? "bg-indigo-500/15 text-indigo-500" :
+                                      "bg-amber-500/15 text-amber-500"
+                                    }`}>
+                                      {row.req}
+                                    </span>
+                                  ) : "—"}
+                                </td>
+                                <td className="py-3">{renderGrant(row.r)}</td>
+                                <td className="py-3">{renderGrant(row.w)}</td>
+                                <td className="py-3">{renderGrant(row.n)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -760,17 +780,22 @@ export default function PlanDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4 text-left">
                     <div>
                       <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">SECTION 05</span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Cohort & scope</h3>
-                      <p className="text-[10px] text-slate-455">Cohort minimum (k) is enforced at every data point. Select the cohort scope or import an existing one.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Cohort & scope</h3>
+                      <p className="text-[10px] text-slate-500">Cohort minimum (k) is enforced at every data point. Select the cohort scope or import an existing one.</p>
                     </div>
 
                     <div className="space-y-4 pt-2">
                       <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-400 block uppercase">Cohort</label>
-                        <div className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-455 select-none cursor-pointer">
+                        <label id="plan-cohort-label" className="text-[10px] font-bold text-slate-400 block uppercase">Cohort</label>
+                        <button
+                          type="button"
+                          aria-labelledby="plan-cohort-label"
+                          onClick={() => triggerToast("Cohort scope picker opened")}
+                          className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-500 select-none cursor-pointer"
+                        >
                           <span>Select cohort scope</span>
                           <ChevronDown className="size-4 text-slate-400" />
-                        </div>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-3 pt-2">
@@ -798,7 +823,7 @@ export default function PlanDashboard() {
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
-                  <h3 className="text-base font-bold text-slate-855 dark:text-white">Switch template</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Switch template</h3>
                   <p className="text-xs text-slate-500">Pre-defined cadences &middot; cross-persona by default</p>
                 </div>
 
@@ -818,8 +843,8 @@ export default function PlanDashboard() {
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
-                        <h4 className="text-sm font-bold text-slate-855 dark:text-white mt-1">{tpl.title}</h4>
-                        <p className="text-[10px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">{tpl.title}</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
                       </div>
 
                       <div className="flex items-center gap-1.5 pt-2">
@@ -847,8 +872,8 @@ export default function PlanDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PLAN · RECONDITIONING</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Reconditioning program</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Reconditioning program</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     4 / 6-week blocks. Daily / weekly schedule. Aggregate progress by flight (k &ge; 5). Cross-persona coordination.
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -860,7 +885,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Plan dashboard
                   </button>
@@ -893,7 +918,7 @@ export default function PlanDashboard() {
                   { name: "Cross-persona actions", count: "12", desc: "5 owners", arrow: null }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                       {kpi.arrow && (
@@ -912,7 +937,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
-                    <h3 className="text-base font-bold text-slate-855 dark:text-white">Reconditioning templates</h3>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">Reconditioning templates</h3>
                     <p className="text-xs text-slate-500">Pre-defined cadences · cross-persona by default · k &ge; 5 at every aggregate view</p>
                   </div>
                   <button 
@@ -938,8 +963,8 @@ export default function PlanDashboard() {
                     >
                       <div>
                         <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
-                        <h4 className="text-xs font-bold text-slate-855 dark:text-white mt-1 leading-tight">{tpl.title}</h4>
-                        <p className="text-[9px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white mt-1 leading-tight">{tpl.title}</h4>
+                        <p className="text-[9px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
                       </div>
 
                       <div className="flex items-center gap-1.5 pt-2">
@@ -956,8 +981,8 @@ export default function PlanDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">COHORT PROGRESS</span>
-                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Aggregate progress by cohort - k &ge; 5</h3>
-                    <p className="text-xs text-slate-550">Each row is a flight cohort · k is enforced · progress shown as cohort mean</p>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Aggregate progress by cohort - k &ge; 5</h3>
+                    <p className="text-xs text-slate-500">Each row is a flight cohort · k is enforced · progress shown as cohort mean</p>
                   </div>
 
                   <div className="flex items-center gap-2">
@@ -983,24 +1008,24 @@ export default function PlanDashboard() {
                           <th className="pb-3">Adherence</th>
                           <th className="pb-3 w-1/6">Progress</th>
                           <th className="pb-3">Owners</th>
-                          <th className="pb-3">Status</th>
+                          <th className="pb-3">Health</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
                         {[
-                          { name: "Flight Alpha - aggregate", details: "k=22 · OFT prep", block: "6-week strength", wk: "2 of 6", adh: "88%", pct: 88, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
-                          { name: "Flight Bravo - aggregate", details: "k=24 · recovery", block: "4-week recovery", wk: "2 of 4", adh: "81%", pct: 81, owners: ["SCS", "PT/IM"], status: "On track", col: "green" },
-                          { name: "Flight Charlie - aggregate", details: "k=20 · mobility", block: "4-week mobility", wk: "1 of 4", adh: "76%", pct: 76, owners: ["SCS"], status: "Ramping", col: "teal" },
-                          { name: "Foxtrot - aggregate", details: "k=18 · hydration ramp", block: "4-week nutrition", wk: "1 of 4", adh: "74%", pct: 74, owners: ["Nutritionist"], status: "Ramping", col: "teal" },
-                          { name: "Opt-in: Sleep reset", details: "k=12 · MP", block: "4-week sleep", wk: "2 of 4", adh: "65%", pct: 65, owners: ["MP"], status: "Watch", col: "orange" },
-                          { name: "Opt-in: Mission purpose", details: "k=10 · Purpose Coach", block: "6-week purpose", wk: "2 of 6", adh: "91%", pct: 91, owners: ["Purpose Coach"], status: "On track", col: "green" },
-                          { name: "Caseload: Lower-back RTD", details: "k=8 · PT/IM", block: "6-week rehab", wk: "3 of 6", adh: "85%", pct: 85, owners: ["PT/IM"], status: "On track", col: "green" },
-                          { name: "Caseload: Pre-OFT clearance", details: "k=14 · PT/IM", block: "1-week clearance", wk: "1 of 1", adh: "92%", pct: 100, owners: ["PT/IM"], status: "Cleared", col: "green" }
+                          { name: "Flight Alpha - aggregate", details: "k=22 · OFT prep", block: "6-week strength", wk: "2 of 6", adh: "88%", pct: 88, owners: ["SCS", "PT/IM"], status: PLAN_HEALTH.ON_TRACK, col: "green" },
+                          { name: "Flight Bravo - aggregate", details: "k=24 · recovery", block: "4-week recovery", wk: "2 of 4", adh: "81%", pct: 81, owners: ["SCS", "PT/IM"], status: PLAN_HEALTH.ON_TRACK, col: "green" },
+                          { name: "Flight Charlie - aggregate", details: "k=20 · mobility", block: "4-week mobility", wk: "1 of 4", adh: "76%", pct: 76, owners: ["SCS"], status: PLAN_HEALTH.RAMPING, col: "teal" },
+                          { name: "Foxtrot - aggregate", details: "k=18 · hydration ramp", block: "4-week nutrition", wk: "1 of 4", adh: "74%", pct: 74, owners: ["Nutritionist"], status: PLAN_HEALTH.RAMPING, col: "teal" },
+                          { name: "Opt-in: Sleep reset", details: "k=12 · MP", block: "4-week sleep", wk: "2 of 4", adh: "65%", pct: 65, owners: ["MP"], status: PLAN_HEALTH.WATCH, col: "orange" },
+                          { name: "Opt-in: Mission purpose", details: "k=10 · Purpose Coach", block: "6-week purpose", wk: "2 of 6", adh: "91%", pct: 91, owners: ["Purpose Coach"], status: PLAN_HEALTH.ON_TRACK, col: "green" },
+                          { name: "Caseload: Lower-back RTD", details: "k=8 · PT/IM", block: "6-week rehab", wk: "3 of 6", adh: "85%", pct: 85, owners: ["PT/IM"], status: PLAN_HEALTH.ON_TRACK, col: "green" },
+                          { name: "Caseload: Pre-OFT clearance", details: "k=14 · PT/IM", block: "1-week clearance", wk: "1 of 1", adh: "92%", pct: 100, owners: ["PT/IM"], status: PLAN_HEALTH.CLEARED, col: "green" }
                         ].map((c, i) => (
                           <tr key={i} className="hover:bg-slate-55/20 transition">
                             <td className="py-3">
                               <span className="font-bold text-slate-800 dark:text-white block">{c.name}</span>
-                              <span className="text-[10px] text-slate-455 mt-0.5 block font-sans">{c.details}</span>
+                              <span className="text-[10px] text-slate-500 mt-0.5 block font-sans">{c.details}</span>
                             </td>
                             <td className="py-3 text-slate-700 dark:text-slate-300 font-bold">{c.block}</td>
                             <td className="py-3 font-mono text-[10px]">{c.wk}</td>
@@ -1008,7 +1033,7 @@ export default function PlanDashboard() {
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-2">
                                 <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
-                                  <div className={`h-full ${c.status === "Cleared" ? "bg-emerald-500" : "bg-[var(--brand-color)]"} rounded-full`} style={{ width: `${c.pct}%` }}></div>
+                                  <div className={`h-full ${c.status === PLAN_HEALTH.CLEARED ? "bg-emerald-500" : "bg-[var(--brand-color)]"} rounded-full`} style={{ width: `${c.pct}%` }}></div>
                                 </div>
                               </div>
                             </td>
@@ -1052,7 +1077,7 @@ export default function PlanDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">CROSS-PERSONA COORDINATION</span>
-                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Active blocks by owner</h3>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Active blocks by owner</h3>
                     <p className="text-xs text-slate-500">Each block is owned by at least one role &middot; moves through the linked workspaces</p>
                   </div>
 
@@ -1088,7 +1113,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
                               item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
@@ -1115,7 +1140,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
                               item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
@@ -1141,7 +1166,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${
                               item.badgeCol === "indigo" ? "bg-indigo-500/15 text-indigo-500" : "bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400"
@@ -1167,7 +1192,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[8px] font-bold uppercase">{item.badge}</span>
                             {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}
@@ -1190,7 +1215,7 @@ export default function PlanDashboard() {
                       ].map((item, idx) => (
                         <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-3.5 shadow-sm space-y-2 text-left">
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{item.title}</h4>
-                          <p className="text-[10px] text-slate-455 block">{item.desc}</p>
+                          <p className="text-[10px] text-slate-500 block">{item.desc}</p>
                           <div className="flex items-center gap-1.5 pt-1">
                             <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded text-[8px] font-bold uppercase">{item.badge}</span>
                             {item.k && <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-[8px] font-bold text-slate-400 font-mono uppercase">{item.k}</span>}

@@ -3,7 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { AscendLogo } from "@/components/ascend-logo";
+import { PrivacyStateBadge } from "@/components/privacy/privacy-state-badge";
+import { PopulationScopeBadge } from "@/components/privacy/population-scope-badge";
+import { IconButton } from "@/components/ui/icon-button";
+import { POPULATION_LEVELS, PRIVACY_STATES, FOLLOW_UP_STATUSES, RECORD_STATUSES } from "@/lib/terminology";
 import {
   Brain,
   ChevronDown,
@@ -11,6 +16,7 @@ import {
   Sun,
   Moon,
   Shield,
+  ShieldAlert,
   Activity,
   ArrowLeft,
   LogOut,
@@ -35,22 +41,23 @@ type TabType = "dashboard" | "notes" | "records" | "messages";
 
 export default function MpDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [hasMounted, setHasMounted] = useState(false);
   const [showConfirmToast, setShowConfirmToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   
-  // SOAP Editor state
+  // Specialist Note editor state — non-clinical coaching note per
+  // ASCEND-SPEC.md section 8 (Specialist Notes & Boundaries): date,
+  // concern, action assigned, follow-up, status only. No diagnostic
+  // scoring, no SOAP structure, no clinical documentation.
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
-  const [soapSubjective, setSoapSubjective] = useState("Sleep onset remains > 60 minutes on 5 of 7 nights since prior session. Reports intermittent ruminations.");
-  const [soapObjective, setSoapObjective] = useState("Affect flat, oriented x3, no psychomotor agitation. PHQ-9 = 5 (mild). GAD-7 = 8 (mild-moderate). Engaged.");
-  const [soapAssessment, setSoapAssessment] = useState("Adjustment-related sleep difficulty with anticipatory anxiety regarding deployment. Responding to behavioral sleep protocol.");
-  const [soapPlan, setSoapPlan] = useState("Continue weekly for 3 more sessions. Add 10-min morning light exposure. Refer to PT/IM only if physical recovery lag persists.");
-  const [riskSuicide, setRiskSuicide] = useState("L1");
-  const [riskHomicide, setRiskHomicide] = useState("L0");
-  const [riskImpairment, setRiskImpairment] = useState("L1");
+  const [noteConcern, setNoteConcern] = useState("Sleep onset remains delayed on 5 of 7 nights since prior contact. Reports intermittent ruminations.");
+  const [noteActionAssigned, setNoteActionAssigned] = useState("Behavioral sleep protocol shared · 10-min morning light exposure added. Continue weekly coaching contact.");
+  const [noteFollowUp, setNoteFollowUp] = useState<string>(FOLLOW_UP_STATUSES.ASSIGNED);
+  const [escalatedToCareTeam, setEscalatedToCareTeam] = useState(false);
 
   // Records Tab unredacted state
   const [unredactTargetId, setUnredactTargetId] = useState<string>("A-1101");
@@ -138,11 +145,6 @@ export default function MpDashboard() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
-
   const handleLogout = () => {
     logout();
     router.push("/");
@@ -223,11 +225,11 @@ export default function MpDashboard() {
         {/* User Session Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-550 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+            onClick={() => router.push("/dashboard/profile")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
@@ -248,33 +250,42 @@ export default function MpDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">Mental Performance Workspace</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Mental Performance Workspace</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
-              <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
-                <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer"
+              <IconButton
+                icon={Bell}
+                aria-label="Notifications"
+                className="relative p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
               >
-                {theme === "light" ? <Moon className="size-4.5" /> : <Sun className="size-4.5" />}
-              </button>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
+              </IconButton>
+              <IconButton
+                icon={theme === "light" ? Moon : Sun}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleTheme}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
+              />
             </div>
 
             {/* Profile context */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-3 cursor-pointer"
+              type="button"
+            >
               <div className="text-right">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">Dr. M. Khan</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">MP</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">{currentUser?.name}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">{currentUser?.unit}</span>
               </div>
               <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
-                MK
+                {currentUser?.initials}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -298,26 +309,29 @@ export default function MpDashboard() {
               {/* Header Section */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left relative">
-                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">Session notes / MENTAL PERFORMANCE · SESSION NOTE</p>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">Specialist notes / MENTAL PERFORMANCE · COACHING NOTE</p>
                   <div className="flex items-baseline gap-4 mt-0.5">
-                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">A-1042 &middot; 28 Jul</h1>
+                    <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">A-1042 &middot; 28 Jul</h1>
                     <span className="text-sm font-black text-rose-500/20 uppercase tracking-widest pointer-events-none select-none">draft</span>
                   </div>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
-                    SOAP-structured &middot; risk-graded &middot; card-bounded. Every save is logged.
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Non-clinical coaching note &middot; card-bounded. Every save is logged.
                   </p>
+                  <div className="mt-2">
+                    <PopulationScopeBadge level={POPULATION_LEVELS.INDIVIDUAL} />
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <button 
+                  <button
                     onClick={() => setEditingNoteId(null)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
-                    Session notes
+                    Specialist notes
                   </button>
-                  <button 
+                  <button
                     onClick={() => { setActiveTab("records"); setEditingNoteId(null); }}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
@@ -328,9 +342,9 @@ export default function MpDashboard() {
               <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Shield className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-extrabold">Confidentiality-bounded &middot; HIPAA-equivalent handling</span>
+                  <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
                   <p className="mt-0.5 text-slate-600 dark:text-slate-400 font-normal">
-                    This note is bound by clinical confidentiality. Visibility selector below controls who can read this note. Default is Care Team only &mdash; aggregate is non-identifiable.
+                    This note is bound by coaching confidentiality &mdash; non-clinical, no diagnosis or treatment. Visibility selector below controls who can read this note. Default is Care Team only &mdash; aggregate is non-identifiable.
                   </p>
                 </div>
               </div>
@@ -345,19 +359,19 @@ export default function MpDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white font-mono">Anonymized identifier - A-1042</h3>
-                        <p className="text-[10px] text-slate-455">Initials: T.P. &middot; cohort opt-in &middot; assigned 12 Jul</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-mono">Anonymized identifier - A-1042</h3>
+                        <p className="text-[10px] text-slate-500">Initials: T.P. &middot; cohort opt-in &middot; assigned 12 Jul</p>
                       </div>
 
                       <div className="flex items-center gap-3">
-                        <button 
+                        <button
                           onClick={() => triggerToast("Note locked against modifications")}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-350 transition cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                         >
                           <Lock className="size-3.5" /> Lock
                         </button>
-                        <button 
-                          onClick={() => triggerToast("Session note draft saved")}
+                        <button
+                          onClick={() => triggerToast("Specialist note draft saved")}
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[var(--brand-color)] hover:bg-[#0c8a99] text-white rounded-lg text-xs font-bold transition cursor-pointer"
                         >
                           Save note
@@ -368,123 +382,107 @@ export default function MpDashboard() {
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-mono">
                       <div className="space-y-0.5">
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Date</span>
-                        <span className="text-slate-700 dark:text-slate-350">28 Jul 2026</span>
-                        <span className="text-[10px] text-slate-455 block font-sans">09:30 · 50 min</span>
+                        <span className="text-slate-700 dark:text-slate-300">28 Jul 2026</span>
+                        <span className="text-[10px] text-slate-500 block font-sans">09:30 · 50 min</span>
                       </div>
                       <div className="space-y-0.5">
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Modality</span>
-                        <span className="text-slate-700 dark:text-slate-350">Individual</span>
-                        <span className="text-[10px] text-slate-455 block font-sans">In-person · clinic 4B</span>
+                        <span className="text-slate-700 dark:text-slate-300">Individual</span>
+                        <span className="text-[10px] text-slate-500 block font-sans">In-person · office 4B</span>
                       </div>
                       <div className="space-y-0.5">
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Encounter #</span>
-                        <span className="text-slate-700 dark:text-slate-350">ENC-04218</span>
-                        <span className="text-[10px] text-slate-455 block font-sans">4 of 8 planned</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Contact #</span>
+                        <span className="text-slate-700 dark:text-slate-300">CN-04218</span>
+                        <span className="text-[10px] text-slate-500 block font-sans">4 of 8 planned</span>
                       </div>
                       <div className="space-y-0.5">
                         <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Status</span>
-                        <span className="text-amber-500 font-bold">Draft</span>
-                        <span className="text-[10px] text-slate-455 block font-sans">auto-saved 08:14</span>
+                        <span className="text-amber-500 font-bold">{RECORD_STATUSES.DRAFT}</span>
+                        <span className="text-[10px] text-slate-500 block font-sans">auto-saved 08:14</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* SOAP fields */}
+                  {/* Specialist note fields — non-clinical: concern, action
+                      assigned, follow-up. No diagnostic scoring. */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-5">
-                    
-                    {/* Subjective */}
+
+                    {/* Concern */}
                     <div className="space-y-1.5">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-base font-black text-slate-800 dark:text-white">S</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Subjective</span>
-                        <span className="text-[9px] text-slate-455 ml-auto font-mono">airman-reported</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Concern</span>
+                        <span className="text-[9px] text-slate-500 ml-auto font-mono">plain-language, {`${currentUser?.roleName ?? "MP"}`.toLowerCase()}-framed</span>
                       </div>
-                      <textarea 
+                      <textarea
                         rows={2}
-                        value={soapSubjective}
-                        onChange={(e) => setSoapSubjective(e.target.value)}
+                        value={noteConcern}
+                        onChange={(e) => setNoteConcern(e.target.value)}
                         className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
 
-                    {/* Objective */}
+                    {/* Action assigned */}
                     <div className="space-y-1.5">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-base font-black text-slate-800 dark:text-white">O</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Objective</span>
-                        <span className="text-[9px] text-slate-455 ml-auto font-mono">clinician-observed</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Action assigned</span>
+                        <span className="text-[9px] text-slate-500 ml-auto font-mono">coaching resource / referral</span>
                       </div>
-                      <textarea 
+                      <textarea
                         rows={2}
-                        value={soapObjective}
-                        onChange={(e) => setSoapObjective(e.target.value)}
+                        value={noteActionAssigned}
+                        onChange={(e) => setNoteActionAssigned(e.target.value)}
                         className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
                       />
                     </div>
 
-                    {/* Assessment */}
+                    {/* Follow-up */}
                     <div className="space-y-1.5">
                       <div className="flex items-baseline gap-2">
-                        <span className="text-base font-black text-slate-800 dark:text-white">A</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Assessment</span>
-                        <span className="text-[9px] text-slate-455 ml-auto font-mono">clinical formulation</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Follow-up</span>
+                        <span className="text-[9px] text-slate-500 ml-auto font-mono">status</span>
                       </div>
-                      <textarea 
-                        rows={2}
-                        value={soapAssessment}
-                        onChange={(e) => setSoapAssessment(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
-                      />
-                    </div>
-
-                    {/* Plan */}
-                    <div className="space-y-1.5">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-base font-black text-slate-800 dark:text-white">P</span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Plan</span>
-                        <span className="text-[9px] text-slate-455 ml-auto font-mono">next steps</span>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.values(FOLLOW_UP_STATUSES).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => setNoteFollowUp(status)}
+                            className={`px-3 py-1 rounded text-[10px] font-bold transition cursor-pointer border ${
+                              noteFollowUp === status
+                                ? "bg-[#0da2b3]/15 border-[#0da2b3] text-[#0da2b3] ring-1 ring-[#0da2b3]"
+                                : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                            }`}
+                          >
+                            {status}
+                          </button>
+                        ))}
                       </div>
-                      <textarea 
-                        rows={2}
-                        value={soapPlan}
-                        onChange={(e) => setSoapPlan(e.target.value)}
-                        className="w-full p-3.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 focus:outline-none focus:border-[var(--brand-color)/50] leading-relaxed font-sans"
-                      />
                     </div>
                   </div>
 
-                  {/* Risk assessment levels */}
+                  {/* Escalation — a referral trigger, not a clinical risk
+                      score. MP flags concern and routes to care team; it
+                      does not grade or diagnose risk itself. */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-white/5 pb-2 font-sans">Risk assessment</h3>
-                    
-                    <div className="space-y-4 text-xs font-sans">
-                      {[
-                        { label: "Suicide / self-harm", val: riskSuicide, setVal: setRiskSuicide, levels: ["L0", "L1", "L2", "L3", "L4", "L5"] },
-                        { label: "Homicide / harm to others", val: riskHomicide, setVal: setRiskHomicide, levels: ["L0", "L1", "L2", "L3", "L4", "L5"] },
-                        { label: "Operational impairment", val: riskImpairment, setVal: setRiskImpairment, levels: ["L0", "L1", "L2", "L3"] }
-                      ].map((riskRow, idx) => (
-                        <div key={idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <span className="font-bold text-slate-700 dark:text-slate-300 sm:w-44">{riskRow.label}</span>
-                          <div className="flex gap-2">
-                            {riskRow.levels.map((lvl) => {
-                              const isActive = riskRow.val === lvl;
-                              return (
-                                <button
-                                  key={lvl}
-                                  onClick={() => riskRow.setVal(lvl)}
-                                  className={`px-3 py-1 rounded text-[10px] font-bold font-mono transition cursor-pointer border ${
-                                    isActive
-                                      ? "bg-[#0da2b3]/15 border-[#0da2b3] text-[#0da2b3] ring-1 ring-[#0da2b3]"
-                                      : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                                  }`}
-                                >
-                                  {lvl}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-white/5 pb-2 font-sans">Escalation</h3>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-sans">
+                      <p className="text-slate-600 dark:text-slate-400 leading-relaxed sm:max-w-md">
+                        If this coaching contact raises a concern beyond MP&apos;s non-clinical scope, escalate to the care team for clinical review &mdash; MP does not diagnose or grade risk.
+                      </p>
+                      <button
+                        onClick={() => {
+                          setEscalatedToCareTeam(true);
+                          triggerToast("Escalated to care team — clinical review requested");
+                        }}
+                        disabled={escalatedToCareTeam}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer flex-shrink-0 ${
+                          escalatedToCareTeam
+                            ? "bg-rose-500/10 text-rose-500 cursor-default"
+                            : "bg-rose-500 hover:bg-rose-600 text-white"
+                        }`}
+                      >
+                        <ShieldAlert className="size-4" />
+                        {escalatedToCareTeam ? "Escalated to care team" : "Escalate to care team"}
+                      </button>
                     </div>
                   </div>
 
@@ -492,28 +490,34 @@ export default function MpDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                       <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider font-sans">Visibility</h3>
-                      <span className="text-[10px] text-slate-455 font-mono">Default: Care team only</span>
+                      <span className="text-[10px] text-slate-500 font-mono">Default: Care team only</span>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       {[
                         { title: "Care team", desc: "MP staff on caseload · IDMT on request", active: true },
                         { title: "IDMT only", desc: "Restricted to Integrated Delivery Medical Team", active: false },
                         { title: "Aggregated", desc: "Non-identifiable cohort summary · k>5", active: false }
                       ].map((vis, i) => (
-                        <div 
-                          key={i} 
+                        <button
+                          key={i}
+                          type="button"
                           onClick={() => triggerToast(`Visibility adjusted to: ${vis.title}`)}
                           className={`p-3.5 rounded-xl border cursor-pointer transition text-left space-y-1.5 ${
-                            vis.active 
-                              ? "bg-[#0da2b3]/10 border-[#0da2b3]/30" 
+                            vis.active
+                              ? "bg-[#0da2b3]/10 border-[#0da2b3]/30"
                               : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350 dark:hover:border-white/10"
                           }`}
                         >
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white">{vis.title}</h4>
-                          <p className="text-[10px] text-slate-500 dark:text-slate-450 leading-relaxed font-sans">{vis.desc}</p>
-                        </div>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-relaxed font-sans">{vis.desc}</p>
+                        </button>
                       ))}
+                      {/* Explicit denial state (Req 7) for a viewer outside this
+                          airman's authorized care team — never silently omitted. */}
+                      <div className="p-3.5 rounded-xl border border-rose-200 dark:border-rose-900/30 bg-rose-50/40 dark:bg-rose-950/10 text-left space-y-1.5">
+                        <PrivacyStateBadge state={PRIVACY_STATES.ACCESS_DENIED} showReason />
+                      </div>
                     </div>
                   </div>
 
@@ -619,8 +623,8 @@ export default function MpDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-sans">MENTAL PERFORMANCE · TODAY'S CASELOAD</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Mental Performance caseload</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Mental Performance caseload</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     22 airmen on caseload &middot; 6 new referrals this week &middot; 8 sessions scheduled today. Calm, quiet, confidential. Recommendations are issued as Mental-Performance Actions using only O7&mdash;O9, D3, W5&mdash;W6, M5&mdash;M6.
                   </p>
                 </div>
@@ -628,12 +632,12 @@ export default function MpDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("records")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
                   <button 
-                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Editing SOAP session notes template draft"); }}
+                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Opening new specialist note"); }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New session note
@@ -650,7 +654,7 @@ export default function MpDashboard() {
                   { name: "Follow-ups due", count: "4", desc: "2 due today · 2 this week" }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                       {kpi.green && (
@@ -672,18 +676,18 @@ export default function MpDashboard() {
                   
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Caseload queue</h3>
-                      <p className="text-[10px] text-slate-455">Anonymized identifiers &middot; case-level summary only</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Caseload queue</h3>
+                      <p className="text-[10px] text-slate-500">Anonymized identifiers &middot; case-level summary only</p>
                     </div>
 
                     <div className="flex gap-2">
-                      {["Active", "Due", "L3+"].map((pill, idx) => (
+                      {["Active", "Scheduled", "Follow-up", "New"].map((pill, idx) => (
                         <button
                           key={idx}
                           className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                             pill === "Active"
                               ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                           }`}
                         >
                           {pill}
@@ -715,9 +719,9 @@ export default function MpDashboard() {
                         ].map((row, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
                             <td className="py-3 font-bold text-slate-800 dark:text-white font-mono">{row.code}</td>
-                            <td className="py-3 text-slate-700 dark:text-slate-350">{row.reason}</td>
+                            <td className="py-3 text-slate-700 dark:text-slate-300">{row.reason}</td>
                             <td className="py-3 text-slate-500 font-mono text-[10px]">{row.last}</td>
-                            <td className="py-3 text-slate-550 dark:text-slate-400 font-mono text-[10px]">{row.next}</td>
+                            <td className="py-3 text-slate-500 dark:text-slate-400 font-mono text-[10px]">{row.next}</td>
                             <td className="py-3 text-right">
                               {row.col === "badge" ? (
                                 <span className="px-1.5 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded">
@@ -751,7 +755,7 @@ export default function MpDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                       <div>
-                        <h3 className="text-xs font-bold text-slate-855 dark:text-white">Mental driver scores</h3>
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Mental driver scores</h3>
                         <p className="text-[9px] text-slate-400 font-mono">Cohort k&ge;5 - last 4 weeks</p>
                       </div>
                       <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-900 rounded text-[7px] font-bold text-slate-400 uppercase tracking-widest">
@@ -769,7 +773,7 @@ export default function MpDashboard() {
                         { name: "Connection", score: 73 }
                       ].map((drv, idx) => (
                         <div key={idx} className="flex items-center justify-between gap-4 border-b border-slate-50 dark:border-white/5 pb-1 last:border-0 last:pb-0">
-                          <span className="font-bold text-slate-655 dark:text-slate-350">{drv.name}</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{drv.name}</span>
                           <span className="font-mono font-black text-slate-800 dark:text-white">{drv.score}</span>
                         </div>
                       ))}
@@ -783,17 +787,17 @@ export default function MpDashboard() {
                   {/* Today's sessions */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Today's sessions</h3>
-                      <p className="text-[9px] text-slate-455">8 scheduled &middot; 2 group</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Today's sessions</h3>
+                      <p className="text-[9px] text-slate-500">8 scheduled &middot; 2 group</p>
                     </div>
 
                     <div className="space-y-4 text-xs font-sans text-left">
                       {[
-                        { time: "09:30 - A-1042", label: "Individual · Sleep concern · L1", badge: "L1", bCol: "bg-blue-500/10 text-blue-500" },
-                        { time: "10:15 - A-1087", label: "Individual · Pre-deployment stress · L2", badge: "L2", bCol: "bg-amber-500/15 text-amber-500" },
-                        { time: "11:00 - Group", label: "Group · Resiliency · 6 attendees · L0", badge: "L0", bCol: "bg-slate-100 dark:bg-slate-900 text-slate-400" },
-                        { time: "14:15 - A-1101", label: "Individual · Performance anxiety · L1", badge: "L1", bCol: "bg-blue-500/10 text-blue-500" },
-                        { time: "15:00 - A-1123", label: "Individual · Burnout · L3 — monitored", badge: "L3", bCol: "bg-rose-500/10 text-rose-500" }
+                        { time: "09:30 - A-1042", label: "Individual · Sleep concern", badge: "Follow-up", bCol: "bg-blue-500/10 text-blue-500" },
+                        { time: "10:15 - A-1087", label: "Individual · Pre-deployment stress", badge: "Follow-up", bCol: "bg-blue-500/10 text-blue-500" },
+                        { time: "11:00 - Group", label: "Group · Resiliency · 6 attendees", badge: "Group", bCol: "bg-slate-100 dark:bg-slate-900 text-slate-400" },
+                        { time: "14:15 - A-1101", label: "Individual · Performance anxiety", badge: "Follow-up", bCol: "bg-blue-500/10 text-blue-500" },
+                        { time: "15:00 - A-1123", label: "Individual · Burnout — escalated", badge: "Escalated", bCol: "bg-rose-500/10 text-rose-500" }
                       ].map((s, idx) => (
                         <div key={idx} className="border-b border-slate-50 dark:border-white/5 pb-2 last:border-0 last:pb-0 space-y-0.5">
                           <div className="flex items-center justify-between gap-3">
@@ -802,7 +806,7 @@ export default function MpDashboard() {
                               {s.badge}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-455 font-medium">{s.label}</p>
+                          <p className="text-[10px] text-slate-500 font-medium">{s.label}</p>
                         </div>
                       ))}
                     </div>
@@ -815,8 +819,8 @@ export default function MpDashboard() {
               {/* Referral reasons summary */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-855 dark:text-white">Referral reasons &mdash; last 30 days</h3>
-                  <p className="text-[10px] text-slate-455">Distribution across 6 active referrals &middot; aggregate only</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Referral reasons &mdash; last 30 days</h3>
+                  <p className="text-[10px] text-slate-500">Distribution across 6 active referrals &middot; aggregate only</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-5 font-sans text-xs">
@@ -841,7 +845,7 @@ export default function MpDashboard() {
               </div>
 
               {/* Bottom Policy Statement */}
-              <div className="bg-[#f1f5f9] dark:bg-[#0e1628]/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 text-left text-[10px] text-slate-550 dark:text-slate-400 space-y-2 leading-relaxed font-sans">
+              <div className="bg-[#f1f5f9] dark:bg-[#0e1628]/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 text-left text-[10px] text-slate-500 dark:text-slate-400 space-y-2 leading-relaxed font-sans">
                 <span className="font-bold text-slate-700 dark:text-white block uppercase tracking-wider text-[8px]">Mental-Performance Action &middot; pattern-based routing</span>
                 <p>
                   A Mental-Performance Action is suggested only when a pattern (not an isolated response) crosses the cohort threshold. Actions route to O7&mdash;O9, D3, W5&mdash;W6, M5&mdash;M6 only &mdash; no raw medical access, no unrestricted Performance Summary, no provider-satisfaction flag, no separate stress-burden scoring. W5 is reverse-scored; M5 is direct-scored. High priority is never raised from a single question response.
@@ -875,15 +879,15 @@ export default function MpDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-sans">MENTAL PERFORMANCE · SESSION NOTES</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Session notes</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-455 mt-1">
-                    Notes for your caseload, newest first. SOAP-structured, risk-graded, and bound to your role &mdash; every open and save is logged.
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Session notes</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                    Notes for your caseload, newest first. Concern / action / follow-up structured, and bound to your role &mdash; every open and save is logged.
                   </p>
                 </div>
 
                 <div className="flex items-center gap-3">
                   <button 
-                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Starting new SOAP note entry template"); }}
+                    onClick={() => { setEditingNoteId("A-1042"); triggerToast("Starting new specialist note"); }}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#0da2b3] hover:bg-[#0c8a99] text-white rounded-xl text-xs font-bold transition cursor-pointer"
                   >
                     <Plus className="size-4" /> New note
@@ -897,18 +901,18 @@ export default function MpDashboard() {
                 {/* Filters row */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Notes &middot; 12</h3>
-                    <p className="text-[10px] text-slate-455">Sorted by session date &middot; drafts expire 72 h after the session</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Notes &middot; 12</h3>
+                    <p className="text-[10px] text-slate-500">Sorted by session date &middot; drafts expire 72 h after the session</p>
                   </div>
 
                   <div className="flex gap-2">
-                    {["All", "Drafts", "Signed", "Risk-flagged"].map((noteFilter, idx) => (
+                    {["All", "Drafts", "Signed", "Escalated"].map((noteFilter, idx) => (
                       <button
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           noteFilter === "All"
                             ? "bg-[#0da2b3]/10 border-[#0da2b3]/30 text-[#0da2b3]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
                       >
                         {noteFilter}
@@ -926,39 +930,37 @@ export default function MpDashboard() {
                         <th className="pb-3">Session</th>
                         <th className="pb-3">Type</th>
                         <th className="pb-3">Focus</th>
-                        <th className="pb-3">Risk</th>
+                        <th className="pb-3">Escalation</th>
                         <th className="pb-3">Status</th>
                         <th className="pb-3 text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { code: "A-1042", sessions: "6 sessions", date: "28 Jul", type: "Follow-up", focus: "Sleep concern", risk: "L1", riskCol: "blue", status: "Draft", statusCol: "orange", dot: "red" },
-                        { code: "A-1087", sessions: "3 sessions", date: "27 Jul", type: "Follow-up", focus: "Pre-deployment stress", risk: "L2", riskCol: "orange", status: "Draft", statusCol: "orange", dot: "red" },
-                        { code: "A-1101", sessions: "8 sessions", date: "26 Jul", type: "Follow-up", focus: "Performance anxiety", risk: "L1", riskCol: "blue", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1218", sessions: "2 sessions", date: "25 Jul", type: "Intake", focus: "Adjustment", risk: "L1", riskCol: "blue", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1356", sessions: "5 sessions", date: "24 Jul", type: "Follow-up", focus: "Focus & recovery", risk: "L0", riskCol: "slate", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1409", sessions: "1 session", date: "23 Jul", type: "Intake", focus: "Referral · SCS", risk: "L2", riskCol: "orange", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1042", sessions: "6 sessions", date: "21 Jul", type: "Follow-up", focus: "Sleep concern", risk: "L1", riskCol: "blue", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1533", sessions: "4 sessions", date: "20 Jul", type: "Follow-up", focus: "Team cohesion", risk: "L0", riskCol: "slate", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1087", sessions: "3 sessions", date: "18 Jul", type: "Intake", focus: "Pre-deployment stress", risk: "L2", riskCol: "orange", status: "Signed", statusCol: "green", dot: "green" },
-                        { code: "A-1101", sessions: "8 sessions", date: "17 Jul", type: "Follow-up", focus: "Performance anxiety", risk: "L1", riskCol: "blue", status: "Signed", statusCol: "green", dot: "green" }
+                        { code: "A-1042", sessions: "6 contacts", date: "28 Jul", type: "Follow-up", focus: "Sleep concern", escalated: false, status: RECORD_STATUSES.DRAFT, statusCol: "orange", dot: "red" },
+                        { code: "A-1087", sessions: "3 contacts", date: "27 Jul", type: "Follow-up", focus: "Pre-deployment stress", escalated: false, status: RECORD_STATUSES.DRAFT, statusCol: "orange", dot: "red" },
+                        { code: "A-1101", sessions: "8 contacts", date: "26 Jul", type: "Follow-up", focus: "Performance anxiety", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1218", sessions: "2 contacts", date: "25 Jul", type: "Intake", focus: "Adjustment", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1356", sessions: "5 contacts", date: "24 Jul", type: "Follow-up", focus: "Focus & recovery", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1409", sessions: "1 contact", date: "23 Jul", type: "Intake", focus: "Referral · SCS", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1042", sessions: "6 contacts", date: "21 Jul", type: "Follow-up", focus: "Sleep concern", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1533", sessions: "4 contacts", date: "20 Jul", type: "Follow-up", focus: "Team cohesion", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1087", sessions: "3 contacts", date: "18 Jul", type: "Intake", focus: "Pre-deployment stress", escalated: true, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" },
+                        { code: "A-1101", sessions: "8 contacts", date: "17 Jul", type: "Follow-up", focus: "Performance anxiety", escalated: false, status: RECORD_STATUSES.SIGNED, statusCol: "green", dot: "green" }
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white font-mono block">{row.code}</span>
-                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.sessions}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.sessions}</span>
                           </td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350 font-mono">{row.date}</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300 font-mono">{row.date}</td>
                           <td className="py-3 text-slate-500 font-medium">{row.type}</td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350 font-bold">{row.focus}</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300 font-bold">{row.focus}</td>
                           <td className="py-3">
                             <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono uppercase ${
-                              row.riskCol === "blue" ? "bg-blue-500/10 text-blue-500" :
-                              row.riskCol === "orange" ? "bg-amber-500/10 text-amber-500" :
-                              "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                              row.escalated ? "bg-rose-500/10 text-rose-500" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                             }`}>
-                              {row.risk}
+                              {row.escalated ? "Escalated" : "—"}
                             </span>
                           </td>
                           <td className="py-3">
@@ -975,7 +977,7 @@ export default function MpDashboard() {
                             <button
                               onClick={() => {
                                 setEditingNoteId(row.code);
-                                triggerToast(`Opening SOAP note editor for encounter: ${row.code}`);
+                                triggerToast(`Opening specialist note for: ${row.code}`);
                               }}
                               className="px-3 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-55 dark:hover:bg-slate-900 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                             >
@@ -990,12 +992,12 @@ export default function MpDashboard() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/5">
-                  <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 12</span>
+                  <span className="text-[10px] text-slate-500 font-mono">1&mdash;10 of 12</span>
                   <div className="flex items-center gap-1">
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-555 rounded hover:bg-slate-50">2</button>
-                    <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-555 rounded hover:bg-slate-55">&gt;</button>
+                    <button aria-label="Previous page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
+                    <button aria-label="Page 1" aria-current="page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[#0da2b3] font-bold rounded bg-[#0da2b3]/10">1</button>
+                    <button aria-label="Page 2" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-600 rounded hover:bg-slate-50">2</button>
+                    <button aria-label="Next page" type="button" className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-600 rounded hover:bg-slate-55">&gt;</button>
                   </div>
                 </div>
 
@@ -1024,7 +1026,7 @@ export default function MpDashboard() {
                 <div>
                   <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
                   <p className="mt-0.5 text-slate-600 dark:text-slate-400 font-normal">
-                    Records default to care-team minimum-necessary. Aggregate fields shown only when k&ge;5. Sensitive clinical fields are redacted by default and require explicit access with reason.
+                    Records default to care-team minimum-necessary. Aggregate fields shown only when k&ge;5. Sensitive coaching notes are redacted by default and require explicit access with reason.
                   </p>
                 </div>
               </div>
@@ -1033,8 +1035,8 @@ export default function MpDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider font-sans">MENTAL PERFORMANCE · RECORDS</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Mental health records</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-450 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Specialist records</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Referrals, sessions, and screenings. Redaction applied at the field level. Every access requires a reason.
                   </p>
                 </div>
@@ -1042,7 +1044,7 @@ export default function MpDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Dashboard
                   </button>
@@ -1058,24 +1060,30 @@ export default function MpDashboard() {
               {/* Access Reason Card */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div>
-                  <span className="text-[8px] font-bold text-slate-455 block uppercase tracking-wider font-sans">Access reason required</span>
-                  <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5 font-sans">State your access reason</h3>
-                  <p className="text-[10px] text-slate-455">Every record open is logged with this reason. The operator sees who accessed their record, when, and why.</p>
+                  <span className="text-[8px] font-bold text-slate-500 block uppercase tracking-wider font-sans">Access reason required</span>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 font-sans">State your access reason</h3>
+                  <p className="text-[10px] text-slate-500">Every record open is logged with this reason. The operator sees who accessed their record, when, and why.</p>
                 </div>
 
                 <div className="space-y-4 pt-2">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div className="md:col-span-1 space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Reason category</label>
-                      <div className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-455 select-none cursor-pointer">
+                      <label id="mp-reason-category-label" className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Reason category</label>
+                      <button
+                        type="button"
+                        aria-labelledby="mp-reason-category-label"
+                        onClick={() => triggerToast("Reason category picker opened")}
+                        className="w-full h-9 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200/50 dark:border-white/5 flex items-center justify-between px-3 text-xs text-slate-500 select-none cursor-pointer"
+                      >
                         <span>Select category</span>
                         <ChevronDown className="size-4 text-slate-400" />
-                      </div>
+                      </button>
                     </div>
                     <div className="md:col-span-2 space-y-1">
-                      <label className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Narrative (optional)</label>
-                      <input 
-                        type="text" 
+                      <label htmlFor="mp-access-narrative" className="text-[10px] font-bold text-slate-400 block uppercase font-sans">Narrative (optional)</label>
+                      <input
+                        id="mp-access-narrative"
+                        type="text"
                         placeholder="One sentence explaining the access context."
                         value={accessReason}
                         onChange={(e) => setAccessReason(e.target.value)}
@@ -1098,7 +1106,7 @@ export default function MpDashboard() {
                   </div>
 
                   <p className="text-[9px] text-slate-400 leading-normal pt-2 border-t border-slate-100 dark:border-white/5 font-sans">
-                    Default fields visible: identifier, status, modality, last session date. Redacted by default: clinical content, screening scores, risk notes. Click Request unredact on any row to escalate.
+                    Default fields visible: identifier, status, modality, last contact date. Redacted by default: coaching note content, escalation notes. Click Request unredact on any row to escalate.
                   </p>
                 </div>
               </div>
@@ -1110,8 +1118,8 @@ export default function MpDashboard() {
                 <div className="lg:col-span-7 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Record list - caseload</h3>
-                      <p className="text-[10px] text-slate-455">22 records · opt-in by default · role-chip applies</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Record list - caseload</h3>
+                      <p className="text-[10px] text-slate-500">22 records · opt-in by default · role-chip applies</p>
                     </div>
                     <span className="px-2 py-0.5 bg-[#0da2b3]/15 text-[#0c8a99] text-[9px] font-bold rounded uppercase">
                       Caseload
@@ -1125,24 +1133,24 @@ export default function MpDashboard() {
                           <th className="pb-3 w-1/3">Airman</th>
                           <th className="pb-3">Type</th>
                           <th className="pb-3">Date</th>
-                          <th className="pb-3">Risk</th>
+                          <th className="pb-3">Escalation</th>
                           <th className="pb-3">Status</th>
                           <th className="pb-3 text-right">Redaction</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                         {[
-                          { code: "A-1042", details: "Initial · sleep concerns", type: "Referral", date: "12 Jul", risk: "L1", col: "blue", status: "Active", statCol: "blue", red: "Min-nec", isTarget: false },
-                          { code: "A-1042", details: "Session note SOAP", type: "Note", date: "25 Jul", risk: "L1", col: "blue", status: "Signed", statCol: "teal", red: "Min-nec", isTarget: false },
-                          { code: "A-1087", details: "Session - Pre-deployment", type: "Note", date: "25 Jul", risk: "L2", col: "orange", status: "Signed", statCol: "teal", red: "Min-nec", isTarget: false },
-                          { code: "A-1101", details: "Screening - GAD-7", type: "Screening", date: "21 Jul", risk: "L1", col: "blue", status: "Pending", statCol: "slate", red: "Redacted", isTarget: true },
-                          { code: "A-1123", details: "Burnout screening", type: "Note", date: "26 Jul", risk: "L3", col: "rose", status: "Active", statCol: "blue", red: "Min-nec", isTarget: false },
-                          { code: "A-1145", details: "Family adjustment intake", type: "Note", date: "22 Jul", risk: "L0", col: "slate", status: "Closed", statCol: "slate", red: "Min-nec", isTarget: false },
-                          { code: "A-1058", details: "Sleep · new referral", type: "Referral", date: "27 Jul", risk: "L0", col: "slate", status: "Awaiting", statCol: "slate", red: "Redacted", isTarget: false },
-                          { code: "A-1176", details: "Pre-deployment screening", type: "Screening", date: "27 Jul", risk: "L0", col: "slate", status: "Pending", statCol: "slate", red: "Redacted", isTarget: false }
+                          { code: "A-1042", details: "Initial · sleep concerns", type: "Referral", date: "12 Jul", escalated: false, status: "Active", statCol: "blue", red: "Min-nec", isTarget: false },
+                          { code: "A-1042", details: "Specialist note", type: "Note", date: "25 Jul", escalated: false, status: RECORD_STATUSES.SIGNED, statCol: "teal", red: "Min-nec", isTarget: false },
+                          { code: "A-1087", details: "Contact - Pre-deployment", type: "Note", date: "25 Jul", escalated: false, status: RECORD_STATUSES.SIGNED, statCol: "teal", red: "Min-nec", isTarget: false },
+                          { code: "A-1101", details: "Check-in", type: "Check-in", date: "21 Jul", escalated: false, status: "Pending", statCol: "slate", red: "Redacted", isTarget: true },
+                          { code: "A-1123", details: "Burnout check-in", type: "Note", date: "26 Jul", escalated: true, status: "Active", statCol: "blue", red: "Min-nec", isTarget: false },
+                          { code: "A-1145", details: "Family adjustment intake", type: "Note", date: "22 Jul", escalated: false, status: "Closed", statCol: "slate", red: "Min-nec", isTarget: false },
+                          { code: "A-1058", details: "Sleep · new referral", type: "Referral", date: "27 Jul", escalated: false, status: "Awaiting", statCol: "slate", red: "Redacted", isTarget: false },
+                          { code: "A-1176", details: "Pre-deployment check-in", type: "Check-in", date: "27 Jul", escalated: false, status: "Pending", statCol: "slate", red: "Redacted", isTarget: false }
                         ].map((row, idx) => (
-                          <tr 
-                            key={idx} 
+                          <tr
+                            key={idx}
                             onClick={() => {
                               setUnredactTargetId(row.code);
                               setIsUnredacted(row.red === "Min-nec");
@@ -1150,24 +1158,21 @@ export default function MpDashboard() {
                             }}
                             className={`transition cursor-pointer ${
                               unredactTargetId === row.code && row.isTarget
-                                ? "bg-slate-50 dark:bg-slate-900/40 font-bold" 
+                                ? "bg-slate-50 dark:bg-slate-900/40 font-bold"
                                 : "hover:bg-slate-55/20"
                             }`}
                           >
                             <td className="py-3">
                               <span className="font-bold text-slate-800 dark:text-white font-mono block">{row.code}</span>
-                              <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                              <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
                             </td>
-                            <td className="py-3 text-slate-655 dark:text-slate-350">{row.type}</td>
-                            <td className="py-3 font-mono text-[10px] text-slate-550">{row.date}</td>
+                            <td className="py-3 text-slate-700 dark:text-slate-300">{row.type}</td>
+                            <td className="py-3 font-mono text-[10px] text-slate-500">{row.date}</td>
                             <td className="py-3">
                               <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold font-mono uppercase ${
-                                row.col === "blue" ? "bg-blue-500/10 text-blue-500" :
-                                row.col === "orange" ? "bg-amber-500/10 text-amber-500" :
-                                row.col === "rose" ? "bg-rose-500/10 text-rose-500" :
-                                "bg-slate-100 dark:bg-slate-900 text-slate-400"
+                                row.escalated ? "bg-rose-500/10 text-rose-500" : "bg-slate-100 dark:bg-slate-900 text-slate-400"
                               }`}>
-                                {row.risk}
+                                {row.escalated ? "Escalated" : "—"}
                               </span>
                             </td>
                             <td className="py-3 font-mono text-[10px]">
@@ -1199,8 +1204,8 @@ export default function MpDashboard() {
                 {/* Right panel: Access audit log */}
                 <div className="lg:col-span-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Access audit log</h3>
-                    <p className="text-[10px] text-slate-455">Every read &middot; mirrored to operator profile</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Access audit log</h3>
+                    <p className="text-[10px] text-slate-500">Every read &middot; mirrored to operator profile</p>
                   </div>
 
                   <div className="space-y-4 pt-1 font-sans text-xs">
@@ -1213,7 +1218,7 @@ export default function MpDashboard() {
                     ].map((auditRow, idx) => (
                       <div key={idx} className="border-b border-slate-50 dark:border-white/5 pb-2.5 last:border-0 last:pb-0 space-y-0.5 text-left">
                         <div className="flex items-center justify-between gap-3">
-                          <span className="font-bold text-slate-700 dark:text-slate-350">{auditRow.actor}</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300">{auditRow.actor}</span>
                           <span className="text-[8px] text-slate-400 font-mono">{auditRow.time}</span>
                         </div>
                         <p className="text-[10px] text-slate-500 leading-normal">{auditRow.log}</p>
@@ -1229,8 +1234,8 @@ export default function MpDashboard() {
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Field-level role-chip preview - {unredactTargetId}</h3>
-                    <p className="text-[10px] text-slate-455">Sensitive clinical content hidden by default - unredact requires explicit reason</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Field-level role-chip preview - {unredactTargetId}</h3>
+                    <p className="text-[10px] text-slate-500">Sensitive coaching notes hidden by default - unredact requires explicit reason</p>
                   </div>
                   
                   {!isUnredacted ? (
@@ -1272,53 +1277,49 @@ export default function MpDashboard() {
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-sans">Status:</span>
-                        <span className="text-slate-800 dark:text-white font-bold">{unredactTargetId === "A-1101" ? "Pending screening" : "Active"}</span>
+                        <span className="text-slate-800 dark:text-white font-bold">{unredactTargetId === "A-1101" ? "Pending check-in" : "Active"}</span>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-slate-500 font-sans">Last contact:</span>
                         <span className="text-slate-800 dark:text-white">21 Jul 2026</span>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Risk level:</span>
-                        <span className="text-blue-500 font-bold">L1</span>
+                        <span className="text-slate-500 font-sans">Escalation:</span>
+                        <span className="text-slate-400 font-bold">None</span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Redacted fields */}
+                  {/* Redacted fields — non-clinical coaching content only,
+                      no diagnostic scores. */}
                   <div className="space-y-3">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Redacted Fields</span>
                     <div className="space-y-2 font-mono text-[11px]">
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">PHQ-9 score:</span>
+                        <span className="text-slate-500 font-sans">Concern summary:</span>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-slate-400">{isUnredacted ? "9" : "∗"}</span>
-                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">9</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">GAD-7 score:</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-400">{isUnredacted ? "12" : "∗"}</span>
-                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">12</span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Clinical free text:</span>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-slate-455 italic font-sans truncate w-24">
-                            {isUnredacted ? "Adjustment-related anxiety..." : "∗"}
+                          <span className="text-slate-500 italic font-sans truncate w-24">
+                            {isUnredacted ? "Adjustment-related stress before deployment..." : "∗"}
                           </span>
-                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">notes body</span>
+                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">concern</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="text-slate-500 font-sans">Risk justification:</span>
+                        <span className="text-slate-500 font-sans">Action assigned:</span>
                         <div className="flex items-center gap-1.5">
-                          <span className="text-slate-455 italic font-sans truncate w-24">
-                            {isUnredacted ? "Deployment prep stressors..." : "∗"}
+                          <span className="text-slate-500 italic font-sans truncate w-24">
+                            {isUnredacted ? "Resource shared · follow-up set" : "∗"}
                           </span>
-                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">rationale</span>
+                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">action</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-sans">Escalation note:</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-slate-500 italic font-sans truncate w-24">
+                            {isUnredacted ? "None on file" : "∗"}
+                          </span>
+                          <span className="text-[8px] bg-slate-100 dark:bg-slate-900 px-1 py-0.2 rounded text-slate-400 uppercase">escalation</span>
                         </div>
                       </div>
                     </div>
@@ -1343,9 +1344,9 @@ export default function MpDashboard() {
               <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Lock className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-extrabold">Confidentiality-bounded &middot; HIPAA-equivalent handling</span>
+                  <span className="font-extrabold">Confidentiality-bounded &middot; minimum-necessary access</span>
                   <p className="mt-0.5 text-slate-600 dark:text-slate-400 font-normal">
-                    Threads are bound by clinical confidentiality. Sending records an audit-log entry.
+                    Threads are bound by coaching confidentiality. Sending records an audit-log entry.
                   </p>
                 </div>
               </div>
@@ -1354,8 +1355,8 @@ export default function MpDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">MENTAL PERFORMANCE · MESSAGES</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans font-sans">Messages</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans font-sans">Messages</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Confidential threads with your caseload. Not visible to leadership, peers, or aggregate views.
                   </p>
                 </div>
@@ -1376,7 +1377,7 @@ export default function MpDashboard() {
                 {/* Inbox Sidebar List */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Inbox</h3>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Inbox</h3>
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[#0da2b3]/15 text-[#0da2b3] rounded-full text-[9px] font-bold uppercase font-mono">
                       <span className="size-1 bg-[#0da2b3] rounded-full"></span>
                       4 unread
@@ -1387,6 +1388,7 @@ export default function MpDashboard() {
                     <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                     <input
                       type="text"
+                      aria-label="Search threads"
                       placeholder="Search threads"
                       className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#f8fafc] dark:bg-[#070a13] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white focus:outline-none"
                     />
@@ -1415,8 +1417,8 @@ export default function MpDashboard() {
                             {item.initials}
                           </div>
                           <div className="space-y-0.5 text-left font-sans">
-                            <span className="text-xs font-bold text-slate-850 dark:text-white block font-mono">{item.name}</span>
-                            <p className="text-[10px] text-slate-455 truncate w-36">{item.txt}</p>
+                            <span className="text-xs font-bold text-slate-800 dark:text-white block font-mono">{item.name}</span>
+                            <p className="text-[10px] text-slate-500 truncate w-36">{item.txt}</p>
                           </div>
                         </div>
 
@@ -1443,7 +1445,7 @@ export default function MpDashboard() {
                       </div>
                       <div className="text-left space-y-0.5 font-sans">
                         <span className="text-sm font-bold text-slate-800 dark:text-white font-mono block">A-1042 &middot; T.P.</span>
-                        <span className="text-[10px] text-slate-400 block font-medium">Sleep concern &middot; L1 &middot; opened 18 Jul</span>
+                        <span className="text-[10px] text-slate-400 block font-medium">Sleep concern &middot; opened 18 Jul</span>
                       </div>
                     </div>
 
@@ -1502,6 +1504,7 @@ export default function MpDashboard() {
                   <div className="border-t border-slate-200/60 dark:border-white/5 pt-4 flex-shrink-0 flex items-center gap-3">
                     <input
                       type="text"
+                      aria-label="Message A-1042"
                       placeholder="Message A-1042"
                       value={chatMessage}
                       onChange={(e) => setChatMessage(e.target.value)}

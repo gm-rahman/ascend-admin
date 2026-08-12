@@ -5,8 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { AscendLogo } from "@/components/ascend-logo";
-import { POPULATION_LEVELS } from "@/lib/terminology";
+import { POPULATION_LEVELS, BRIEFING_STATUSES } from "@/lib/terminology";
+import { IconButton } from "@/components/ui/icon-button";
+import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
 import {
   Home,
   Sliders,
@@ -33,10 +36,96 @@ import {
 
 type TabType = "index" | "aggregate" | "trends" | "reports" | "briefings";
 
+type ReportRecord = {
+  title: string;
+  subtext: string;
+  type: string;
+  scope: string;
+  period: string;
+  gen: string;
+  status: string;
+  color: string;
+};
+
+type TemplateRecord = {
+  cat: string;
+  title: string;
+  desc: string;
+  per: string;
+  sub: string;
+};
+
+const RECENT_REPORTS: ReportRecord[] = [
+  {
+    title: "Wing Weekly OPS",
+    subtext: "Composite + 5 drivers · 6 flights",
+    type: "Weekly",
+    scope: POPULATION_LEVELS.ORGANIZATION,
+    period: "21 – 27 Jul 2025",
+    gen: "28 Jul · 06:00",
+    status: BRIEFING_STATUSES.READY,
+    color: "green",
+  },
+  {
+    title: "Monthly Cohort Review",
+    subtext: "High / mid / watch bands",
+    type: "Monthly",
+    scope: POPULATION_LEVELS.COHORT,
+    period: "Jun 2025",
+    gen: "01 Jul · 09:14",
+    status: BRIEFING_STATUSES.SENT,
+    color: "green",
+  },
+  {
+    title: "Q2 OFT Aggregate",
+    subtext: "Pass rate · by-flight · k=125",
+    type: "Quarterly",
+    scope: POPULATION_LEVELS.ORGANIZATION,
+    period: "Apr – Jun 2025",
+    gen: "05 Jul · 12:02",
+    status: BRIEFING_STATUSES.ARCHIVED,
+    color: "green",
+  },
+  {
+    title: "Annual Wing Readiness",
+    subtext: "FY 24 → FY 25 comparison",
+    type: "Annual",
+    scope: POPULATION_LEVELS.ORGANIZATION,
+    period: "Aug 2024 – Jul 2025",
+    gen: "14 Jul · 16:30",
+    status: BRIEFING_STATUSES.PENDING_REVIEW,
+    color: "orange",
+  },
+  {
+    title: "Recovery Program Progress",
+    subtext: "3 flights · 12-week blocks",
+    type: "Ad-hoc",
+    scope: POPULATION_LEVELS.UNIT,
+    period: "Mar – Jun 2025",
+    gen: "02 Jul · 10:00",
+    status: BRIEFING_STATUSES.SENT,
+    color: "green",
+  },
+  {
+    title: "Sleep Watch Brief",
+    subtext: "Delta flight · driver context",
+    type: "Ad-hoc",
+    scope: POPULATION_LEVELS.UNIT,
+    period: "Week of 14 Jul",
+    gen: "21 Jul · 07:55",
+    status: BRIEFING_STATUSES.DRAFT,
+    color: "orange",
+  },
+];
+
 export default function LeadershipDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("index");
+  const [viewingReport, setViewingReport] = useState<ReportRecord | null>(null);
+  const [viewingTemplate, setViewingTemplate] = useState<TemplateRecord | null>(null);
+  const [viewingAllReports, setViewingAllReports] = useState(false);
   const { theme, mounted: hasMounted, toggleTheme } = useTheme();
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
 
@@ -63,11 +152,6 @@ export default function LeadershipDashboard() {
       router.push("/");
     }
   }, [isAuthenticated, hasMounted, router]);
-
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
 
   const handleLogout = () => {
     logout();
@@ -160,11 +244,11 @@ export default function LeadershipDashboard() {
         {/* Sidebar Footer / Controls */}
         <div className="p-4 border-t border-slate-100 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
+            onClick={() => router.push("/dashboard/profile")}
             className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
@@ -191,39 +275,45 @@ export default function LeadershipDashboard() {
           <div className="flex items-center gap-4">
             
             {/* Active Role Indicator */}
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-455">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500">
               <span className="size-1.5 rounded-full bg-slate-300"></span>
               <span>Leadership</span>
             </div>
 
             {/* Profile Dropdown */}
-            <div className="flex items-center gap-2.5 pl-2 border-l border-slate-100 dark:border-white/5 text-slate-800 dark:text-white">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-2.5 pl-2 border-l border-slate-100 dark:border-white/5 text-slate-800 dark:text-white cursor-pointer"
+              type="button"
+            >
               <div className="size-7 rounded-full bg-slate-200 dark:bg-slate-850 text-slate-700 dark:text-slate-300 font-bold flex items-center justify-center text-xs">
-                JM
+                {currentUser?.initials}
               </div>
               <div className="hidden md:flex flex-col text-left">
                 <span className="text-[11px] font-bold leading-none">
-                  Lt Col J. Mendez
+                  {currentUser?.name}
                 </span>
                 <span className="text-[9px] text-slate-400 dark:text-slate-500 font-medium mt-0.5 leading-none">
-                  CC · 23rd SFS
+                  {currentUser?.unit}
                 </span>
               </div>
-              <ChevronDown className="size-3.5 text-slate-400 cursor-pointer" />
-            </div>
+              <ChevronDown className="size-3.5 text-slate-400" />
+            </button>
 
             {/* Notification Bell */}
-            <button className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer">
-              <Bell className="size-4" />
-            </button>
+            <IconButton
+              icon={Bell}
+              aria-label="Notifications"
+              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
+            />
 
             {/* Theme Toggle */}
-            <button
+            <IconButton
+              icon={theme === "light" ? Moon : Sun}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
               onClick={toggleTheme}
               className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
-            >
-              {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-            </button>
+            />
 
           </div>
         </header>
@@ -246,7 +336,7 @@ export default function LeadershipDashboard() {
                 <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Aggregate views enforce k &ge; 5 &mdash; no group smaller than 5 is shown</span>
-                  <p className="mt-0.5 text-slate-400 dark:text-slate-455">
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-400">
                     Individual identifiers are never exposed. By design, leadership surfaces show flights, cohorts, and periods only &mdash; never operators.
                   </p>
                 </div>
@@ -256,7 +346,7 @@ export default function LeadershipDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · WORKSPACE</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Leadership</h1>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Leadership</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Five aggregate surfaces. Composite OPS leads, drivers support, by-flight is utility. Every figure represents cohorts where k &ge; 5.
                   </p>
@@ -269,12 +359,29 @@ export default function LeadershipDashboard() {
                 </button>
               </div>
 
+              {/* Actionable — leads the page per Req 3: pending work first,
+                  decorative surface tiles below. */}
+              <button
+                onClick={() => setActiveTab("briefings")}
+                type="button"
+                className="w-full flex items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-5 text-left hover:bg-amber-500/15 transition cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex size-9 items-center justify-center rounded-full bg-amber-500/15 text-amber-500 font-black text-sm">1</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800 dark:text-white">1 briefing pending review</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">Annual Wing Readiness &middot; {BRIEFING_STATUSES.PENDING_REVIEW}</p>
+                  </div>
+                </div>
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">Review &rarr;</span>
+              </button>
+
               {/* Surfaces section */}
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-[10px] font-bold text-slate-400 tracking-wider">SURFACES</p>
-                    <h2 className="text-xl font-bold text-slate-850 dark:text-white">Leadership workspace</h2>
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-white">Leadership workspace</h2>
                     <p className="text-xs text-slate-500">Five surfaces · aggregate only · k &ge; 5 enforced on every figure</p>
                   </div>
                   <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-850 border border-slate-200 dark:border-white/5 rounded text-[10px] font-bold font-mono text-slate-500">
@@ -286,52 +393,56 @@ export default function LeadershipDashboard() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   
                   {/* Card 1: Aggregate */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("aggregate")}
-                    className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
+                    className="group w-full bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
                     <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">01</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Aggregate</h3>
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Aggregate</h3>
                       <p className="text-xs text-slate-500 leading-normal">Hero trend · driver tiles · by-flight comparison</p>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Card 2: Trends */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("trends")}
-                    className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
+                    className="group w-full bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
                     <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">02</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Trends</h3>
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Trends</h3>
                       <p className="text-xs text-slate-500 leading-normal">7d / 30d / 3&ndash;12 mo · MoM · PvP comparison</p>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Card 3: Reports */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("reports")}
-                    className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
+                    className="group w-full bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
                     <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">03</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Reports</h3>
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Reports</h3>
                       <p className="text-xs text-slate-500 leading-normal">Weekly · Monthly · Quarterly · Annual aggregate</p>
                     </div>
-                  </div>
+                  </button>
 
                   {/* Card 4: Briefings */}
-                  <div
+                  <button
+                    type="button"
                     onClick={() => setActiveTab("briefings")}
-                    className="group bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
+                    className="group w-full bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm hover:shadow-md hover:scale-[1.01] transition-all duration-250 cursor-pointer space-y-4 text-left"
                   >
                     <span className="text-xs font-mono font-bold text-slate-400 group-hover:text-[var(--brand-color)] transition-colors">04</span>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-bold text-slate-850 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Briefings</h3>
+                      <h3 className="text-lg font-bold text-slate-800 dark:text-white group-hover:text-[var(--brand-color)] transition-colors">Briefings</h3>
                       <p className="text-xs text-slate-500 leading-normal">Mission · readiness · risk · recommendations</p>
                     </div>
-                  </div>
+                  </button>
 
                 </div>
               </div>
@@ -346,7 +457,7 @@ export default function LeadershipDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · AGGREGATE</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Aggregate readiness</h1>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Aggregate readiness</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Composite OPS trend leads the view. Drivers support, by-flight is utility &mdash; every figure represents cohorts where k &ge; 5
                   </p>
@@ -376,7 +487,7 @@ export default function LeadershipDashboard() {
                 <div className="bg-white dark:bg-[#0e1628] rounded-[28px] p-6 md:p-8 space-y-6">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">COMPOSITE OPS · WING</span>
-                    <h2 className="text-2xl font-black text-slate-850 dark:text-white mt-1">12-month readiness, lifted by recovery rollout</h2>
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-1">12-month readiness, lifted by recovery rollout</h2>
                     <div className="flex items-center gap-2 mt-1">
                       <span className="text-xs text-slate-500">Cohort k = 125 · last 12 months</span>
                       <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-[9px] font-bold text-slate-500 uppercase">
@@ -395,27 +506,27 @@ export default function LeadershipDashboard() {
                     <div className="lg:col-span-4 space-y-6 text-left">
                       <div className="space-y-1">
                         <div className="flex items-baseline gap-2">
-                          <span className="text-7xl font-black tracking-tight text-slate-850 dark:text-white leading-none">76</span>
-                          <span className="text-lg font-bold text-[#94a3b8] dark:text-slate-450 leading-none">+1.2</span>
+                          <span className="text-7xl font-black tracking-tight text-slate-800 dark:text-white leading-none">76</span>
+                          <span className="text-lg font-bold text-[#94a3b8] dark:text-slate-400 leading-none">+1.2</span>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-4 gap-2 border-t border-slate-100 dark:border-white/5 pt-4 text-left">
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">Period start</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">Aug 2024 - 68</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">Period start</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">Aug 2024 - 68</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">Period end</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">Jul 2025 - 76</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">Period end</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">Jul 2025 - 76</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">MoM delta</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">MoM delta</span>
                           <span className="text-[10px] font-bold text-emerald-500 mt-1 block">+3.4</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">Target</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">75</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">Target</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">75</span>
                         </div>
                       </div>
                     </div>
@@ -507,7 +618,7 @@ export default function LeadershipDashboard() {
                   <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wide">Recovery program</span>
                   <div className="flex items-baseline gap-1">
                     <span className="text-3xl font-black text-slate-800 dark:text-white leading-none">3</span>
-                    <span className="text-xs font-bold text-slate-450 leading-none">flights</span>
+                    <span className="text-xs font-bold text-slate-500 leading-none">flights</span>
                   </div>
                   <div>
                     <span className="inline-flex px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-500/10 text-emerald-500 leading-none">on track</span>
@@ -520,8 +631,8 @@ export default function LeadershipDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">SUPPORTING SIGNAL</span>
-                    <h3 className="text-lg font-bold text-slate-850 dark:text-white">Driver trends</h3>
-                    <p className="text-xs text-slate-505">5 drivers · sparkline + delta · month-over-month</p>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Driver trends</h3>
+                    <p className="text-xs text-slate-500">5 drivers · sparkline + delta · month-over-month</p>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
                     <span className="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/5">Physical 78</span>
@@ -541,7 +652,7 @@ export default function LeadershipDashboard() {
                   ].map((drv, idx) => (
                     <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-655 dark:text-slate-350">{drv.name}</span>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{drv.name}</span>
                         <span className={`inline-flex items-center gap-1 text-[8px] font-bold uppercase rounded-full ${
                           drv.color === "green" ? "text-emerald-500" : "text-amber-500"
                         }`}>
@@ -576,13 +687,13 @@ export default function LeadershipDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
-                      <h3 className="text-sm font-bold text-slate-850 dark:text-white">By-flight comparison</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-white">By-flight comparison</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       6 flights · k &ge; 5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Readiness, MoM delta, confidence. Aggregate only &mdash; never individuals.</p>
+                  <p className="text-[10px] text-slate-500 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Readiness, MoM delta, confidence. Aggregate only &mdash; never individuals.</p>
 
                   <div className="overflow-x-auto text-[11px]">
                     <table className="w-full text-left">
@@ -648,13 +759,13 @@ export default function LeadershipDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
-                      <h3 className="text-sm font-bold text-slate-850 dark:text-white">Risk heatmap</h3>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-white">Risk heatmap</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       No cells below k=5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Flight + driver signal &mdash; cohort-level only</p>
+                  <p className="text-[10px] text-slate-500 -mt-2">Scope: {POPULATION_LEVELS.UNIT} &middot; Flight + driver signal &mdash; cohort-level only</p>
 
                   {/* Heatmap table */}
                   <div className="overflow-x-auto text-[10px] font-sans">
@@ -700,7 +811,7 @@ export default function LeadershipDashboard() {
 
                   {/* Heatmap Legend */}
                   <div className="flex items-center gap-4 text-[9px] pt-3 border-t border-slate-100 dark:border-white/5 justify-start">
-                    <span className="font-bold text-slate-450 uppercase">Legend:</span>
+                    <span className="font-bold text-slate-500 uppercase">Legend:</span>
                     <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-[#3b82f6]"></span> L1</span>
                     <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-[#10b981]"></span> L2</span>
                     <span className="flex items-center gap-1"><span className="size-2.5 rounded-full bg-[#f59e0b]"></span> L3</span>
@@ -730,7 +841,7 @@ export default function LeadershipDashboard() {
                     <span className="font-bold text-slate-700 dark:text-slate-300">52%</span>
                     <span className="font-bold text-emerald-500">on track</span>
                   </div>
-                  <p className="text-[10px] text-slate-505 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[10px] text-slate-500 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
                     Period: rolling 6 mo &middot; Owner: PT/IM &middot; Action: continue weekly cadence
                   </p>
                 </div>
@@ -746,7 +857,7 @@ export default function LeadershipDashboard() {
                     <span className="font-bold text-slate-700 dark:text-slate-300">88%</span>
                     <span className="font-bold text-amber-500">watch</span>
                   </div>
-                  <p className="text-[10px] text-slate-505 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[10px] text-slate-500 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
                     Period: rolling 12 mo &middot; Owner: SCS &middot; Action: re-engage 4 deferred
                   </p>
                 </div>
@@ -760,7 +871,7 @@ export default function LeadershipDashboard() {
                   <div className="flex items-center gap-1.5 text-[10px] font-sans">
                     <span className="font-bold text-slate-500">30% completed this quarter</span>
                   </div>
-                  <p className="text-[10px] text-slate-505 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
+                  <p className="text-[10px] text-slate-500 leading-normal pt-2 border-t border-slate-100 dark:border-white/5">
                     Period: Q3 &middot; Owner: PT/IM &middot; Action: schedule 12 by 15 Aug
                   </p>
                 </div>
@@ -773,8 +884,8 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-7 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-850 dark:text-white">SCS + PT/IM hours coverage</h3>
-                      <p className="text-[10px] text-slate-450">Scheduled + worked · 95% target · progress toward contract</p>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-white">SCS + PT/IM hours coverage</h3>
+                      <p className="text-[10px] text-slate-500">Scheduled + worked · 95% target · progress toward contract</p>
                     </div>
                     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded uppercase">
                       95% target
@@ -819,8 +930,8 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-5 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-6 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-850 dark:text-white">Monthly OFT reporting</h3>
-                      <p className="text-[10px] text-slate-455">Status · pass rate · reconditioning · next due</p>
+                      <h3 className="text-sm font-bold text-slate-800 dark:text-white">Monthly OFT reporting</h3>
+                      <p className="text-[10px] text-slate-500">Status · pass rate · reconditioning · next due</p>
                     </div>
                     <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded">
                       k = 125
@@ -831,7 +942,7 @@ export default function LeadershipDashboard() {
                     <div className="space-y-1">
                       <span className="text-[8px] font-bold text-slate-400 block">CURRENT</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white">104</p>
-                      <span className="text-[9px] text-slate-450 block font-bold leading-normal uppercase">TESTS CONDUCTED</span>
+                      <span className="text-[9px] text-slate-500 block font-bold leading-normal uppercase">TESTS CONDUCTED</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white mt-2">22</p>
                     </div>
                     <div className="space-y-1">
@@ -843,7 +954,7 @@ export default function LeadershipDashboard() {
                     <div className="space-y-1">
                       <span className="text-[8px] font-bold text-slate-400 block">EXEMPT</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white">4</p>
-                      <span className="text-[9px] text-slate-450 block font-bold leading-normal uppercase">IN RECOND.</span>
+                      <span className="text-[9px] text-slate-500 block font-bold leading-normal uppercase">IN RECOND.</span>
                       <p className="text-lg font-bold text-slate-800 dark:text-white mt-2">9</p>
                     </div>
                   </div>
@@ -877,7 +988,7 @@ export default function LeadershipDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · TRENDS</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Trends</h1>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Trends</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Period selector, MoM / PvP comparison, and annotated events. Composite trend leads; drivers and cohorts support the read.
                   </p>
@@ -885,14 +996,14 @@ export default function LeadershipDashboard() {
                 
                 {/* Period & Comparison Controls */}
                 <div className="flex flex-wrap items-center gap-3">
-                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/10 p-0.5 bg-white dark:bg-slate-900 text-xs text-slate-650 dark:text-slate-400">
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/10 p-0.5 bg-white dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-400">
                     <button className="px-2.5 py-1 font-medium">7d</button>
                     <button className="px-2.5 py-1 font-medium">30d</button>
                     <button className="px-2.5 py-1 bg-slate-100 dark:bg-slate-800 rounded-md font-bold text-slate-800 dark:text-white">3 mo</button>
                     <button className="px-2.5 py-1 font-medium">6 mo</button>
                     <button className="px-2.5 py-1 font-medium">12 mo</button>
                   </div>
-                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/10 p-0.5 bg-white dark:bg-slate-900 text-xs text-slate-650 dark:text-slate-400">
+                  <div className="inline-flex rounded-lg border border-slate-200 dark:border-white/10 p-0.5 bg-white dark:bg-slate-900 text-xs text-slate-600 dark:text-slate-400">
                     <button className="px-3 py-1 bg-slate-100 dark:bg-slate-800 rounded-md font-bold text-slate-800 dark:text-white">MoM</button>
                     <button className="px-3 py-1 font-medium">PvP</button>
                   </div>
@@ -904,7 +1015,7 @@ export default function LeadershipDashboard() {
                 <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Trends compare cohorts &mdash; never individuals</span>
-                  <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-400 font-normal">
                     Driver trends and period deltas are computed against cohorts where k &ge; 5 is satisfied at every data point in the window.
                   </p>
                 </div>
@@ -915,7 +1026,7 @@ export default function LeadershipDashboard() {
                 <div className="bg-white dark:bg-[#0e1628] rounded-[28px] p-6 md:p-8 space-y-6">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">COMPOSITE OPS · 12 MONTH</span>
-                    <h2 className="text-2xl font-black text-slate-850 dark:text-white mt-1">Composite OPS, with annotated material events</h2>
+                    <h2 className="text-2xl font-black text-slate-800 dark:text-white mt-1">Composite OPS, with annotated material events</h2>
                     <p className="text-xs text-slate-500 mt-1 font-medium">
                       Period: 12 months &middot; comparison: month over month &middot; cohort k = 125 &middot; Scope: {POPULATION_LEVELS.ORGANIZATION}
                     </p>
@@ -927,27 +1038,27 @@ export default function LeadershipDashboard() {
                     <div className="lg:col-span-4 space-y-6 text-left">
                       <div className="space-y-1">
                         <div className="flex items-baseline gap-2">
-                          <span className="text-7xl font-black tracking-tight text-slate-850 dark:text-white leading-none">76</span>
+                          <span className="text-7xl font-black tracking-tight text-slate-800 dark:text-white leading-none">76</span>
                           <span className="text-lg font-bold text-emerald-500 leading-none">+3.4</span>
                         </div>
                       </div>
 
                       <div className="grid grid-cols-4 gap-2 border-t border-slate-100 dark:border-white/5 pt-4 text-left">
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">Aug 2024</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">68</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">Aug 2024</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">68</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">Jul 2025</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">76</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">Jul 2025</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">76</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">12-mo high</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">76</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">12-mo high</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">76</span>
                         </div>
                         <div>
-                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase leading-tight">12-mo low</span>
-                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 mt-1 block">60</span>
+                          <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase leading-tight">12-mo low</span>
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 mt-1 block">60</span>
                         </div>
                       </div>
                     </div>
@@ -1009,7 +1120,7 @@ export default function LeadershipDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">DRIVERS</span>
-                    <h3 className="text-lg font-bold text-slate-850 dark:text-white">Driver trends</h3>
+                    <h3 className="text-lg font-bold text-slate-800 dark:text-white">Driver trends</h3>
                     <p className="text-xs text-slate-500">5 drivers &middot; sparkline + delta &middot; month over month</p>
                   </div>
                   <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500 dark:text-slate-400">
@@ -1030,7 +1141,7 @@ export default function LeadershipDashboard() {
                   ].map((drv, idx) => (
                     <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-4 shadow-sm space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-655 dark:text-slate-350">{drv.name}</span>
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300">{drv.name}</span>
                         <span className={`inline-flex items-center gap-1 text-[8px] font-bold uppercase rounded-full ${
                           drv.color === "green" ? "text-emerald-500" : "text-amber-500"
                         }`}>
@@ -1065,13 +1176,13 @@ export default function LeadershipDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Cohort trend breakdown</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Cohort trend breakdown</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded">
                       3 cohorts · k &ge; 5
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Scope: {POPULATION_LEVELS.COHORT} &middot; By readiness band · cohort-level deltas</p>
+                  <p className="text-[10px] text-slate-500 -mt-2">Scope: {POPULATION_LEVELS.COHORT} &middot; By readiness band · cohort-level deltas</p>
 
                   <div className="space-y-4 pt-2 font-sans text-xs">
                     {[
@@ -1080,7 +1191,7 @@ export default function LeadershipDashboard() {
                       { label: "Watch band", pct: 25, val: "-1.2", color: "bg-amber-500", textCol: "text-red-500" },
                     ].map((band, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4">
-                        <span className="font-bold text-slate-800 dark:text-slate-250 w-28 flex-shrink-0">{band.label}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 w-28 flex-shrink-0">{band.label}</span>
                         <div className="flex-1 h-3 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                           <div className={`h-full ${band.color} rounded-full`} style={{ width: `${band.pct}%` }}></div>
                         </div>
@@ -1099,13 +1210,13 @@ export default function LeadershipDashboard() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Annotated events</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Annotated events</h3>
                     </div>
                     <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded uppercase">
                       Editorial
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-455 -mt-2">Material context for period deltas</p>
+                  <p className="text-[10px] text-slate-500 -mt-2">Material context for period deltas</p>
 
                   {/* Vertical Timeline registry */}
                   <div className="relative pl-6 border-l-2 border-slate-100 dark:border-white/5 space-y-6 ml-2 text-xs font-sans">
@@ -1172,7 +1283,7 @@ export default function LeadershipDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · REPORTS LIBRARY</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-850 dark:text-white">Reports</h1>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-800 dark:text-white">Reports</h1>
                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Weekly, monthly, quarterly, and annual aggregate reports. Every export carries the k &ge; 5 statement and is CUI-labelled.
                   </p>
@@ -1181,7 +1292,7 @@ export default function LeadershipDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Opening export registry library")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     <Download className="size-4" /> Export library
                   </button>
@@ -1199,7 +1310,7 @@ export default function LeadershipDashboard() {
                 <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Reports are aggregate only &middot; k &ge; 5 enforced</span>
-                  <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-400 font-normal">
                     Any report containing fewer than 5 individuals is suppressed. Schedule exports or generate one-off aggregate reports from this library.
                   </p>
                 </div>
@@ -1214,7 +1325,7 @@ export default function LeadershipDashboard() {
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border transition cursor-pointer ${
                         pill === "All"
                           ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-850 dark:hover:text-white"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-800 dark:hover:text-white"
                       }`}
                     >
                       {pill}
@@ -1226,6 +1337,7 @@ export default function LeadershipDashboard() {
                   <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                   <input
                     type="text"
+                    aria-label="Search by title, flight, or cohort"
                     placeholder="Search by title, flight, or cohort"
                     className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-[var(--brand-color)/50] transition"
                   />
@@ -1236,12 +1348,12 @@ export default function LeadershipDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4 mb-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Recent reports</h3>
-                    <p className="text-[10px] text-slate-455">Last 6 &middot; aggregate &middot; k &ge; 5</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Recent reports</h3>
+                    <p className="text-[10px] text-slate-500">Last 6 &middot; aggregate &middot; k &ge; 5</p>
                   </div>
-                  <button 
-                    onClick={() => triggerToast("Filtering to show all historical reports")}
-                    className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-655 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
+                  <button
+                    onClick={() => setViewingAllReports(true)}
+                    className="px-3 py-1 border border-slate-200 dark:border-white/10 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
                   >
                     View all
                   </button>
@@ -1261,81 +1373,20 @@ export default function LeadershipDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
-                      {[
-                        {
-                          title: "Wing Weekly OPS",
-                          subtext: "Composite + 5 drivers · 6 flights",
-                          type: "Weekly",
-                          scope: POPULATION_LEVELS.ORGANIZATION,
-                          period: "21 – 27 Jul 2025",
-                          gen: "28 Jul · 06:00",
-                          status: "Ready",
-                          color: "green"
-                        },
-                        {
-                          title: "Monthly Cohort Review",
-                          subtext: "High / mid / watch bands",
-                          type: "Monthly",
-                          scope: POPULATION_LEVELS.COHORT,
-                          period: "Jun 2025",
-                          gen: "01 Jul · 09:14",
-                          status: "Sent",
-                          color: "green"
-                        },
-                        {
-                          title: "Q2 OFT Aggregate",
-                          subtext: "Pass rate · by-flight · k=125",
-                          type: "Quarterly",
-                          scope: POPULATION_LEVELS.ORGANIZATION,
-                          period: "Apr – Jun 2025",
-                          gen: "05 Jul · 12:02",
-                          status: "Archived",
-                          color: "green"
-                        },
-                        {
-                          title: "Annual Wing Readiness",
-                          subtext: "FY 24 → FY 25 comparison",
-                          type: "Annual",
-                          scope: POPULATION_LEVELS.ORGANIZATION,
-                          period: "Aug 2024 – Jul 2025",
-                          gen: "14 Jul · 16:30",
-                          status: "In review",
-                          color: "orange"
-                        },
-                        {
-                          title: "Recovery Program Progress",
-                          subtext: "3 flights · 12-week blocks",
-                          type: "Ad-hoc",
-                          scope: POPULATION_LEVELS.UNIT,
-                          period: "Mar – Jun 2025",
-                          gen: "02 Jul · 10:00",
-                          status: "Sent",
-                          color: "green"
-                        },
-                        {
-                          title: "Sleep Watch Brief",
-                          subtext: "Delta flight · driver context",
-                          type: "Ad-hoc",
-                          scope: POPULATION_LEVELS.UNIT,
-                          period: "Week of 14 Jul",
-                          gen: "21 Jul · 07:55",
-                          status: "Draft",
-                          color: "orange"
-                        }
-                      ].map((item, idx) => (
+                      {RECENT_REPORTS.map((item, idx) => (
                         <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition">
                           <td className="py-4">
                             <span className="font-bold text-slate-800 dark:text-white block">{item.title}</span>
-                            <span className="text-[10px] text-slate-455 mt-0.5 block">{item.subtext}</span>
+                            <span className="text-[10px] text-slate-500 mt-0.5 block">{item.subtext}</span>
                           </td>
                           <td className="py-4">
                             <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-[10px] font-bold rounded text-slate-500 dark:text-slate-400">
                               {item.type}
                             </span>
                           </td>
-                          <td className="py-4 text-slate-655 dark:text-slate-400 text-[10px] font-bold uppercase">{item.scope}</td>
+                          <td className="py-4 text-slate-700 dark:text-slate-400 text-[10px] font-bold uppercase">{item.scope}</td>
                           <td className="py-4 text-slate-700 dark:text-slate-300 font-mono text-[11px]">{item.period}</td>
-                          <td className="py-4 text-slate-655 dark:text-slate-400 font-mono text-[11px]">{item.gen}</td>
+                          <td className="py-4 text-slate-700 dark:text-slate-400 font-mono text-[11px]">{item.gen}</td>
                           <td className="py-4">
                             <span className={`inline-flex items-center gap-1.5 font-bold uppercase text-[9px] ${
                               item.color === "green" ? "text-emerald-500" : "text-amber-500"
@@ -1346,7 +1397,7 @@ export default function LeadershipDashboard() {
                           </td>
                           <td className="py-4 text-right">
                             <button
-                              onClick={() => triggerToast(`Opening report: ${item.title}`)}
+                              onClick={() => setViewingReport(item)}
                               className="px-3 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-900 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                             >
                               Open
@@ -1364,7 +1415,7 @@ export default function LeadershipDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
-                    <h3 className="text-lg font-bold text-slate-855 dark:text-white">Report templates</h3>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Report templates</h3>
                   </div>
                   <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase rounded-full text-slate-500">
                     <span className="size-1.5 rounded-full bg-slate-900 dark:bg-white"></span>
@@ -1405,9 +1456,9 @@ export default function LeadershipDashboard() {
                   ].map((tpl, idx) => (
                     <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between h-48">
                       <div>
-                        <span className="text-[8px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{tpl.cat}</span>
-                        <h4 className="text-sm font-bold text-slate-855 dark:text-white mt-1">{tpl.title}</h4>
-                        <p className="text-[10px] text-slate-455 leading-relaxed mt-2">{tpl.desc}</p>
+                        <span className="text-[8px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{tpl.cat}</span>
+                        <h4 className="text-sm font-bold text-slate-900 dark:text-white mt-1">{tpl.title}</h4>
+                        <p className="text-[10px] text-slate-500 leading-relaxed mt-2">{tpl.desc}</p>
                       </div>
 
                       <div className="flex items-center justify-between border-t border-slate-100 dark:border-white/5 pt-3 mt-3">
@@ -1415,7 +1466,7 @@ export default function LeadershipDashboard() {
                           <span className="font-bold">{tpl.per}</span> <span className="text-slate-400">&middot;</span> {tpl.sub}
                         </div>
                         <button
-                          onClick={() => triggerToast(`Using template: ${tpl.title}`)}
+                          onClick={() => setViewingTemplate(tpl)}
                           className="px-2.5 py-1 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-lg text-[10px] font-bold text-slate-700 dark:text-white cursor-pointer transition"
                         >
                           Use
@@ -1448,8 +1499,8 @@ export default function LeadershipDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">LEADERSHIP · BRIEFINGS BUILDER</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Briefings</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Briefings</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Compose the executive briefing from a structured outline. Every section pulls from aggregate data only. Scope: {POPULATION_LEVELS.ORGANIZATION}.
                   </p>
                 </div>
@@ -1457,7 +1508,7 @@ export default function LeadershipDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Briefing draft saved to local registry")}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Save draft
                   </button>
@@ -1475,7 +1526,7 @@ export default function LeadershipDashboard() {
                 <Shield className="size-5 text-[var(--brand-color)] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-bold">Briefing content is aggregate only &middot; k &ge; 5 enforced</span>
-                  <p className="mt-0.5 text-slate-400 dark:text-slate-455 font-normal">
+                  <p className="mt-0.5 text-slate-400 dark:text-slate-400 font-normal">
                     Briefings are generated from cohorts and never embed operator identifiers. Sections pull from aggregate trend, drivers, risk, and recommendations only.
                   </p>
                 </div>
@@ -1485,7 +1536,7 @@ export default function LeadershipDashboard() {
               <div className="space-y-4 pt-4 border-t border-slate-200 dark:border-white/5 text-left">
                 <div>
                   <span className="text-[9px] font-bold text-slate-400 uppercase block tracking-wider">TEMPLATES</span>
-                  <h3 className="text-base font-bold text-slate-855 dark:text-white">Start from a template</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">Start from a template</h3>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -1523,8 +1574,8 @@ export default function LeadershipDashboard() {
                   <div>
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white">Outline</h3>
-                        <p className="text-[10px] text-slate-455 mt-0.5">Drag to reorder · click to edit</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Outline</h3>
+                        <p className="text-[10px] text-slate-500 mt-0.5">Drag to reorder · click to edit</p>
                       </div>
                       <button 
                         onClick={() => triggerToast("Adding new outline section block")}
@@ -1547,7 +1598,7 @@ export default function LeadershipDashboard() {
                             <span className="text-xs font-bold text-slate-800 dark:text-white block">
                               {sec.num} &middot; {sec.name}
                             </span>
-                            <span className="text-[10px] text-slate-455 block font-mono">{sec.desc}</span>
+                            <span className="text-[10px] text-slate-500 block font-mono">{sec.desc}</span>
                           </div>
                           <span className="text-[9px] font-bold text-slate-400 font-mono">Section</span>
                         </div>
@@ -1560,8 +1611,8 @@ export default function LeadershipDashboard() {
                 <div className="lg:col-span-7 bg-[#f8fafc] dark:bg-[#0b0f19] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-200/50 dark:border-white/5 pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Preview</h3>
-                      <p className="text-[10px] text-slate-455 mt-0.5">Live · k &ge; 5 · CUI-labelled</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Preview</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Live · k &ge; 5 · CUI-labelled</p>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1579,7 +1630,7 @@ export default function LeadershipDashboard() {
                   </div>
 
                   {/* Rendered Live Briefing Text */}
-                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-5 md:p-6 shadow-sm text-xs font-sans text-slate-700 dark:text-slate-350 space-y-4 text-left leading-relaxed">
+                  <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-5 md:p-6 shadow-sm text-xs font-sans text-slate-700 dark:text-slate-300 space-y-4 text-left leading-relaxed">
                     <div>
                       <h4 className="text-sm font-black text-slate-900 dark:text-white">Mission readiness &middot; 28 Jul 2025</h4>
                       <p className="text-[10px] font-mono text-slate-400 mt-0.5">Aggregate view &middot; cohort k = 125 &middot; 12-month window &middot; confidence high</p>
@@ -1628,6 +1679,112 @@ export default function LeadershipDashboard() {
 
         </main>
       </div>
+
+      {viewingReport && (
+        <RecordDetailDialog
+          open={!!viewingReport}
+          onClose={() => setViewingReport(null)}
+          title={viewingReport.title}
+          subtitle={viewingReport.subtext}
+          fields={[
+            { label: "Type", value: viewingReport.type },
+            { label: "Scope", value: viewingReport.scope },
+            { label: "Period", value: viewingReport.period },
+            { label: "Generated", value: viewingReport.gen },
+            { label: "Status", value: viewingReport.status },
+          ]}
+          actions={
+            <>
+              <button
+                onClick={() => setViewingReport(null)}
+                type="button"
+                className="flex-1 py-2 px-4 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  triggerToast(`Exporting: ${viewingReport.title}`);
+                  setViewingReport(null);
+                }}
+                type="button"
+                className="flex-1 py-2 px-4 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Export PDF
+              </button>
+            </>
+          }
+        />
+      )}
+
+      {viewingTemplate && (
+        <RecordDetailDialog
+          open={!!viewingTemplate}
+          onClose={() => setViewingTemplate(null)}
+          title={viewingTemplate.title}
+          subtitle={viewingTemplate.desc}
+          fields={[
+            { label: "Category", value: viewingTemplate.cat },
+            { label: "Period", value: viewingTemplate.per },
+            { label: "Detail", value: viewingTemplate.sub },
+          ]}
+          actions={
+            <>
+              <button
+                onClick={() => setViewingTemplate(null)}
+                type="button"
+                className="flex-1 py-2 px-4 border border-slate-200 dark:border-white/10 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  triggerToast(`New draft report started from template: ${viewingTemplate.title}`);
+                  setViewingTemplate(null);
+                }}
+                type="button"
+                className="flex-1 py-2 px-4 bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] text-white rounded-xl text-xs font-semibold transition cursor-pointer"
+              >
+                Use template
+              </button>
+            </>
+          }
+        />
+      )}
+
+      {viewingAllReports && (
+        <RecordDetailDialog
+          open={viewingAllReports}
+          onClose={() => setViewingAllReports(false)}
+          title="All recent reports"
+          subtitle={`${RECENT_REPORTS.length} reports · aggregate · k ≥ 5`}
+          fields={[]}
+        >
+          <div className="divide-y divide-slate-100 dark:divide-white/5 border border-slate-100 dark:border-white/5 rounded-xl overflow-hidden">
+            {RECENT_REPORTS.map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setViewingAllReports(false);
+                  setViewingReport(item);
+                }}
+                className="w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-slate-900/60 transition cursor-pointer"
+              >
+                <span className="min-w-0">
+                  <span className="block text-xs font-bold text-slate-800 dark:text-white truncate">{item.title}</span>
+                  <span className="block text-[10px] text-slate-500 truncate">{item.period}</span>
+                </span>
+                <span className={`flex-shrink-0 text-[9px] font-bold uppercase ${
+                  item.color === "green" ? "text-emerald-500" : "text-amber-500"
+                }`}>
+                  {item.status}
+                </span>
+              </button>
+            ))}
+          </div>
+        </RecordDetailDialog>
+      )}
 
       {/* TOAST NOTIFICATION */}
       {showConfirmToast && (

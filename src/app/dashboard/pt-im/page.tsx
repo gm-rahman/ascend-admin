@@ -6,11 +6,16 @@ import { useAuthStore } from "@/store/auth-store";
 import { AscendLogo } from "@/components/ascend-logo";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/hooks/use-theme";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import {
   POPULATION_LEVELS,
   PRIVACY_STATES,
   FOLLOW_UP_STATUSES,
+  PERSON_TERM,
 } from "@/lib/terminology";
+import { PrivacyStateBadge, PRIVACY_STATE_REASON } from "@/components/privacy/privacy-state-badge";
+import { PopulationScopeBadge as PopulationBadge } from "@/components/privacy/population-scope-badge";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   Stethoscope,
   ChevronDown,
@@ -31,66 +36,21 @@ import {
   Search,
   ClipboardList,
   User,
-  Users,
-  Lock,
   MessageSquare,
   Sparkles,
   TrendingUp,
   FileText,
   Landmark,
   ArrowLeftRight,
-  ShieldOff,
-  ShieldQuestion,
   Dumbbell,
 } from "lucide-react";
 
 type TabType = "dashboard" | "injury" | "records" | "quarterly" | "scs" | "handoff";
 
-// Privacy state -> visual treatment. All 6 PRIVACY_STATES values must be
-// representable and must never render blank (a reason is always shown).
-const PRIVACY_STATE_STYLES: Record<string, { badge: string; icon: "shield" | "lock" | "question" | "off" }> = {
-  [PRIVACY_STATES.RESTRICTED]: { badge: "bg-[var(--brand-color)/10] text-[var(--brand-color)]", icon: "shield" },
-  [PRIVACY_STATES.AUTH_REQUIRED]: { badge: "bg-amber-500/10 text-amber-500", icon: "question" },
-  [PRIVACY_STATES.ACCESS_EXPIRED]: { badge: "bg-slate-200 dark:bg-slate-800 text-slate-500", icon: "lock" },
-  [PRIVACY_STATES.CONSENT_REQUIRED]: { badge: "bg-sky-500/10 text-sky-500", icon: "question" },
-  [PRIVACY_STATES.CONSENT_WITHDRAWN]: { badge: "bg-rose-500/10 text-rose-500", icon: "off" },
-  [PRIVACY_STATES.ACCESS_DENIED]: { badge: "bg-rose-500/10 text-rose-500", icon: "off" },
-};
-
-const PRIVACY_STATE_REASON: Record<string, string> = {
-  [PRIVACY_STATES.RESTRICTED]: "Minimum-necessary access only — PT/IM-scoped view.",
-  [PRIVACY_STATES.AUTH_REQUIRED]: "Authorizing clinician has not yet approved this request.",
-  [PRIVACY_STATES.ACCESS_EXPIRED]: "Prior authorization window closed — re-request required.",
-  [PRIVACY_STATES.CONSENT_REQUIRED]: "Soldier consent on file has not been captured for this record.",
-  [PRIVACY_STATES.CONSENT_WITHDRAWN]: "Soldier withdrew consent — record locked pending review.",
-  [PRIVACY_STATES.ACCESS_DENIED]: "Outside assigned caseload — access denied and logged.",
-};
-
-function PrivacyStateBadge({ state }: { state: string }) {
-  const style = PRIVACY_STATE_STYLES[state] ?? PRIVACY_STATE_STYLES[PRIVACY_STATES.RESTRICTED];
-  const Icon = style.icon === "shield" ? Shield : style.icon === "lock" ? Lock : style.icon === "off" ? ShieldOff : ShieldQuestion;
-  return (
-    <span className={`px-2 py-0.5 rounded text-[8px] font-bold font-sans uppercase inline-flex items-center gap-1 ${style.badge}`}>
-      <Icon className="size-2.5" />
-      {state}
-    </span>
-  );
-}
-
-// Population-level scope badge (Req 6) — every view must declare which
-// population level its data represents.
-function PopulationBadge({ level }: { level: string }) {
-  return (
-    <span className="px-2 py-0.5 rounded-full text-[8px] font-bold font-mono uppercase tracking-wider bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-white/5 inline-flex items-center gap-1">
-      <Users className="size-2.5" />
-      {level}
-    </span>
-  );
-}
-
 export default function PtImDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
   const { theme, toggleTheme } = useTheme();
   const [hasMounted, setHasMounted] = useState(false);
@@ -107,7 +67,7 @@ export default function PtImDashboard() {
   const [newClinicianNote, setNewClinicianNote] = useState("");
   const [clinicianNotes, setClinicianNotes] = useState([
     { author: "Capt Chen · PT/IM", time: "27 Jul 13:42", note: "SLR improved to 62°, pain stable at 4. Holding Phase 2, review Monday for Phase 3 onset. No red flags." },
-    { author: "Capt Chen · PT/IM", time: "24 Jul 09:10", note: "Patient reports morning stiffness easing. Lift restriction limit to 20 lb temporarily per SCS request — flagged for review." },
+    { author: "Capt Chen · PT/IM", time: "24 Jul 09:10", note: `${PERSON_TERM} reports morning stiffness easing. Lift restriction limit to 20 lb temporarily per SCS request — flagged for review.` },
     { author: "Capt Chen · PT/IM", time: "22 Jul 14:55", note: "Phase 1 complete. Initiation of Phase 2 — manual therapy + mobility. NSAIDs PRN continued." },
     { author: "SSgt Lin · SCS", time: "14 Jul 08:30", note: "Hosted from SFS daily check-in. L4 back pain onset during PT. Initiated Phase 1 plan." }
   ]);
@@ -153,11 +113,6 @@ export default function PtImDashboard() {
     }
   }, [isAuthenticated, hasMounted, router]);
 
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
-
   const handleLogout = () => {
     logout();
     router.push("/");
@@ -175,7 +130,7 @@ export default function PtImDashboard() {
           <div className="p-5 border-b border-slate-200 dark:border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="size-2 rounded-full bg-[var(--brand-color)]"></span>
-              <span className="text-sm font-black tracking-tight text-slate-855 dark:text-white uppercase font-sans">
+              <span className="text-sm font-black tracking-tight text-slate-900 dark:text-white uppercase font-sans">
                 PT/IM &middot; 23rd SFS
               </span>
             </div>
@@ -193,7 +148,7 @@ export default function PtImDashboard() {
             </span>
           </div>
           <div className="px-5 pb-2 -mt-1">
-            <span className="text-[8px] text-slate-400 dark:text-slate-550 font-mono">Non-clinical · reconditioning &amp; readiness</span>
+            <span className="text-[8px] text-slate-400 dark:text-slate-400 font-mono">Non-clinical · reconditioning &amp; readiness</span>
           </div>
 
           <nav className="px-3 space-y-1">
@@ -202,7 +157,7 @@ export default function PtImDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "dashboard" && !reviewingAirmanId && !viewingRecordId
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <TrendingUp className="size-4" />
@@ -213,7 +168,7 @@ export default function PtImDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 (activeTab === "injury" || reviewingAirmanId) && !viewingRecordId
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <Activity className="size-4" />
@@ -224,7 +179,7 @@ export default function PtImDashboard() {
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer text-left ${
                 activeTab === "scs"
                   ? "bg-[var(--brand-color)/10] text-[var(--brand-color)]"
-                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-55/40 dark:hover:bg-slate-900/60"
+                  : "text-slate-500 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50/40 dark:hover:bg-slate-900/60"
               }`}
             >
               <ArrowLeftRight className="size-4" />
@@ -296,15 +251,15 @@ export default function PtImDashboard() {
         {/* User Session Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-550 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+            onClick={() => router.push("/dashboard/profile")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-650 hover:bg-red-55/20 dark:hover:bg-red-950/20 transition cursor-pointer"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-500 hover:text-red-600 hover:bg-red-50/20 dark:hover:bg-red-950/20 transition cursor-pointer"
           >
             <LogOut className="size-4" />
             Log out
@@ -321,38 +276,47 @@ export default function PtImDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">PT/IM workspace</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">PT/IM workspace</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
-              <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
-                <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-[var(--brand-color)] ring-2 ring-white dark:ring-[#0e1628]"></span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer"
+              <IconButton
+                icon={Bell}
+                aria-label="Notifications"
+                className="relative p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
               >
-                {theme === "light" ? <Moon className="size-4.5" /> : <Sun className="size-4.5" />}
-              </button>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-[var(--brand-color)] ring-2 ring-white dark:ring-[#0e1628]"></span>
+              </IconButton>
+              <IconButton
+                icon={theme === "light" ? Moon : Sun}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleTheme}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
+              />
             </div>
 
             {/* Profile context */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-3 cursor-pointer"
+              type="button"
+            >
               <div className="text-right flex flex-col items-end">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">Capt Chen</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">PT/IM &middot; 23rd SFS</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">{currentUser?.name}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight font-sans">{currentUser?.unit}</span>
               </div>
               <div className="size-8 rounded-full bg-emerald-500 text-white font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
-                CC
+                {currentUser?.initials}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
         {/* 2. CUI ALERT STRIP */}
-        <div className="h-6 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-center px-6 text-[9px] font-mono tracking-wider text-slate-455 flex-shrink-0 select-none z-10 font-sans">
+        <div className="h-6 w-full bg-slate-900 border-b border-slate-800 flex items-center justify-center px-6 text-[9px] font-mono tracking-wider text-slate-500 flex-shrink-0 select-none z-10 font-sans">
           <span className="text-[var(--brand-color)] mr-2 font-black">•</span>
           {viewingRecordId && "CUI // OPSEC · Records · access reason required · access logged"}
           {!viewingRecordId && reviewingAirmanId && "CUI // OPSEC · PT/IM · case details · access logged"}
@@ -374,8 +338,8 @@ export default function PtImDashboard() {
                     <PopulationBadge level={POPULATION_LEVELS.INDIVIDUAL} />
                     <PrivacyStateBadge state={PRIVACY_STATES.RESTRICTED} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Medical History Performance Summary</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-450 mt-1 leading-relaxed">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Medical History Performance Summary</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
                     Human-approved · minimum-necessary · versioned · time-limited · named audiences. Each event logs to operator profile, SCS handoff chain, and Admin audit (7-yr retention).
                   </p>
                 </div>
@@ -383,7 +347,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setViewingRecordId(null)}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Back to records
                   </button>
@@ -422,8 +386,8 @@ export default function PtImDashboard() {
                 ].map((authItem, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-xl p-4 space-y-1">
                     <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider block">{authItem.label}</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block leading-tight">{authItem.val}</span>
-                    <span className="text-[9px] text-slate-455 block">{authItem.sub}</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block leading-tight">{authItem.val}</span>
+                    <span className="text-[9px] text-slate-500 block">{authItem.sub}</span>
                   </div>
                 ))}
               </div>
@@ -442,11 +406,11 @@ export default function PtImDashboard() {
                 </div>
               </div>
 
-              {/* Patient context banner card */}
+              {/* Airman context banner card */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs font-sans">
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Patient</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">{PERSON_TERM}</span>
                     <span className="font-bold text-slate-800 dark:text-white">J. Reyes</span>
                   </div>
                   <div className="space-y-0.5">
@@ -454,20 +418,16 @@ export default function PtImDashboard() {
                     <span className="font-bold text-slate-700 dark:text-slate-300">SrA · 23 SFS · Flight A</span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">DOB · Blood type</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">1998-04-12 · O+</span>
-                  </div>
-                  <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Last visit</span>
                     <span className="font-bold text-slate-700 dark:text-slate-300">27 Jul 2026 · PT/IM</span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Primary dx</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">M54.5 — low back pain</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Functional limitation</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">Lower back — restricted bending/lifting</span>
                   </div>
                   <div className="space-y-0.5">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Allergies</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-300">NKDA · latex mild</span>
+                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Full medical record</span>
+                    <span className="text-[10px] text-[var(--brand-color)] font-bold">See Records tab (Section B)</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Flight status</span>
@@ -489,7 +449,7 @@ export default function PtImDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-5">
                     
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">J. Reyes &mdash; record</h3>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">J. Reyes &mdash; record</h3>
                       <div className="flex gap-2">
                         {["Full", "Visit only", "Clearance"].map((recFilter, i) => (
                           <span key={i} className={`px-2 py-0.5 text-[8px] font-bold rounded-full uppercase cursor-pointer transition ${
@@ -515,7 +475,7 @@ export default function PtImDashboard() {
                           { title: "COVID-19 booster 2025-2026 formulation", date: "12 Nov 2025", badge: "Current", col: "green" }
                         ].map((imm, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-4 py-2.5">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{imm.title}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{imm.title}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-[10px] font-mono text-slate-400">{imm.date}</span>
                               <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
@@ -536,7 +496,7 @@ export default function PtImDashboard() {
                           { title: "NKDA \u2014 drugs No known drug allergies", date: "\u2014", badge: "None", col: "slate" }
                         ].map((all, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-4 py-2.5">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{all.title}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{all.title}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-[10px] font-mono text-slate-400">{all.date}</span>
                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded ${
@@ -560,7 +520,7 @@ export default function PtImDashboard() {
                           { title: "Multivitamin OTC · 1 daily", type: "Daily", badge: "OTC", col: "slate" }
                         ].map((med, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-4 py-2.5">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{med.title}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{med.title}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-[10px] font-mono text-slate-400">{med.type}</span>
                               <span className={`px-2 py-0.5 text-[8px] font-bold rounded ${
@@ -584,7 +544,7 @@ export default function PtImDashboard() {
                           { title: "URI eval Sick call · no duty restriction", date: "Jan 2025", badge: "Resolved", col: "green" }
                         ].map((inj, idx) => (
                           <div key={idx} className="flex items-center justify-between gap-4 py-2.5">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{inj.title}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{inj.title}</span>
                             <div className="flex items-center gap-3">
                               <span className="text-[10px] font-mono text-slate-400">{inj.date}</span>
                               <span className="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 text-[8px] font-bold rounded">
@@ -606,8 +566,8 @@ export default function PtImDashboard() {
                   {/* Visibility Level card */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Visibility level</h3>
-                      <p className="text-[9px] text-slate-455">Restrict further before export.</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Visibility level</h3>
+                      <p className="text-[9px] text-slate-500">Restrict further before export.</p>
                     </div>
 
                     <div className="space-y-3 font-sans text-xs">
@@ -623,7 +583,7 @@ export default function PtImDashboard() {
                           className={`p-3.5 rounded-xl border text-left cursor-pointer transition ${
                             visRow.active 
                               ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]" 
-                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-350"
+                              : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 hover:border-slate-300"
                           }`}
                         >
                           <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight">{visRow.label}</h4>
@@ -636,8 +596,8 @@ export default function PtImDashboard() {
                   {/* Downloads log */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Downloads log</h3>
-                      <p className="text-[9px] text-slate-455">Every export is recorded.</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Downloads log</h3>
+                      <p className="text-[9px] text-slate-500">Every export is recorded.</p>
                     </div>
                     <div className="space-y-3 font-mono text-[10px]">
                       {[
@@ -665,19 +625,19 @@ export default function PtImDashboard() {
                     <div className="flex flex-col gap-2">
                       <button 
                         onClick={() => { setReviewingAirmanId("J. Reyes"); setViewingRecordId(null); triggerToast("Opening clinician SOAP note entries"); }}
-                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition cursor-pointer"
+                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                       >
                         Add visit note
                       </button>
                       <button 
                         onClick={() => triggerToast("Duty restriction clearance status deck loaded")}
-                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition cursor-pointer"
+                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                       >
                         Update clearance
                       </button>
                       <button 
                         onClick={() => triggerToast("IDMT handoff review request escalated")}
-                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-350 transition cursor-pointer"
+                        className="w-full text-center py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 transition cursor-pointer"
                       >
                         Flag for IDMT review
                       </button>
@@ -717,7 +677,7 @@ export default function PtImDashboard() {
                 <PopulationBadge level={POPULATION_LEVELS.INDIVIDUAL} />
               </div>
 
-              {/* Patient header card */}
+              {/* Airman header card */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                   <div className="space-y-1">
@@ -727,7 +687,7 @@ export default function PtImDashboard() {
                         L4
                       </span>
                     </div>
-                    <p className="text-xs text-slate-550 dark:text-slate-450 leading-relaxed font-sans">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-sans">
                       SrA &middot; 23 SFS &middot; Flight A &middot; DOB 1998-04-12 &middot; 14 days since onset
                     </p>
                   </div>
@@ -736,7 +696,7 @@ export default function PtImDashboard() {
                     <span className="px-2.5 py-0.5 bg-rose-500/15 text-rose-500 text-[9px] font-bold rounded-full uppercase">Post-OFT</span>
                     <span className="px-2.5 py-0.5 bg-[var(--brand-color)/15] text-[var(--brand-color)] text-[9px] font-bold rounded-full uppercase">Limited duty</span>
                     <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-400 text-[9px] font-bold rounded-full uppercase">Audit - 4 views today</span>
-                    <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-450 text-[9px] font-bold rounded-full uppercase">M54.5 - lumbar sub-acute</span>
+                    <span className="px-2.5 py-0.5 bg-slate-100 dark:bg-slate-900 text-slate-500 text-[9px] font-bold rounded-full uppercase">Lumbar sub-acute</span>
                   </div>
                 </div>
 
@@ -744,65 +704,65 @@ export default function PtImDashboard() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-4 text-xs font-sans">
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Source / Date</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350">SCS daily check-in</span>
-                    <span className="text-[10px] text-slate-455 font-mono block">14 Jul 2026 - 08:30</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">SCS daily check-in</span>
+                    <span className="text-[10px] text-slate-500 font-mono block">14 Jul 2026 - 08:30</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Priority</span>
                     <span className="font-bold text-rose-500 inline-flex items-center gap-1">
                       <span className="size-1.5 rounded-full bg-rose-500"></span> High
                     </span>
-                    <span className="text-[10px] text-slate-455 block">L4 lower back pain - subacute</span>
+                    <span className="text-[10px] text-slate-500 block">L4 lower back pain - subacute</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Functional Status</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">Restricted - non-deployable</span>
-                    <span className="text-[10px] text-slate-455 block">No heavy lift · no ruck &gt; 25 lb</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Restricted - non-deployable</span>
+                    <span className="text-[10px] text-slate-500 block">No heavy lift · no ruck &gt; 25 lb</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Severity</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">L4</span>
-                    <span className="text-[10px] text-slate-455 block">M54.5 &middot; lumbar sub-acute</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">L4</span>
+                    <span className="text-[10px] text-slate-500 block">Lumbar sub-acute</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Assigned PT/IM</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">Capt Chen</span>
-                    <span className="text-[10px] text-slate-455 block">Primary clinician</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Capt Chen</span>
+                    <span className="text-[10px] text-slate-500 block">Primary clinician</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Assigned SCS</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">SSgt Lin</span>
-                    <span className="text-[10px] text-slate-455 block">Reconditioning partner</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">SSgt Lin</span>
+                    <span className="text-[10px] text-slate-500 block">Reconditioning partner</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Follow-up dates</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">31 Jul - 7 Aug - 14 Aug</span>
-                    <span className="text-[10px] text-slate-455 block font-mono">3 sessions scheduled</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">31 Jul - 7 Aug - 14 Aug</span>
+                    <span className="text-[10px] text-slate-500 block font-mono">3 sessions scheduled</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">RTP status</span>
-                    <span className="font-bold text-slate-700 dark:text-slate-350 block">Phase 2 active</span>
-                    <span className="text-[10px] text-slate-455 block">Phase 3 pending sign-off</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300 block">Phase 2 active</span>
+                    <span className="text-[10px] text-slate-500 block">Phase 3 pending sign-off</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Linked action</span>
                     <span className="font-bold text-[var(--brand-color)] block">Rehab Block 2</span>
-                    <span className="text-[10px] text-slate-455 block">SCS + PT/IM · 22 Jul \u2014 8 Aug</span>
+                    <span className="text-[10px] text-slate-500 block">SCS + PT/IM · 22 Jul \u2014 8 Aug</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Authorized records</span>
-                    <span className="font-bold text-[var(--brand-color)] block cursor-pointer hover:underline" onClick={() => setViewingRecordId("J. Reyes")}>Medical History Summary</span>
-                    <span className="text-[10px] text-slate-455 block">PT/IM-approved · restricted</span>
+                    <button type="button" className="font-bold text-[var(--brand-color)] block cursor-pointer hover:underline" onClick={() => setViewingRecordId("J. Reyes")}>Medical History Summary</button>
+                    <span className="text-[10px] text-slate-500 block">PT/IM-approved · restricted</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Closure status</span>
                     <span className="font-bold text-slate-700 dark:text-slate-300 block">Open</span>
-                    <span className="text-[10px] text-slate-455 block">Anticipated closure 21 Aug</span>
+                    <span className="text-[10px] text-slate-500 block">Anticipated closure 21 Aug</span>
                   </div>
                   <div className="space-y-0.5">
                     <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">IDMT export</span>
                     <span className="font-bold text-slate-700 dark:text-slate-300 block">Read-only handoff</span>
-                    <span className="text-[10px] text-slate-455 block">Last sent 26 Jul · audit-logged</span>
+                    <span className="text-[10px] text-slate-500 block">Last sent 26 Jul · audit-logged</span>
                   </div>
                 </div>
               </div>
@@ -835,7 +795,7 @@ export default function PtImDashboard() {
                     className={`cursor-pointer pb-1 border-b-2 transition ${
                       st === "Overview" 
                         ? "border-[var(--brand-color)] text-[var(--brand-color)]" 
-                        : "border-transparent text-slate-400 hover:text-slate-655 dark:hover:text-white"
+                        : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-white"
                     }`}
                   >
                     {st}
@@ -860,7 +820,7 @@ export default function PtImDashboard() {
                       <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-2">
                         <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block font-sans">{st.name}</span>
                         <h4 className="text-2xl font-black text-slate-800 dark:text-white leading-none">{st.val}</h4>
-                        <span className={`text-[10px] block font-mono ${st.green ? "text-emerald-500" : "text-slate-455"}`}>{st.sub}</span>
+                        <span className={`text-[10px] block font-mono ${st.green ? "text-emerald-500" : "text-slate-500"}`}>{st.sub}</span>
                       </div>
                     ))}
                   </div>
@@ -872,8 +832,8 @@ export default function PtImDashboard() {
                     <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-2">
                         <div>
-                          <h4 className="text-xs font-bold text-slate-855 dark:text-white">ROM - straight-leg raise (right)</h4>
-                          <p className="text-[9px] text-slate-455">5 sessions over 14 days · degrees, pain-free end-range</p>
+                          <h4 className="text-xs font-bold text-slate-900 dark:text-white">ROM - straight-leg raise (right)</h4>
+                          <p className="text-[9px] text-slate-500">5 sessions over 14 days · degrees, pain-free end-range</p>
                         </div>
                         <div className="flex gap-1.5 font-mono text-[9px]">
                           {["SLR", "All", "Flex"].map((btn) => (
@@ -925,7 +885,7 @@ export default function PtImDashboard() {
                         <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
 
                         {/* Legend Row */}
-                        <div className="flex gap-4 pt-3 text-[9px] font-bold text-slate-455 font-sans justify-start select-none">
+                        <div className="flex gap-4 pt-3 text-[9px] font-bold text-slate-500 font-sans justify-start select-none">
                           <span className="inline-flex items-center gap-1.5">
                             <span className="size-1.5 bg-blue-500 rounded-full"></span>
                             Measured &mdash; 5 sessions
@@ -941,8 +901,8 @@ export default function PtImDashboard() {
                     {/* Pain Trend */}
                     <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                       <div className="border-b border-slate-100 dark:border-white/5 pb-3">
-                        <h4 className="text-xs font-bold text-slate-855 dark:text-white">Pain trend (14 days)</h4>
-                        <p className="text-[9px] text-slate-455">Self-reported 0-10 &middot; trend down</p>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white">Pain trend (14 days)</h4>
+                        <p className="text-[9px] text-slate-500">Self-reported 0-10 &middot; trend down</p>
                       </div>
 
                       {/* Vertical Pain trend chart matching Figma layout */}
@@ -975,7 +935,7 @@ export default function PtImDashboard() {
                         <div className="w-full h-px bg-slate-200 dark:bg-white/10" />
 
                         {/* Bottom Spacer/Text */}
-                        <div className="pt-3 text-[9px] font-bold text-slate-455 font-sans text-left select-none">
+                        <div className="pt-3 text-[9px] font-bold text-slate-500 font-sans text-left select-none">
                           Self-reported pain index &middot; 14-day history
                         </div>
                       </div>
@@ -987,12 +947,12 @@ export default function PtImDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white">Treatment plan timeline</h3>
-                        <p className="text-[10px] text-slate-455">2 sessions/week &middot; manual + mobility &middot; 5-week course</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">Treatment plan timeline</h3>
+                        <p className="text-[10px] text-slate-500">2 sessions/week &middot; manual + mobility &middot; 5-week course</p>
                       </div>
                       <button 
                         onClick={() => triggerToast("Edit treatment plan timeline wizard opened")}
-                        className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 transition cursor-pointer"
+                        className="px-2.5 py-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition cursor-pointer"
                       >
                         Edit plan
                       </button>
@@ -1008,7 +968,7 @@ export default function PtImDashboard() {
                         <div key={idx} className="flex gap-3">
                           <div className="flex flex-col items-center">
                             <div className={`size-5 rounded-full flex items-center justify-center font-bold text-[10px] text-white ${
-                              step.active ? "bg-[var(--brand-color)]" : step.done ? "bg-emerald-500" : "bg-slate-250 dark:bg-slate-850"
+                              step.active ? "bg-[var(--brand-color)]" : step.done ? "bg-emerald-500" : "bg-slate-200 dark:bg-slate-800"
                             }`}>
                               {idx + 1}
                             </div>
@@ -1030,8 +990,8 @@ export default function PtImDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Clinician notes</h3>
-                        <p className="text-[10px] text-slate-455">4 entries &middot; most recent first.</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Clinician notes</h3>
+                        <p className="text-[10px] text-slate-500">4 entries &middot; most recent first.</p>
                       </div>
                       <button 
                         onClick={handleAddClinicianNote}
@@ -1045,6 +1005,7 @@ export default function PtImDashboard() {
                       <div className="flex gap-3">
                         <input
                           type="text"
+                          aria-label="Type clinical session note"
                           placeholder="Type clinical session note..."
                           value={newClinicianNote}
                           onChange={(e) => setNewClinicianNote(e.target.value)}
@@ -1056,10 +1017,10 @@ export default function PtImDashboard() {
                       {clinicianNotes.map((noteRow, idx) => (
                         <div key={idx} className="p-3.5 bg-[#f8fafc] dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1.5 text-left">
                           <div className="flex items-center justify-between gap-4 font-mono text-[9px]">
-                            <span className="font-bold text-slate-700 dark:text-slate-350">{noteRow.author}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300">{noteRow.author}</span>
                             <span className="text-slate-400">{noteRow.time}</span>
                           </div>
-                          <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed font-sans">{noteRow.note}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">{noteRow.note}</p>
                         </div>
                       ))}
                     </div>
@@ -1073,8 +1034,8 @@ export default function PtImDashboard() {
                   {/* Current ROM snapshot progress */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Current ROM snapshot</h3>
-                      <p className="text-[9px] text-slate-455">vs target end-range</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Current ROM snapshot</h3>
+                      <p className="text-[9px] text-slate-500">vs target end-range</p>
                     </div>
 
                     <div className="space-y-3 font-sans text-xs">
@@ -1100,8 +1061,8 @@ export default function PtImDashboard() {
                   {/* Avoid until cleared warnings */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Avoid until cleared</h3>
-                      <p className="text-[9px] text-slate-455">Phase 2 restrictions</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Avoid until cleared</h3>
+                      <p className="text-[9px] text-slate-500">Phase 2 restrictions</p>
                     </div>
 
                     <div className="space-y-3">
@@ -1124,8 +1085,8 @@ export default function PtImDashboard() {
                   {/* Access log */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Access log</h3>
-                      <p className="text-[9px] text-slate-455">This case · last 7 days.</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Access log</h3>
+                      <p className="text-[9px] text-slate-500">This case · last 7 days.</p>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -1147,8 +1108,8 @@ export default function PtImDashboard() {
                             { time: "24 Jul 09:10", actor: "Capt Chen", act: "Edited note", reason: "Ruck limit review" },
                             { time: "14 Jul 08:30", actor: "SSgt Lin", act: "Routed to PT/IM", reason: "L4 back pain" }
                           ].map((accessRow, idx) => (
-                            <tr key={idx} className="hover:bg-slate-55/20 transition">
-                              <td className="py-2 text-slate-550">{accessRow.time}</td>
+                            <tr key={idx} className="hover:bg-slate-50/20 transition">
+                              <td className="py-2 text-slate-500">{accessRow.time}</td>
                               <td className="py-2 text-slate-800 dark:text-white font-sans font-bold">{accessRow.actor}</td>
                               <td className="py-2 text-slate-500 font-sans">{accessRow.act}</td>
                               <td className="py-2 text-right text-slate-500 font-sans">{accessRow.reason}</td>
@@ -1174,7 +1135,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => { setViewingRecordId("J. Reyes"); setReviewingAirmanId(null); triggerToast("Opening historical Performance summaries records"); }}
-                    className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-350 rounded-xl text-xs font-bold transition hover:bg-slate-50 cursor-pointer"
+                    className="px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition hover:bg-slate-50 cursor-pointer"
                   >
                     Open record
                   </button>
@@ -1206,8 +1167,8 @@ export default function PtImDashboard() {
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT</p>
                     <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Today&apos;s PT/IM queue</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Today&apos;s PT/IM queue</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     12 active injuries &middot; 9 follow-ups due &middot; 3 L4+ open cases. Reviewed by Capt Chen.
                   </p>
                 </div>
@@ -1215,7 +1176,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setActiveTab("records")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
@@ -1247,14 +1208,14 @@ export default function PtImDashboard() {
                       onClick={() => { setActiveTab(card.tab); triggerToast(card.toast); }}
                       className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left hover:border-[var(--brand-color)/40] hover:shadow-md transition cursor-pointer"
                     >
-                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider font-sans">{card.name}</span>
                       <div className="flex items-baseline gap-2">
                         <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       </div>
                       <p className={`text-[10px] font-mono ${
                         card.icon === "red" ? "text-rose-500" :
                         card.icon === "orange" ? "text-amber-500" :
-                        card.icon === "teal" ? "text-[var(--brand-color)]" : "text-slate-450"
+                        card.icon === "teal" ? "text-[var(--brand-color)]" : "text-slate-500"
                       }`}>{card.desc}</p>
                     </button>
                   ))}
@@ -1284,8 +1245,8 @@ export default function PtImDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Injury queue</h3>
-                    <p className="text-[10px] text-slate-455">12 active · sorted by priority then functional status. Click a row to open the case.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Injury queue</h3>
+                    <p className="text-[10px] text-slate-500">12 active · sorted by priority then functional status. Click a row to open the case.</p>
                   </div>
 
                   <div className="flex gap-2">
@@ -1295,7 +1256,7 @@ export default function PtImDashboard() {
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           fPill === "All"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
                       >
                         {fPill}
@@ -1320,11 +1281,11 @@ export default function PtImDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", dx: "M54.5 · sub-acute", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red", isJ: true },
-                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", dx: "S93.4 · grade II", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green", isJ: false },
-                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", dx: "S76.1 · MCL", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange", isJ: false },
-                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", dx: "M75.4 · R shoulder", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate", isJ: false },
-                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", dx: "S76.3 · grade I", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange", isJ: false }
+                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red", isJ: true },
+                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green", isJ: false },
+                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange", isJ: false },
+                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate", isJ: false },
+                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange", isJ: false }
                       ].map((row, idx) => (
                         <tr 
                           key={idx} 
@@ -1332,15 +1293,15 @@ export default function PtImDashboard() {
                             setReviewingAirmanId(row.code);
                             triggerToast(`Selected case: ${row.code}`);
                           }}
-                          className="hover:bg-slate-55/20 transition cursor-pointer"
+                          className="hover:bg-slate-50/20 transition cursor-pointer"
                         >
                           <td className="py-3.5">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
-                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
                           </td>
                           <td className="py-3.5">
                             <span className="font-bold text-slate-700 dark:text-slate-300 block">{row.type}</span>
-                            <span className="text-[10px] text-slate-455 font-mono block mt-0.5">{row.dx}</span>
+                            <span className="text-[10px] text-slate-500 font-mono block mt-0.5">{row.limitation}</span>
                           </td>
                           <td className="py-3.5">
                             <span className={`inline-flex items-center gap-1.5 font-bold ${
@@ -1354,7 +1315,7 @@ export default function PtImDashboard() {
                               {row.prio}
                             </span>
                           </td>
-                          <td className="py-3.5 text-slate-655 dark:text-slate-350">{row.status}</td>
+                          <td className="py-3.5 text-slate-700 dark:text-slate-300">{row.status}</td>
                           <td className="py-3.5 font-bold">
                             <span className={
                               row.sevCol === "red" ? "text-rose-500" :
@@ -1391,8 +1352,8 @@ export default function PtImDashboard() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono">
-                  <span className="text-slate-455">Showing 5 of 12</span>
-                  <span className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>View all &rarr;</span>
+                  <span className="text-slate-500">Showing 5 of 12</span>
+                  <button type="button" className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>View all &rarr;</button>
                 </div>
               </div>
 
@@ -1404,8 +1365,8 @@ export default function PtImDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div className="text-left">
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Trending injury types</h3>
-                      <p className="text-[9px] text-slate-455">Last 30 days &middot; by ICD-10 category &middot; k&ge;5 enforced</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Trending injury types</h3>
+                      <p className="text-[9px] text-slate-500">Last 30 days &middot; by ICD-10 category &middot; k&ge;5 enforced</p>
                     </div>
 
                     <div className="flex gap-1.5 font-mono text-[9px]">
@@ -1466,7 +1427,7 @@ export default function PtImDashboard() {
                     </div>
 
                     {/* Legend Row */}
-                    <div className="flex flex-wrap gap-4 pt-3 text-[9px] font-bold text-slate-455 justify-start select-none">
+                    <div className="flex flex-wrap gap-4 pt-3 text-[9px] font-bold text-slate-500 justify-start select-none">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="size-1.5 bg-blue-500 rounded-full"></span>
                         Lumbar &mdash; leading, +2 wk/wk
@@ -1489,8 +1450,8 @@ export default function PtImDashboard() {
                   {/* OFT Clearance widget */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4 flex-1">
                     <div>
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">OFT clearance due</h3>
-                      <p className="text-[9px] text-slate-455">9 due before 1 Aug &middot; 3 cleared this week</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">OFT clearance due</h3>
+                      <p className="text-[9px] text-slate-500">9 due before 1 Aug &middot; 3 cleared this week</p>
                     </div>
 
                     <div className="space-y-3 font-sans text-xs">
@@ -1503,7 +1464,7 @@ export default function PtImDashboard() {
                         <div key={idx} className="flex items-center justify-between gap-4 border-b border-slate-50 dark:border-white/5 pb-2 last:border-0 last:pb-0">
                           <div className="text-left space-y-0.5">
                             <span className="font-bold text-slate-800 dark:text-white">{oftItem.name}</span>
-                            <span className="text-[9px] text-slate-455 block">{oftItem.detail}</span>
+                            <span className="text-[9px] text-slate-500 block">{oftItem.detail}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 text-[8px] font-bold rounded font-mono uppercase">
@@ -1511,7 +1472,7 @@ export default function PtImDashboard() {
                             </span>
                             <button 
                               onClick={() => { setReviewingAirmanId(oftItem.name === "T. Cho" ? "T. Cho" : "J. Reyes"); triggerToast(`Reviewing clearance details`); }}
-                              className="px-2.5 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-50 text-[10px] font-bold text-slate-700 dark:text-slate-350 rounded-lg transition"
+                              className="px-2.5 py-1 border border-slate-200 dark:border-white/10 hover:bg-slate-50 text-[10px] font-bold text-slate-700 dark:text-slate-300 rounded-lg transition"
                             >
                               Open
                             </button>
@@ -1525,12 +1486,12 @@ export default function PtImDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4 flex-1">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-2">
                       <div>
-                        <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recent handoffs</h3>
-                        <p className="text-[9px] text-slate-455">Read-receipted IDMT channel</p>
+                        <h3 className="text-xs font-bold text-slate-900 dark:text-white">Recent handoffs</h3>
+                        <p className="text-[9px] text-slate-500">Read-receipted IDMT channel</p>
                       </div>
-                      <span className="text-[var(--brand-color)] hover:underline text-[10px] font-bold cursor-pointer font-mono" onClick={() => setActiveTab("handoff")}>
+                      <button type="button" className="text-[var(--brand-color)] hover:underline text-[10px] font-bold cursor-pointer font-mono" onClick={() => setActiveTab("handoff")}>
                         All &rarr;
-                      </span>
+                      </button>
                     </div>
 
                     <div className="space-y-3.5 font-sans text-xs">
@@ -1546,7 +1507,7 @@ export default function PtImDashboard() {
                           </div>
                           <div className="text-left space-y-0.5">
                             <div className="flex items-baseline justify-between gap-4">
-                              <span className="font-bold text-slate-700 dark:text-slate-350">{ho.title}</span>
+                              <span className="font-bold text-slate-700 dark:text-slate-300">{ho.title}</span>
                               <span className="text-[8px] font-mono text-slate-400">{ho.time}</span>
                             </div>
                             <p className="text-[10px] text-slate-500 truncate w-64 leading-normal">{ho.txt}</p>
@@ -1579,8 +1540,8 @@ export default function PtImDashboard() {
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT · INJURY QUEUE</p>
                     <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Injury queue</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Injury queue</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     12 active cases across 23 SFS, sorted by priority then functional status. Opening a case is audit logged.
                   </p>
                 </div>
@@ -1588,7 +1549,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("records")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
@@ -1610,13 +1571,13 @@ export default function PtImDashboard() {
                   { name: "Quarterly review items", count: "4", desc: "2 L4+ · 1 trended cohort", icon: "slate" }
                 ].map((card, i) => (
                   <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider font-sans">{card.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
                         card.icon === "teal" ? "text-[var(--brand-color)]" :
-                        card.icon === "red" ? "text-rose-500" : "text-slate-455"
+                        card.icon === "red" ? "text-rose-500" : "text-slate-500"
                       }`}>
                         {card.desc.split(" · ")[0]}
                       </span>
@@ -1631,8 +1592,8 @@ export default function PtImDashboard() {
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">All active cases &middot; 12</h3>
-                    <p className="text-[10px] text-slate-455">Sorted by priority then functional status. Click a row to open the case.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">All active cases &middot; 12</h3>
+                    <p className="text-[10px] text-slate-500">Sorted by priority then functional status. Click a row to open the case.</p>
                   </div>
 
                   <div className="flex gap-2">
@@ -1642,7 +1603,7 @@ export default function PtImDashboard() {
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           fPill === "All"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
                       >
                         {fPill}
@@ -1667,16 +1628,16 @@ export default function PtImDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5">
                       {[
-                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", dx: "M54.5 · sub-acute", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red" },
-                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", dx: "S93.4 · grade II", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green" },
-                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", dx: "S76.1 · MCL", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange" },
-                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", dx: "M75.4 · R shoulder", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" },
-                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", dx: "S76.3 · grade I", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange" },
-                        { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", type: "Lumbar strain", dx: "M54.5 · acute", prio: "Low", prioCol: "teal", status: "Limited duty · no lift", sev: "L2", sevCol: "orange", days: "2", oft: "Pre-OFT eval", oftCol: "teal" },
-                        { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", type: "Lateral ankle", dx: "S93.4 · grade I", prio: "Low", prioCol: "teal", status: "Full duty · brace", sev: "L1", sevCol: "blue", days: "1", oft: "No OFT", oftCol: "slate" },
-                        { code: "E. Vega", details: "SrA · 23 SFS · Flight C", type: "Wrist sprain", dx: "S63.5 · L wrist", prio: "Low", prioCol: "teal", status: "Modified · no pushup", sev: "L2", sevCol: "orange", days: "4", oft: "No OFT", oftCol: "slate" },
-                        { code: "K. Park", details: "A1C · 23 SFS · Flight B", type: "Achilles tendinitis", dx: "M76.6 · L", prio: "Medium", prioCol: "orange", status: "Modified · run cap", sev: "L2", sevCol: "orange", days: "6", oft: "Due 5 Aug", oftCol: "orange" },
-                        { code: "L. Soto", details: "SrA · 23 SFS · Flight C", type: "Calf strain", dx: "S86.1 · grade I", prio: "Low", prioCol: "teal", status: "Full duty · pace", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" }
+                        { code: "J. Reyes", details: "SrA · 23 SFS · Flight A", type: "Lower back pain", limitation: "Sub-acute · restricted bending/lifting", prio: "High", prioCol: "red", status: "Restricted - non-deployable", sev: "L4", sevCol: "red", days: "14", oft: "Hold", oftCol: "red" },
+                        { code: "D. Mendez", details: "SSgt · 23 SFS · Flight B", type: "Ankle sprain", limitation: "No running", prio: "Medium", prioCol: "orange", status: "Limited duty · no run", sev: "L2", sevCol: "orange", days: "5", oft: "Cleared 1 Aug", oftCol: "green" },
+                        { code: "T. Cho", details: "A1C · 23 SFS · Flight A", type: "Knee strain", limitation: "Load capped", prio: "Medium", prioCol: "orange", status: "Modified - load capped", sev: "L3", sevCol: "orange", days: "9", oft: "Due 1 Aug", oftCol: "orange" },
+                        { code: "B. Ndiaye", details: "A1C · 23 SFS · Flight C", type: "Shoulder impingement", limitation: "No overhead", prio: "Low", prioCol: "teal", status: "Full duty · no overhead", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" },
+                        { code: "R. Patel", details: "SrA · 23 SFS · Flight B", type: "Hamstring strain", limitation: "Sprint capped", prio: "Medium", prioCol: "orange", status: "Modified - sprint cap", sev: "L3", sevCol: "orange", days: "7", oft: "Pending sign-off", oftCol: "orange" },
+                        { code: "S. Hayes", details: "SSgt · 23 SFS · Flight D", type: "Lumbar strain", limitation: "No lifting", prio: "Low", prioCol: "teal", status: "Limited duty · no lift", sev: "L2", sevCol: "orange", days: "2", oft: "Pre-OFT eval", oftCol: "teal" },
+                        { code: "R. Brooks", details: "Amn · 23 SFS · Flight A", type: "Lateral ankle", limitation: "Braced", prio: "Low", prioCol: "teal", status: "Full duty · brace", sev: "L1", sevCol: "blue", days: "1", oft: "No OFT", oftCol: "slate" },
+                        { code: "E. Vega", details: "SrA · 23 SFS · Flight C", type: "Wrist sprain", limitation: "No pushup", prio: "Low", prioCol: "teal", status: "Modified · no pushup", sev: "L2", sevCol: "orange", days: "4", oft: "No OFT", oftCol: "slate" },
+                        { code: "K. Park", details: "A1C · 23 SFS · Flight B", type: "Achilles tendinitis", limitation: "Run capped", prio: "Medium", prioCol: "orange", status: "Modified · run cap", sev: "L2", sevCol: "orange", days: "6", oft: "Due 5 Aug", oftCol: "orange" },
+                        { code: "L. Soto", details: "SrA · 23 SFS · Flight C", type: "Calf strain", limitation: "Pace capped", prio: "Low", prioCol: "teal", status: "Full duty · pace", sev: "L1", sevCol: "blue", days: "3", oft: "No OFT", oftCol: "slate" }
                       ].map((row, idx) => (
                         <tr 
                           key={idx} 
@@ -1684,15 +1645,15 @@ export default function PtImDashboard() {
                             setReviewingAirmanId(row.code);
                             triggerToast(`Selected case: ${row.code}`);
                           }}
-                          className="hover:bg-slate-55/20 transition cursor-pointer"
+                          className="hover:bg-slate-50/20 transition cursor-pointer"
                         >
                           <td className="py-3.5">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
-                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
                           </td>
                           <td className="py-3.5">
-                            <span className="font-bold text-slate-700 dark:text-slate-350 block">{row.type}</span>
-                            <span className="text-[10px] text-slate-455 font-mono block mt-0.5">{row.dx}</span>
+                            <span className="font-bold text-slate-700 dark:text-slate-300 block">{row.type}</span>
+                            <span className="text-[10px] text-slate-500 font-mono block mt-0.5">{row.limitation}</span>
                           </td>
                           <td className="py-3.5">
                             <span className={`inline-flex items-center gap-1.5 font-bold ${
@@ -1706,7 +1667,7 @@ export default function PtImDashboard() {
                               {row.prio}
                             </span>
                           </td>
-                          <td className="py-3.5 text-slate-655 dark:text-slate-350">{row.status}</td>
+                          <td className="py-3.5 text-slate-700 dark:text-slate-300">{row.status}</td>
                           <td className="py-3.5 font-bold">
                             <span className={
                               row.sevCol === "red" ? "text-rose-500" :
@@ -1745,7 +1706,7 @@ export default function PtImDashboard() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/5">
-                  <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 12</span>
+                  <span className="text-[10px] text-slate-500 font-mono">1&mdash;10 of 12</span>
                   <div className="flex items-center gap-1">
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[var(--brand-color)] font-bold rounded bg-[var(--brand-color)/10]">1</button>
@@ -1775,8 +1736,8 @@ export default function PtImDashboard() {
                     <p className="text-[10px] font-bold text-amber-700 dark:text-amber-500 tracking-wider">PT/IM · CLINICAL / REHABILITATION</p>
                     <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Medical records</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-450 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Medical records</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Records you are authorized to open, scoped to your PT/IM caseload. Opening a record requires a logged access reason and is minimum-necessary by default.
                   </p>
                 </div>
@@ -1784,7 +1745,7 @@ export default function PtImDashboard() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setActiveTab("injury")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Injury queue
                   </button>
@@ -1792,7 +1753,7 @@ export default function PtImDashboard() {
               </div>
 
               {/* Privacy block */}
-              <div className="bg-[#e0f2fe]/40 dark:bg-sky-955/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
+              <div className="bg-[#e0f2fe]/40 dark:bg-sky-950/5 border border-[#bae6fd]/40 dark:border-white/5 rounded-2xl p-5 text-left flex gap-3 text-xs leading-relaxed text-slate-800 dark:text-slate-200">
                 <Shield className="size-5 text-[#3b82f6] flex-shrink-0 mt-0.5" />
                 <div>
                   <span className="font-extrabold font-sans text-xs">Clinical / Rehabilitation &middot; PT/IM scope only</span>
@@ -1807,8 +1768,8 @@ export default function PtImDashboard() {
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Authorized records &middot; 12</h3>
-                    <p className="text-[10px] text-slate-455">Sorted by last encounter &middot; every open is audit logged</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Authorized records &middot; 12</h3>
+                    <p className="text-[10px] text-slate-500">Sorted by last encounter &middot; every open is audit logged</p>
                   </div>
 
                   <div className="flex gap-2">
@@ -1818,7 +1779,7 @@ export default function PtImDashboard() {
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           recFilter === "My caseload"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
                       >
                         {recFilter}
@@ -1855,21 +1816,21 @@ export default function PtImDashboard() {
                       ].map((row, idx) => {
                         const openable = row.privacy === PRIVACY_STATES.RESTRICTED;
                         return (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
-                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
                           </td>
                           <td className="py-3 text-slate-700 dark:text-slate-300 font-mono">{row.enc}</td>
                           <td className="py-3 text-slate-500 font-medium">{row.type}</td>
-                          <td className="py-3 font-mono text-slate-655 dark:text-slate-350">{row.case}</td>
+                          <td className="py-3 font-mono text-slate-700 dark:text-slate-300">{row.case}</td>
                           <td className="py-3">
                             <div className="flex flex-col gap-0.5">
                               <PrivacyStateBadge state={row.privacy} />
                               <span className="text-[8px] text-slate-400 leading-tight max-w-[160px]">{PRIVACY_STATE_REASON[row.privacy]}</span>
                             </div>
                           </td>
-                          <td className="py-3 text-slate-550 font-mono">{row.exp}</td>
+                          <td className="py-3 text-slate-500 font-mono">{row.exp}</td>
                           <td className="py-3 text-right">
                             <button
                               onClick={() => {
@@ -1898,7 +1859,7 @@ export default function PtImDashboard() {
 
                 {/* Pagination */}
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-white/5">
-                  <span className="text-[10px] text-slate-455 font-mono">1&mdash;10 of 12</span>
+                  <span className="text-[10px] text-slate-500 font-mono">1&mdash;10 of 12</span>
                   <div className="flex items-center gap-1">
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/5 text-[10px] text-slate-400 rounded hover:bg-slate-50">&lt;</button>
                     <button className="p-1 px-2 border border-slate-200 dark:border-white/10 text-[10px] text-[var(--brand-color)] font-bold rounded bg-[var(--brand-color)/10]">1</button>
@@ -1928,8 +1889,8 @@ export default function PtImDashboard() {
                     <PopulationBadge level={POPULATION_LEVELS.COHORT} />
                     <PopulationBadge level={POPULATION_LEVELS.UNIT} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Q3 injury review</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Q3 injury review</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Aggregate injury trends &middot; no individual exposure &middot; k&ge;5 per cohort &middot; 23rd MSG, Apr&ndash;Jun 2026.
                   </p>
                 </div>
@@ -1942,8 +1903,8 @@ export default function PtImDashboard() {
                         onClick={() => triggerToast(`Displaying ${q} injury trends`)}
                         className={`px-2.5 py-1 rounded-md transition cursor-pointer ${
                           q === "Q3" 
-                            ? "bg-slate-100 dark:bg-slate-850 text-slate-800 dark:text-white font-bold" 
-                            : "text-slate-400 hover:text-slate-655"
+                            ? "bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-white font-bold" 
+                            : "text-slate-400 hover:text-slate-700"
                         }`}
                       >
                         {q}
@@ -1952,7 +1913,7 @@ export default function PtImDashboard() {
                   </div>
                   <button 
                     onClick={() => triggerToast("Q3 Injury Review Summary PDF downloaded successfully")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-850 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Export PDF
                   </button>
@@ -1979,13 +1940,13 @@ export default function PtImDashboard() {
                   { name: "Days lost", count: "47", desc: "+12 vs Q2", icon: "slate" }
                 ].map((card, i) => (
                   <div key={i} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider font-sans">{card.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider font-sans">{card.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{card.count}</h2>
                       <span className={`text-[10px] font-bold ${
                         card.icon === "green" ? "text-emerald-500" :
                         card.icon === "teal" ? "text-[var(--brand-color)]" :
-                        card.icon === "red" ? "text-rose-500" : "text-slate-450"
+                        card.icon === "red" ? "text-rose-500" : "text-slate-500"
                       }`}>
                         {card.desc.split(" vs ")[0]}
                       </span>
@@ -2002,8 +1963,8 @@ export default function PtImDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col justify-between">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div className="text-left">
-                      <h3 className="text-xs font-bold text-slate-855 dark:text-white">Injuries by body region (k&ge;5)</h3>
-                      <p className="text-[9px] text-slate-455">7 categories &ge; 5 &middot; 2 suppressed.</p>
+                      <h3 className="text-xs font-bold text-slate-900 dark:text-white">Injuries by body region (k&ge;5)</h3>
+                      <p className="text-[9px] text-slate-500">7 categories &ge; 5 &middot; 2 suppressed.</p>
                     </div>
 
                     <div className="flex gap-1.5 font-mono text-[9px]">
@@ -2065,7 +2026,7 @@ export default function PtImDashboard() {
                     </div>
 
                     {/* Legend Row */}
-                    <div className="flex flex-wrap gap-4 pt-3 text-[9px] font-bold text-slate-455 justify-start select-none">
+                    <div className="flex flex-wrap gap-4 pt-3 text-[9px] font-bold text-slate-500 justify-start select-none">
                       <span className="inline-flex items-center gap-1.5">
                         <span className="size-1.5 bg-blue-500 rounded-full"></span>
                         Lumbar &mdash; leading cause (n=5)
@@ -2075,7 +2036,7 @@ export default function PtImDashboard() {
                         Shoulder &mdash; trending up
                       </span>
                       <span className="inline-flex items-center gap-1.5">
-                        <span className="size-1.5 bg-slate-350 dark:bg-slate-750 rounded-full"></span>
+                        <span className="size-1.5 bg-slate-300 dark:bg-slate-700 rounded-full"></span>
                         Suppressed (k&lt;5)
                       </span>
                     </div>
@@ -2086,8 +2047,8 @@ export default function PtImDashboard() {
                 {/* By-flight comparison table */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left flex flex-col justify-between">
                   <div className="border-b border-slate-100 dark:border-white/5 pb-3">
-                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">By-flight comparison</h3>
-                    <p className="text-[9px] text-slate-455">Rate per 100 airman-months &middot; Q3.</p>
+                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">By-flight comparison</h3>
+                    <p className="text-[9px] text-slate-500">Rate per 100 airman-months &middot; Q3.</p>
                   </div>
 
                   <div className="overflow-x-auto my-3 flex-1 flex flex-col justify-center">
@@ -2109,7 +2070,7 @@ export default function PtImDashboard() {
                           { fl: "Flight D", air: "20", inj: "2", rate: "3.0", l4: "1", dot: "orange" },
                           { fl: "Total", air: "85", inj: "12", rate: "4.8", l4: "3", dot: "red", bold: true }
                         ].map((row, idx) => (
-                          <tr key={idx} className={`hover:bg-slate-55/20 transition ${row.bold ? "font-extrabold text-slate-800 dark:text-white" : ""}`}>
+                          <tr key={idx} className={`hover:bg-slate-50/20 transition ${row.bold ? "font-extrabold text-slate-800 dark:text-white" : ""}`}>
                             <td className="py-2.5 font-bold">{row.fl}</td>
                             <td className="py-2.5 text-right font-mono text-slate-500">{row.air}</td>
                             <td className="py-2.5 text-right font-mono text-slate-500">{row.inj}</td>
@@ -2140,8 +2101,8 @@ export default function PtImDashboard() {
                 {/* Injury breakdown list */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Injury type breakdown</h3>
-                    <p className="text-[9px] text-slate-455">Count vs days lost &middot; Q3.</p>
+                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Injury type breakdown</h3>
+                    <p className="text-[9px] text-slate-500">Count vs days lost &middot; Q3.</p>
                   </div>
 
                   <div className="divide-y divide-slate-100 dark:divide-white/5 font-sans text-xs">
@@ -2155,7 +2116,7 @@ export default function PtImDashboard() {
                       { type: "Hip flexor", count: 1 }
                     ].map((row, idx) => (
                       <div key={idx} className="flex justify-between items-center py-2.5">
-                        <span className="font-bold text-slate-700 dark:text-slate-350">{row.type}</span>
+                        <span className="font-bold text-slate-700 dark:text-slate-300">{row.type}</span>
                         <span className="font-mono font-black text-slate-800 dark:text-white">{row.count}</span>
                       </div>
                     ))}
@@ -2165,8 +2126,8 @@ export default function PtImDashboard() {
                 {/* Recommendations */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                   <div>
-                    <h3 className="text-xs font-bold text-slate-855 dark:text-white">Recommendations</h3>
-                    <p className="text-[9px] text-slate-455">Drafted by PT/IM &middot; routed to SCS.</p>
+                    <h3 className="text-xs font-bold text-slate-900 dark:text-white">Recommendations</h3>
+                    <p className="text-[9px] text-slate-500">Drafted by PT/IM &middot; routed to SCS.</p>
                   </div>
 
                   <div className="space-y-4 font-sans text-xs">
@@ -2178,7 +2139,7 @@ export default function PtImDashboard() {
                       <div key={i} className="p-3.5 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-white/5 rounded-xl space-y-1.5 text-left">
                         <div className="flex items-center justify-between gap-4">
                           <span className="font-extrabold text-slate-800 dark:text-white">{rec.title}</span>
-                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-450 text-[8px] font-bold rounded">
+                          <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[8px] font-bold rounded">
                             {rec.tags}
                           </span>
                         </div>
@@ -2210,8 +2171,8 @@ export default function PtImDashboard() {
                     <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PT/IM · PERFORMANCE SUPPORT · COORDINATION</p>
                     <PopulationBadge level={POPULATION_LEVELS.CASELOAD} />
                   </div>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">SCS coordination</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">SCS coordination</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Joint items where pain, limitation, a failed OFT, or recovery decline affects a training plan decision. Held as its own record &mdash; kept separate from operator messages and from IDMT handoffs.
                   </p>
                 </div>
@@ -2242,8 +2203,8 @@ export default function PtImDashboard() {
                 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Open items &middot; 8</h3>
-                    <p className="text-[10px] text-slate-455">Sorted by last update &middot; both roles see the same record</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Open items &middot; 8</h3>
+                    <p className="text-[10px] text-slate-500">Sorted by last update &middot; both roles see the same record</p>
                   </div>
 
                   <div className="flex gap-2">
@@ -2253,7 +2214,7 @@ export default function PtImDashboard() {
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           scsFilter === "Open"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900"
                         }`}
                       >
                         {scsFilter}
@@ -2289,15 +2250,15 @@ export default function PtImDashboard() {
                       ] as { code: string; details: string; item: string; trig: string; aff: string; owner: string; status: string; detail: string; date: string }[]).map((row, idx) => {
                         const col = row.status === FOLLOW_UP_STATUSES.ASSIGNED ? "green" : row.status === FOLLOW_UP_STATUSES.DUE ? "orange" : row.status === FOLLOW_UP_STATUSES.OVERDUE ? "red" : "slate";
                         return (
-                        <tr key={idx} className="hover:bg-slate-55/20 transition">
+                        <tr key={idx} className="hover:bg-slate-50/20 transition">
                           <td className="py-3">
                             <span className="font-bold text-slate-800 dark:text-white block">{row.code}</span>
-                            <span className="text-[10px] text-slate-455 font-medium block mt-0.5">{row.details}</span>
+                            <span className="text-[10px] text-slate-500 font-medium block mt-0.5">{row.details}</span>
                           </td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350 font-bold">{row.item}</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300 font-bold">{row.item}</td>
                           <td className="py-3 text-slate-500 font-medium">{row.trig}</td>
                           <td className="py-3 text-slate-500">{row.aff}</td>
-                          <td className="py-3 font-mono font-bold text-slate-655 dark:text-slate-400">{row.owner}</td>
+                          <td className="py-3 font-mono font-bold text-slate-700 dark:text-slate-400">{row.owner}</td>
                           <td className="py-3">
                             <div className="flex flex-col gap-0.5">
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[8px] font-bold uppercase w-fit ${
@@ -2312,7 +2273,7 @@ export default function PtImDashboard() {
                               <span className="text-[8px] text-slate-400">{row.detail}</span>
                             </div>
                           </td>
-                          <td className="py-3 text-slate-550 font-mono">{row.date}</td>
+                          <td className="py-3 text-slate-500 font-mono">{row.date}</td>
                           <td className="py-3 text-right">
                             <button
                               onClick={() => {
@@ -2333,7 +2294,7 @@ export default function PtImDashboard() {
 
                 <div className="pt-2 border-t border-slate-100 dark:border-white/5 flex justify-between items-center text-[10px] font-mono text-slate-400">
                   <span>Return to Performance only &middot; Return to Duty is decided outside Ascend</span>
-                  <span className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>Injury queue &rarr;</span>
+                  <button type="button" className="text-[var(--brand-color)] font-bold cursor-pointer hover:underline" onClick={() => setActiveTab("injury")}>Injury queue &rarr;</button>
                 </div>
 
               </div>
@@ -2359,8 +2320,8 @@ export default function PtImDashboard() {
                   <Send className="size-7" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-855 dark:text-white capitalize">IDMT Handoff Channels</h3>
-                  <p className="text-xs text-slate-555 leading-relaxed mt-1">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white capitalize">IDMT Handoff Channels</h3>
+                  <p className="text-xs text-slate-600 leading-relaxed mt-1">
                     Export structured, read-receipted clinical reconditioning statuses directly into the 23rd MSG Medical Operations corridor. This app is not an official medical record — exports are performance-informed summaries only.
                   </p>
                 </div>

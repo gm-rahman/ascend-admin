@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useTheme } from "@/hooks/use-theme";
 import { useToast } from "@/hooks/use-toast";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { initBrandColor } from "@/lib/constants";
 import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
+import { IconButton } from "@/components/ui/icon-button";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   Home,
@@ -42,7 +44,8 @@ type TabType = "caseload" | "reflections" | "messages";
 
 export default function PcDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast();
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("caseload");
@@ -104,11 +107,6 @@ export default function PcDashboard() {
   useEffect(() => {
     initBrandColor();
   }, []);
-
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
 
   const handleLogout = () => {
     logout();
@@ -179,11 +177,11 @@ export default function PcDashboard() {
         {/* User Session Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-550 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+            onClick={() => router.push("/dashboard/profile")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
@@ -204,33 +202,42 @@ export default function PcDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">Purpose Coach</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Purpose Coach</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
-              <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
-                <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer"
+              <IconButton
+                icon={Bell}
+                aria-label="Notifications"
+                className="relative p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
               >
-                {theme === "light" ? <Moon className="size-4.5" /> : <Sun className="size-4.5" />}
-              </button>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
+              </IconButton>
+              <IconButton
+                icon={theme === "light" ? Moon : Sun}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleTheme}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
+              />
             </div>
 
             {/* Profile context */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-3 cursor-pointer"
+              type="button"
+            >
               <div className="text-right">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">Purpose Coach</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">Role active</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">{currentUser?.name}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">{currentUser?.unit}</span>
               </div>
               <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
-                ...
+                {currentUser?.initials}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -269,8 +276,8 @@ export default function PcDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PURPOSE · CHAPLAIN PATHWAY</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Today's caseload</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Today's caseload</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Tuesday, 28 July · A quiet day ahead. Three pastoral consults, twenty-two active reflections, and one first-time engagement to welcome. Take what's here.
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -282,7 +289,7 @@ export default function PcDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("reflections")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Reflection log
                   </button>
@@ -304,7 +311,7 @@ export default function PcDashboard() {
                   { name: "First-time engagements", count: "1", desc: "welcome & consent", arrow: null }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                       {kpi.arrow && (
@@ -322,17 +329,17 @@ export default function PcDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Caseload · opted-in</h3>
-                    <p className="text-[10px] text-slate-455">Anonymized codes only. No rank, no PII. Use codes when messaging or referencing in pastoral notes.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Caseload · opted-in</h3>
+                    <p className="text-[10px] text-slate-500">Anonymized codes only. No rank, no PII. Use codes when messaging or referencing in pastoral notes.</p>
                   </div>
                   <div className="flex gap-2">
-                    {["All themes", "Active", "Needs outreach"].map((pill, idx) => (
+                    {["All", "Message", "Open notes", "Reach out", "Welcome"].map((pill, idx) => (
                       <button
                         key={idx}
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
-                          pill === "All themes"
+                          pill === "All"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-850 dark:hover:text-white"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-800 dark:hover:text-white"
                         }`}
                       >
                         {pill}
@@ -372,7 +379,7 @@ export default function PcDashboard() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3.5 text-slate-700 dark:text-slate-350">{row.date}</td>
+                          <td className="py-3.5 text-slate-700 dark:text-slate-300">{row.date}</td>
                           <td className="py-3.5 text-slate-500">{row.cad}</td>
                           <td className="py-3.5 text-slate-500 font-mono text-[11px]">{row.contact}</td>
                           <td className="py-3.5 text-right">
@@ -399,8 +406,8 @@ export default function PcDashboard() {
                 {/* Reflection themes */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Reflection themes · this month</h3>
-                    <p className="text-[10px] text-slate-455 mt-0.5">Aggregated across 22 entries. Identifies only themes, never authorship.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Reflection themes · this month</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Aggregated across 22 entries. Identifies only themes, never authorship.</p>
                   </div>
 
                   <div className="space-y-4 pt-2 font-sans text-xs">
@@ -412,7 +419,7 @@ export default function PcDashboard() {
                       { label: "Grief", val: 2, pct: 20 },
                     ].map((themeRow, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4">
-                        <span className="font-bold text-slate-800 dark:text-slate-250 w-20 flex-shrink-0">{themeRow.label}</span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 w-20 flex-shrink-0">{themeRow.label}</span>
                         <div className="flex-1 h-2 bg-slate-100 dark:bg-slate-900 rounded-full overflow-hidden">
                           <div className="h-full bg-slate-400 dark:bg-slate-600 rounded-full" style={{ width: `${themeRow.pct}%` }}></div>
                         </div>
@@ -422,7 +429,7 @@ export default function PcDashboard() {
                   </div>
 
                   <p className="text-[9px] text-slate-400 leading-normal pt-4 border-t border-slate-100 dark:border-white/5 flex items-center gap-1.5 font-mono">
-                    <span className="size-2 rounded-full bg-amber-500"></span>
+                    <span aria-hidden="true" className="size-2 rounded-full bg-amber-500"></span>
                     Theme-count &middot; Of 22 active reflections
                   </p>
                 </div>
@@ -430,8 +437,8 @@ export default function PcDashboard() {
                 {/* Pastoral care today */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Pastoral care · today</h3>
-                    <p className="text-[10px] text-slate-455 mt-0.5">Three consults on the schedule. Two are returning, one is a welcome.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Pastoral care · today</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Three consults on the schedule. Two are returning, one is a welcome.</p>
                   </div>
 
                   {/* Vertical Timeline registry */}
@@ -442,7 +449,7 @@ export default function PcDashboard() {
                         title: "A-1042 · Returning",
                         desc: "Continuation - cadence holds steady",
                         badge: "Returning",
-                        badgeCol: "bg-slate-100 dark:bg-slate-800 text-slate-655"
+                        badgeCol: "bg-slate-100 dark:bg-slate-800 text-slate-700"
                       },
                       {
                         time: "11:15 - 60 min",
@@ -456,7 +463,7 @@ export default function PcDashboard() {
                         title: "A-1087 · Brief check-in",
                         desc: "Light pastoral touch · grief, paused",
                         badge: "Brief",
-                        badgeCol: "bg-slate-100 dark:bg-slate-800 text-slate-655"
+                        badgeCol: "bg-slate-100 dark:bg-slate-800 text-slate-700"
                       }
                     ].map((evt, idx) => (
                       <div key={idx} className="relative space-y-1">
@@ -465,7 +472,7 @@ export default function PcDashboard() {
                         <div className="space-y-0.5">
                           <span className="text-[8px] font-bold text-slate-400 tracking-wide block uppercase">{evt.time}</span>
                           <div className="flex items-center justify-between gap-4">
-                            <h4 className="text-xs font-bold text-slate-850 dark:text-white font-mono">{evt.title}</h4>
+                            <h4 className="text-xs font-bold text-slate-800 dark:text-white font-mono">{evt.title}</h4>
                             <span className={`px-2 py-0.5 text-[8px] font-bold rounded-full uppercase ${evt.badgeCol}`}>
                               {evt.badge}
                             </span>
@@ -480,7 +487,7 @@ export default function PcDashboard() {
               </div>
 
               {/* Bottom Action strip disclaimer footnote */}
-              <div className="bg-[#f1f5f9] dark:bg-[#0e1628]/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 text-left text-[10px] text-slate-550 dark:text-slate-400 space-y-2 leading-relaxed font-sans">
+              <div className="bg-[#f1f5f9] dark:bg-[#0e1628]/60 p-5 rounded-2xl border border-slate-200 dark:border-white/5 text-left text-[10px] text-slate-500 dark:text-slate-400 space-y-2 leading-relaxed font-sans">
                 <span className="font-bold text-slate-700 dark:text-white block uppercase tracking-wider text-[8px]">Purpose Action - opt-in only - limited question scope</span>
                 <p>
                   Purpose Action is suggested only for airmen with active consent on this surface. Each action routes through the minimum-necessary question panel &mdash; O1D&mdash;O12, D4, W7&mdash;W8, M7&mdash;M8 &mdash; only &mdash; never through medical controls, never through the unrestricted Performance Summary, never through Level 4 metrics. Revoked consent immediately removes this record from view and from any in-flight action. Safety signals route through a separate, minimum-necessary pathway; no broad cohort labels appear here.
@@ -514,8 +521,8 @@ export default function PcDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">SPIRITUAL REFLECTIONS · PASTORAL LOG</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Reflections & records</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-450 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Reflections & records</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Opt-in confirmations, reflection entries, and confidential notes for airmen who consented to the Purpose pathway.
                   </p>
                   <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -527,7 +534,7 @@ export default function PcDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("caseload")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Caseload
                   </button>
@@ -543,8 +550,8 @@ export default function PcDashboard() {
               {/* Opt-in confirmation audit */}
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div>
-                  <h3 className="text-sm font-bold text-slate-855 dark:text-white">Opt-in confirmation audit</h3>
-                  <p className="text-[10px] text-slate-455">Every opt-in and opt-out is timestamped and immutable. Trail visible only to Purpose pathway roles.</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">Opt-in confirmation audit</h3>
+                  <p className="text-[10px] text-slate-500">Every opt-in and opt-out is timestamped and immutable. Trail visible only to Purpose pathway roles.</p>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -560,13 +567,13 @@ export default function PcDashboard() {
                     </thead>
                     <tbody className="divide-y divide-slate-100 dark:divide-white/5 font-sans">
                       {[
-                        { code: "A-1042", status: "Opted in", recorded: "14 Mar · 14:02", method: "Secure form - signed", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
-                        { code: "A-1087", status: "Opted in", recorded: "02 Apr · 09:30", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
+                        { code: "A-1042", status: PRIVACY_STATES.CONSENT_GRANTED, recorded: "14 Mar · 14:02", method: "Secure form - signed", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
+                        { code: "A-1087", status: PRIVACY_STATES.CONSENT_GRANTED, recorded: "02 Apr · 09:30", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" },
                         { code: "A-1218", status: PRIVACY_STATES.CONSENT_WITHDRAWN, recorded: "19 May · 11:11", method: "Casual contact - on request", witness: "—", col: "purple" },
-                        { code: "A-1503", status: "Opted in", recorded: "28 Jul · 08:55", badge: "Today", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" }
+                        { code: "A-1503", status: PRIVACY_STATES.CONSENT_GRANTED, recorded: "28 Jul · 08:55", badge: "Today", method: "In-person - verbal confirmation", witness: "Chaplain (Capt. R. Owens)", col: "blue" }
                       ].map((row, idx) => (
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
-                          <td className="py-3.5 font-bold text-slate-855 dark:text-white font-mono">{row.code}</td>
+                          <td className="py-3.5 font-bold text-slate-900 dark:text-white font-mono">{row.code}</td>
                           <td className="py-3.5">
                             <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold ${
                               row.col === "blue" ? "bg-sky-500/10 text-sky-600" : "bg-purple-500/10 text-purple-600"
@@ -575,7 +582,7 @@ export default function PcDashboard() {
                               {row.status}
                             </span>
                           </td>
-                          <td className="py-3.5 text-slate-700 dark:text-slate-350 font-mono">
+                          <td className="py-3.5 text-slate-700 dark:text-slate-300 font-mono">
                             <div className="flex items-center gap-1.5">
                               <span>{row.recorded}</span>
                               {row.badge && (
@@ -585,8 +592,8 @@ export default function PcDashboard() {
                               )}
                             </div>
                           </td>
-                          <td className="py-3.5 text-slate-550 dark:text-slate-400">{row.method}</td>
-                          <td className="py-3.5 text-slate-550 dark:text-slate-400 font-bold">{row.witness}</td>
+                          <td className="py-3.5 text-slate-500 dark:text-slate-400">{row.method}</td>
+                          <td className="py-3.5 text-slate-500 dark:text-slate-400 font-bold">{row.witness}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -598,8 +605,8 @@ export default function PcDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Spiritual reflection entries</h3>
-                    <p className="text-[10px] text-slate-455">22 active reflections this month. Entries are private to the consenting airman and to you.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Spiritual reflection entries</h3>
+                    <p className="text-[10px] text-slate-500">22 active reflections this month. Entries are private to the consenting airman and to you.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {["All themes", "Purpose", "Grief", "Transition"].map((themeFilter, idx) => (
@@ -608,7 +615,7 @@ export default function PcDashboard() {
                         className={`px-2.5 py-1 rounded-full text-[10px] font-bold border transition cursor-pointer ${
                           themeFilter === "All themes"
                             ? "bg-[var(--brand-color)/10] border-[var(--brand-color)/30] text-[var(--brand-color)]"
-                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855 dark:hover:text-white"
+                            : "bg-white dark:bg-slate-900 border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
                         }`}
                       >
                         {themeFilter}
@@ -620,24 +627,27 @@ export default function PcDashboard() {
                 {/* Filters Row */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end bg-[#f8fafc] dark:bg-slate-900/40 p-4 rounded-xl">
                   <div className="md:col-span-4 space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Search</label>
+                    <label htmlFor="pc-reflections-search" className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">Search</label>
                     <input
+                      id="pc-reflections-search"
                       type="text"
                       placeholder="Search by code or theme"
                       className="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none"
                     />
                   </div>
                   <div className="md:col-span-3 space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">From</label>
+                    <label htmlFor="pc-reflections-from" className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">From</label>
                     <input
+                      id="pc-reflections-from"
                       type="text"
                       defaultValue="01 Jul 2026"
                       className="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none font-mono"
                     />
                   </div>
                   <div className="md:col-span-3 space-y-1">
-                    <label className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">To</label>
+                    <label htmlFor="pc-reflections-to" className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">To</label>
                     <input
+                      id="pc-reflections-to"
                       type="text"
                       defaultValue="28 Jul 2026"
                       className="w-full px-3 py-2 text-xs rounded-lg bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/10 text-slate-800 dark:text-white focus:outline-none font-mono"
@@ -685,7 +695,7 @@ export default function PcDashboard() {
                             </span>
                           </td>
                           <td className="py-3 text-slate-500 font-mono text-[10px]">{p.len}</td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350 italic font-serif leading-relaxed text-[11px]">{p.preview}</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300 italic font-serif leading-relaxed text-[11px]">{p.preview}</td>
                           <td className="py-3 text-right">
                             <span className="inline-flex items-center gap-1 font-bold text-[9px] text-[var(--brand-color)] uppercase font-sans">
                               <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
@@ -705,8 +715,8 @@ export default function PcDashboard() {
                 {/* Pastoral note - A-1503 */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Pastoral note - A-1503</h3>
-                    <p className="text-[10px] text-slate-455 mt-0.5">Privileged - visible only to you</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Pastoral note - A-1503</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Privileged - visible only to you</p>
                   </div>
 
                   <div className="pt-2 space-y-3">
@@ -737,8 +747,8 @@ export default function PcDashboard() {
                 {/* Records access log */}
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Records access log</h3>
-                    <p className="text-[10px] text-slate-455 mt-0.5">Every read, write, and export is recorded. Audit only — never surfaced to leadership.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Records access log</h3>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Every read, write, and export is recorded. Audit only — never surfaced to leadership.</p>
                   </div>
 
                   <div className="overflow-x-auto pt-1">
@@ -759,14 +769,14 @@ export default function PcDashboard() {
                         ].map((logRow, idx) => (
                           <tr key={idx} className="hover:bg-slate-55/20 transition">
                             <td className="py-3 text-slate-500">{logRow.time}</td>
-                            <td className="py-3 text-slate-700 dark:text-slate-350">{logRow.act}</td>
+                            <td className="py-3 text-slate-700 dark:text-slate-300">{logRow.act}</td>
                             <td className="py-3 font-bold text-slate-800 dark:text-white">{logRow.rec}</td>
                           </tr>
                         ))}
                         {/* Export row */}
                         <tr className="hover:bg-slate-55/20 transition">
                           <td className="py-3 text-slate-500">27 Jul · 11:20</td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350">Exported</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300">Exported</td>
                           <td className="py-3">
                             <div className="flex items-center gap-1.5">
                               <span className="text-slate-400">never</span>
@@ -798,8 +808,8 @@ export default function PcDashboard() {
               {/* Header Section */}
               <div className="text-left">
                 <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">PURPOSE COACH · MESSAGES</p>
-                <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Messages</h1>
-                <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Messages</h1>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   One thread per airman. Private to the airman &mdash; not visible to leadership.
                 </p>
                 <span className="inline-flex items-center gap-1.5 mt-2 px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-white/10 text-[9px] font-bold text-slate-500 uppercase tracking-wider">
@@ -814,7 +824,7 @@ export default function PcDashboard() {
                 {/* Threads Sidebar Panel */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">Threads</h3>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">Threads</h3>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--brand-color)/15] text-[var(--brand-color)] rounded-full text-[9px] font-bold uppercase font-mono">
                       <span className="size-1 bg-[var(--brand-color)] rounded-full"></span>
                       3 unread
@@ -825,6 +835,7 @@ export default function PcDashboard() {
                     <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                     <input
                       type="text"
+                      aria-label="Search by code"
                       placeholder="Search by code"
                       className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#f8fafc] dark:bg-[#070a13] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white focus:outline-none"
                     />
@@ -838,12 +849,13 @@ export default function PcDashboard() {
                       { code: "A-1218", time: "22 Jul", txt: "Reading the passage you shared. Thank you.", unread: 1, active: false },
                       { code: "A-1356", time: "20 Jul", txt: "Weekly reflections sent &mdash; thank you.", unread: 0, active: false }
                     ].map((thread, idx) => (
-                      <div 
-                        key={idx} 
+                      <button
+                        key={idx}
+                        type="button"
                         onClick={() => triggerToast(`Opened message history with: ${thread.code}`)}
-                        className={`py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
-                          thread.active 
-                            ? "bg-[var(--brand-color)/10]" 
+                        className={`w-full py-3.5 px-3 rounded-xl flex items-center justify-between gap-3 cursor-pointer transition ${
+                          thread.active
+                            ? "bg-[var(--brand-color)/10]"
                             : "hover:bg-[#f8fafc] dark:hover:bg-slate-900/60"
                         }`}
                       >
@@ -853,7 +865,7 @@ export default function PcDashboard() {
                           </div>
                           <div className="space-y-0.5 text-left">
                             <span className="text-xs font-bold text-slate-800 dark:text-white font-mono block">{thread.code}</span>
-                            <p className="text-[10px] text-slate-455 leading-tight truncate w-36" dangerouslySetInnerHTML={{ __html: thread.txt }}></p>
+                            <p className="text-[10px] text-slate-500 leading-tight truncate w-36" dangerouslySetInnerHTML={{ __html: thread.txt }}></p>
                           </div>
                         </div>
 
@@ -865,7 +877,7 @@ export default function PcDashboard() {
                             </span>
                           )}
                         </div>
-                      </div>
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -935,6 +947,7 @@ export default function PcDashboard() {
                   <div className="border-t border-slate-200/60 dark:border-white/5 pt-4 flex-shrink-0 flex items-center gap-3">
                     <input
                       type="text"
+                      aria-label="Message A-1042"
                       placeholder="Message A-1042"
                       value={chatMessage}
                       onChange={(e) => setChatMessage(e.target.value)}

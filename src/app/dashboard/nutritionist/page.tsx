@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/hooks/use-theme";
-import { POPULATION_LEVELS, PRIVACY_STATES } from "@/lib/terminology";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { POPULATION_LEVELS, PRIVACY_STATES, PERSON_TERM } from "@/lib/terminology";
+import { PopulationScopeBadge } from "@/components/privacy/population-scope-badge";
+import { IconButton } from "@/components/ui/icon-button";
+import { RecordDetailDialog } from "@/components/ui/record-detail-dialog";
 import { AscendLogo } from "@/components/ascend-logo";
 import {
   ChevronDown,
@@ -29,7 +33,8 @@ type TabType = "dashboard" | "consults" | "records" | "messages";
 
 export default function NutritionistDashboard() {
   const router = useRouter();
-  const { isAuthenticated, logout, setSelectedRole } = useAuthStore();
+  const { isAuthenticated, logout } = useAuthStore();
+  const currentUser = useCurrentUser();
   const { theme, toggleTheme } = useTheme();
   const { show: showConfirmToast, message: toastMessage, triggerToast } = useToast(3500);
   const [activeTabInternal, setActiveTabInternal] = useState<TabType>("dashboard");
@@ -85,11 +90,6 @@ export default function NutritionistDashboard() {
       router.push("/");
     }
   }, [isAuthenticated, hasMounted, router]);
-
-  const handleBackToRoles = () => {
-    setSelectedRole(null);
-    router.push("/roles");
-  };
 
   const handleLogout = () => {
     logout();
@@ -171,11 +171,11 @@ export default function NutritionistDashboard() {
         {/* User Session Controls */}
         <div className="p-4 border-t border-slate-200 dark:border-white/5 space-y-2">
           <button
-            onClick={handleBackToRoles}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-550 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
+            onClick={() => router.push("/dashboard/profile")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white hover:bg-slate-55 dark:hover:bg-slate-900 transition cursor-pointer"
           >
             <ArrowLeft className="size-4" />
-            Back to roles
+            My profile
           </button>
           <button
             onClick={handleLogout}
@@ -196,33 +196,42 @@ export default function NutritionistDashboard() {
             <AscendLogo width={20} height={20} showDetails={false} />
             <span className="text-sm font-semibold tracking-tight text-slate-800 dark:text-white">Ascend</span>
             <span className="text-xs text-slate-400 dark:text-slate-500 font-light select-none">/</span>
-            <span className="text-xs font-medium text-slate-550 dark:text-slate-400">Nutritionist Workspace</span>
+            <span className="text-xs font-medium text-slate-500 dark:text-slate-400">Nutritionist Workspace</span>
           </div>
 
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 border-r border-slate-200 dark:border-white/5 pr-6">
-              <button className="relative p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer">
-                <Bell className="size-4.5" />
-                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
-              </button>
-              <button
-                onClick={toggleTheme}
-                className="p-1.5 text-slate-400 hover:text-slate-655 dark:hover:text-white transition cursor-pointer"
+              <IconButton
+                icon={Bell}
+                aria-label="Notifications"
+                className="relative p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
               >
-                {theme === "light" ? <Moon className="size-4.5" /> : <Sun className="size-4.5" />}
-              </button>
+                <span className="absolute top-1 right-1 size-2 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0e1628]"></span>
+              </IconButton>
+              <IconButton
+                icon={theme === "light" ? Moon : Sun}
+                aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                onClick={toggleTheme}
+                className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white transition cursor-pointer"
+                iconClassName="size-4.5"
+              />
             </div>
 
             {/* Profile context */}
-            <div className="flex items-center gap-3">
+            <button
+              onClick={() => router.push("/dashboard/profile")}
+              className="flex items-center gap-3 cursor-pointer"
+              type="button"
+            >
               <div className="text-right">
-                <span className="text-xs font-bold text-slate-800 dark:text-white block">Capt Maya Patel</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">Nutritionist · SCS</span>
+                <span className="text-xs font-bold text-slate-800 dark:text-white block">{currentUser?.name}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500 block leading-tight">{currentUser?.unit}</span>
               </div>
               <div className="size-8 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-sans font-black text-xs flex items-center justify-center select-none border border-slate-200 dark:border-white/5">
-                MP
+                {currentUser?.initials}
               </div>
-            </div>
+            </button>
           </div>
         </header>
 
@@ -245,8 +254,8 @@ export default function NutritionistDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · TODAY&apos;S CONSULT QUEUE</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Today&apos;s consult queue</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Today&apos;s consult queue</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     6 consults today &middot; 38 active Nutrition Actions across 24 airmen &middot; k &ge; 5 cohort view.
                   </p>
                 </div>
@@ -254,7 +263,7 @@ export default function NutritionistDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Historical nutrition logs database opened")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Open records
                   </button>
@@ -276,7 +285,7 @@ export default function NutritionistDashboard() {
                   { name: "New referrals", count: "3", desc: "Repas · N-Scyc · T-Apex", arrow: null }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <div className="flex items-baseline gap-2">
                       <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                       {kpi.arrow && (
@@ -294,11 +303,9 @@ export default function NutritionistDashboard() {
               <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm text-left space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-4">
                   <div>
-                    <span className="bg-slate-100 dark:bg-slate-900 border border-slate-250 dark:border-white/10 rounded px-2 py-0.5 text-[8px] font-bold text-slate-500 tracking-wider inline-block">
-                      COHORT DETAIL · k&ge;5
-                    </span>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-1">Meal consistency by flight</h3>
-                    <p className="text-[10px] text-slate-455">Acknowledge and completion metrics only &mdash; no quantitative targets. Adherence is observed, not measured.</p>
+                    <PopulationScopeBadge level={POPULATION_LEVELS.COHORT} detail="k≥5" />
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-1">Meal consistency by flight</h3>
+                    <p className="text-[10px] text-slate-500">Acknowledge and completion metrics only &mdash; no quantitative targets. Adherence is observed, not measured.</p>
                   </div>
                 </div>
 
@@ -369,8 +376,8 @@ export default function NutritionistDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4 flex flex-col justify-between">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Macro distribution · cohort</h3>
-                      <p className="text-[10px] text-slate-455 mt-0.5">Lagged macros vs. prescribed targets · 24 airmen · last 7 days</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Macro distribution · cohort</h3>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Lagged macros vs. prescribed targets · 24 airmen · last 7 days</p>
                     </div>
                     <span className="px-2 py-0.5 bg-[var(--brand-color)/15] text-[#0c8a99] text-[9px] font-bold rounded">
                       7d
@@ -450,8 +457,8 @@ export default function NutritionistDashboard() {
                 <div className="lg:col-span-6 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white">Recent consults</h3>
-                      <p className="text-[10px] text-slate-455">Completed and in-progress · last 5 entries.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white">Recent consults</h3>
+                      <p className="text-[10px] text-slate-500">Completed and in-progress · last 5 entries.</p>
                     </div>
                     <button 
                       onClick={() => triggerToast("Opening full consult records history")}
@@ -492,7 +499,7 @@ export default function NutritionistDashboard() {
                                 <span className="font-bold text-slate-800 dark:text-white">{c.name}</span>
                               </div>
                             </td>
-                            <td className="py-2.5 text-slate-700 dark:text-slate-350">{c.reason}</td>
+                            <td className="py-2.5 text-slate-700 dark:text-slate-300">{c.reason}</td>
                             <td className="py-2.5 font-mono text-[10px] text-slate-500">{c.time}</td>
                             <td className="py-2.5">
                               <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
@@ -530,8 +537,8 @@ export default function NutritionistDashboard() {
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-105/60 dark:border-white/5 pb-4">
                   <div>
                     <span className="text-[8px] font-bold text-slate-400 block uppercase tracking-wider">TODAY&apos;S FOOD LOG &middot; A. MENDEZ</span>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white mt-0.5">Meal consistency & logs</h3>
-                    <p className="text-[10px] text-slate-455">Auto-ingested from operator capture · 5 entries · needs review. Flag on lunch.</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white mt-0.5">Meal consistency & logs</h3>
+                    <p className="text-[10px] text-slate-500">Auto-ingested from operator capture · 5 entries · needs review. Flag on lunch.</p>
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -572,7 +579,7 @@ export default function NutritionistDashboard() {
                         <tr key={idx} className="hover:bg-slate-55/20 transition">
                           <td className="py-3 text-slate-500 text-[10px]">{item.time}</td>
                           <td className="py-3 font-bold text-slate-800 dark:text-white font-sans text-xs">{item.entry}</td>
-                          <td className="py-3 text-slate-700 dark:text-slate-350">{item.kcal}</td>
+                          <td className="py-3 text-slate-700 dark:text-slate-300">{item.kcal}</td>
                           <td className="py-3 text-slate-500">{item.carb}</td>
                           <td className="py-3 text-slate-500">{item.prot}</td>
                           <td className="py-3 text-slate-500">{item.fat}</td>
@@ -620,8 +627,8 @@ export default function NutritionistDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · CONSULT QUEUE</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">Consult queue</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">Consult queue</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     6 today &middot; 3 follow-ups this week &middot; 2 prep checklists pending.
                   </p>
                 </div>
@@ -629,7 +636,7 @@ export default function NutritionistDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setActiveTab("dashboard")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Dashboard
                   </button>
@@ -651,7 +658,7 @@ export default function NutritionistDashboard() {
                   { name: "Avg duration", count: "28m", desc: "last 30 days" }
                 ].map((kpi, idx) => (
                   <div key={idx} className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-3 text-left">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-555 block uppercase tracking-wider">{kpi.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 block uppercase tracking-wider">{kpi.name}</span>
                     <h2 className="text-3xl font-black text-slate-800 dark:text-white leading-none">{kpi.count}</h2>
                     <p className="text-[10px] text-slate-500 font-mono">{kpi.desc}</p>
                   </div>
@@ -670,7 +677,7 @@ export default function NutritionistDashboard() {
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                           fTab === "Today"
                             ? "bg-slate-900 text-white dark:bg-slate-800"
-                            : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-855 dark:hover:text-white"
+                            : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-slate-500 hover:text-slate-900 dark:hover:text-white"
                         }`}
                       >
                         {fTab}
@@ -682,8 +689,9 @@ export default function NutritionistDashboard() {
                     <div className="w-24 h-8 bg-slate-100 dark:bg-slate-900 rounded-lg border border-slate-200/50 dark:border-white/5"></div>
                     <div className="relative">
                       <Search className="absolute left-3 top-2.5 size-3.5 text-slate-400" />
-                      <input 
+                      <input
                         type="text"
+                        aria-label="Search airman or notes"
                         placeholder="Search airman or notes..."
                         className="pl-9 pr-4 py-1.5 w-60 rounded-xl bg-[#f8fafc] dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-xs text-slate-800 dark:text-white focus:outline-none placeholder-slate-400"
                       />
@@ -696,7 +704,7 @@ export default function NutritionistDashboard() {
                   <table className="w-full text-left border-collapse text-xs">
                     <thead>
                       <tr className="border-b border-slate-100 dark:border-white/5 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                        <th className="pb-3 w-1/4">Patient (Airman)</th>
+                        <th className="pb-3 w-1/4">{PERSON_TERM}</th>
                         <th className="pb-3">Reason</th>
                         <th className="pb-3">Time</th>
                         <th className="pb-3 w-1/3">Prep checklist</th>
@@ -717,7 +725,7 @@ export default function NutritionistDashboard() {
                             { txt: "Review intake form", sub: "submitted", sub2: "ready", done: true },
                             { txt: "Flag baseline weight + BMI", sub: "PT/IM sync", sub2: "ready", done: true }
                           ],
-                          status: "Prep done · 3/3",
+                          status: "Ready · 3/3",
                           statusCol: "orange",
                           act: "Start \u2192",
                           actCol: "teal"
@@ -733,7 +741,7 @@ export default function NutritionistDashboard() {
                             { txt: "Sleep nutrition notes", sub: "prior consult", sub2: "ready", done: true },
                             { txt: "Hydration adherence", sub: "67% - flag", sub2: "review", done: false, review: true }
                           ],
-                          status: "Prep partial · 2/3",
+                          status: "In Progress · 2/3",
                           statusCol: "orange",
                           act: "Open",
                           actCol: "white"
@@ -841,7 +849,7 @@ export default function NutritionistDashboard() {
                               </div>
                               <div className="text-left">
                                 <span className="font-bold text-slate-800 dark:text-white block">{c.name}</span>
-                                <span className="text-[10px] text-slate-455 block mt-0.5">{c.desc}</span>
+                                <span className="text-[10px] text-slate-500 block mt-0.5">{c.desc}</span>
                               </div>
                             </div>
                           </td>
@@ -869,7 +877,7 @@ export default function NutritionistDashboard() {
                                   className="mt-0.5 rounded border-slate-200 text-[var(--brand-color)] focus:ring-[var(--brand-color)]/40"
                                 />
                                 <div className="text-left text-[11px] leading-snug">
-                                  <span className={item.done ? "text-slate-550 line-through decoration-slate-300 dark:decoration-slate-800" : "text-slate-700 dark:text-slate-350"}>
+                                  <span className={item.done ? "text-slate-500 line-through decoration-slate-300 dark:decoration-slate-800" : "text-slate-700 dark:text-slate-300"}>
                                     {item.txt}
                                   </span>
                                   {item.sub && (
@@ -918,7 +926,7 @@ export default function NutritionistDashboard() {
                             ) : (
                               <button 
                                 onClick={() => triggerToast(`Opening consult record workflow for: ${c.name}`)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
+                                className="inline-flex items-center gap-1 px-3 py-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-lg text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition cursor-pointer"
                               >
                                 {c.act}
                                 <ChevronDown className="size-3" />
@@ -961,8 +969,8 @@ export default function NutritionistDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">RECORDS · NUTRITION · ACCESS</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white">S. Ndiaye · nutrition record</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">S. Ndiaye · nutrition record</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     {POPULATION_LEVELS.CASELOAD} scoped to nutrition driver · access logged.
                   </p>
                   <div className="flex items-center gap-2 mt-2">
@@ -979,7 +987,7 @@ export default function NutritionistDashboard() {
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => triggerToast("Opening all historical records directories")}
-                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-655 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl text-xs font-bold text-slate-700 dark:text-white hover:bg-slate-55 dark:hover:bg-slate-800 transition cursor-pointer"
                   >
                     Records
                   </button>
@@ -998,14 +1006,15 @@ export default function NutritionistDashboard() {
                 {/* Left panel: Caseload */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm space-y-4">
                   <div>
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white">{POPULATION_LEVELS.CASELOAD} · 8</h3>
-                    <p className="text-[10px] text-slate-455">Active plans with targets</p>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white">{POPULATION_LEVELS.CASELOAD} · 8</h3>
+                    <p className="text-[10px] text-slate-500">Active plans with targets</p>
                   </div>
 
                   <div className="relative">
                     <Search className="absolute left-3 top-2.5 size-3.5 text-slate-400" />
-                    <input 
+                    <input
                       type="text"
+                      aria-label="Search airman"
                       placeholder="Search airman..."
                       className="w-full pl-9 pr-4 py-1.5 rounded-xl bg-[#f8fafc] dark:bg-slate-900 border border-slate-200 dark:border-white/5 text-xs text-slate-800 dark:text-white focus:outline-none placeholder-slate-400"
                     />
@@ -1038,7 +1047,7 @@ export default function NutritionistDashboard() {
                           </div>
                           <div className="text-left">
                             <span className="font-bold text-slate-800 dark:text-white block text-xs">{p.name}</span>
-                            <span className="text-[9px] text-slate-455 block leading-normal">{p.desc}</span>
+                            <span className="text-[9px] text-slate-500 block leading-normal">{p.desc}</span>
                           </div>
                         </div>
                         <span className="text-[9px] font-mono text-slate-400">{p.date}</span>
@@ -1060,7 +1069,7 @@ export default function NutritionistDashboard() {
                         </div>
                         <div className="text-left space-y-0.5">
                           <h2 className="text-lg font-black text-slate-800 dark:text-white leading-tight">S. Ndoye - Echo flight</h2>
-                          <p className="text-[10px] text-slate-450 font-medium">New referral &middot; weight management &middot; consult today 10:30</p>
+                          <p className="text-[10px] text-slate-500 font-medium">New referral &middot; weight management &middot; consult today 10:30</p>
                         </div>
                       </div>
 
@@ -1119,8 +1128,8 @@ export default function NutritionistDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3.5">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Food log - last 3 days</h3>
-                        <p className="text-[10px] text-slate-455">Auto-ingested from operator capture · 18 entries · 2 flags</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Food log - last 3 days</h3>
+                        <p className="text-[10px] text-slate-500">Auto-ingested from operator capture · 18 entries · 2 flags</p>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded text-[9px] font-bold uppercase tracking-wider font-mono">
@@ -1182,8 +1191,8 @@ export default function NutritionistDashboard() {
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-3">
                       <div>
-                        <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Nutrition Action history</h3>
-                        <p className="text-[10px] text-slate-455">Active / closed Nutrition Actions lists</p>
+                        <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Nutrition Action history</h3>
+                        <p className="text-[10px] text-slate-500">Active / closed Nutrition Actions lists</p>
                       </div>
                       <button 
                         onClick={() => triggerToast("Schedule consult wizard initialized")}
@@ -1251,8 +1260,8 @@ export default function NutritionistDashboard() {
                   {/* Section 3: Nutrition assessments */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Nutrition assessments</h3>
-                      <p className="text-[10px] text-slate-455">Initial + follow-up notes · 4 entries.</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Nutrition assessments</h3>
+                      <p className="text-[10px] text-slate-500">Initial + follow-up notes · 4 entries.</p>
                     </div>
 
                     <div className="space-y-4 pt-1 font-sans text-xs">
@@ -1260,14 +1269,14 @@ export default function NutritionistDashboard() {
                         {
                           title: "Initial nutrition intake",
                           meta: "22 Jul baseline · completed by Capt Patel",
-                          text: "Patient reports 3-4 eating events per day with late-evening snacking. No supplement use. Goals: -15kg over 8 weeks, improve PRT run time, increase protein to 1.6 g/kg.",
+                          text: `${PERSON_TERM} reports 3-4 eating events per day with late-evening snacking. No supplement use. Goals: -15kg over 8 weeks, improve PRT run time, increase protein to 1.6 g/kg.`,
                           badge: "Intake",
                           badgeCol: "bg-[var(--brand-color)]/10 text-[var(--brand-color)]"
                         },
                         {
                           title: "Consult note - 22 Jul",
                           meta: "A. Mendez (Student) · follow-up scheduled 5 Aug",
-                          text: "Started balanced macro plan. Discussed hydration timing around PT blocks (pre/intra/post). Patient agreed to daily log syncs by 22:00.",
+                          text: `Started balanced macro plan. Discussed hydration timing around PT blocks (pre/intra/post). ${PERSON_TERM} agreed to daily log syncs by 22:00.`,
                           badge: "Scheduled",
                           badgeCol: "bg-emerald-500/10 text-emerald-500"
                         },
@@ -1294,7 +1303,7 @@ export default function NutritionistDashboard() {
                             </span>
                           </div>
                           <span className="text-[9px] text-slate-400 font-medium block">{note.meta}</span>
-                          <p className="text-xs text-slate-600 dark:text-slate-350 leading-relaxed pt-1 font-normal font-sans">{note.text}</p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed pt-1 font-normal font-sans">{note.text}</p>
                         </div>
                       ))}
                     </div>
@@ -1303,8 +1312,8 @@ export default function NutritionistDashboard() {
                   {/* Section 4: Access log */}
                   <div className="bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 md:p-6 shadow-sm space-y-4">
                     <div>
-                      <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Access log</h3>
-                      <p className="text-[10px] text-slate-455">Who accessed this record · last 30 days · audit trail</p>
+                      <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Access log</h3>
+                      <p className="text-[10px] text-slate-500">Who accessed this record · last 30 days · audit trail</p>
                     </div>
 
                     <div className="overflow-x-auto pt-1">
@@ -1322,7 +1331,7 @@ export default function NutritionistDashboard() {
                             { time: "27 Jul · 16:02", act: "Added assessment note (5 Aug)", actor: "You · Dietitian", dur: "1m 30s" },
                             { time: "26 Jul · 09:11", act: "Synced body comp baseline", actor: "PT/IM [auto]", dur: "0m 05s" },
                             { time: "22 Jul · 11:08", act: "Created initial nutrition intake", actor: "You · Dietitian", dur: "22m 04s" },
-                            { time: "22 Jul · 10:48", act: "Granted opt-in scope: nutrition", actor: "Patient (SM)", dur: "\u2014" }
+                            { time: "22 Jul · 10:48", act: "Granted opt-in scope: nutrition", actor: PERSON_TERM, dur: "\u2014" }
                           ].map((log, idx) => (
                             <tr key={idx} className="hover:bg-slate-55/20 transition">
                               <td className="py-3 text-slate-500">{log.time}</td>
@@ -1360,8 +1369,8 @@ export default function NutritionistDashboard() {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 dark:border-white/5 pb-4">
                 <div className="text-left">
                   <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 tracking-wider">NUTRITION · MESSAGES</p>
-                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-855 dark:text-white font-sans">Messages</h1>
-                  <p className="text-xs text-slate-550 dark:text-slate-400 mt-1">
+                  <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white font-sans">Messages</h1>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                     Direct messages with your caseload. CUI &middot; opt-in enforced &middot; every send is audit-logged.
                   </p>
                 </div>
@@ -1382,7 +1391,7 @@ export default function NutritionistDashboard() {
                 {/* Inbox Sidebar List */}
                 <div className="lg:col-span-4 bg-white dark:bg-[#0e1628] border border-slate-200 dark:border-white/5 rounded-2xl p-5 shadow-sm flex flex-col space-y-4">
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-white/5 pb-3">
-                    <h3 className="text-sm font-bold text-slate-855 dark:text-white font-sans">Inbox</h3>
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white font-sans">Inbox</h3>
                     <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-[var(--brand-color)]/15 text-[var(--brand-color)] rounded-full text-[9px] font-bold uppercase font-mono">
                       <span className="size-1 bg-[var(--brand-color)] rounded-full"></span>
                       3 unread
@@ -1393,6 +1402,7 @@ export default function NutritionistDashboard() {
                     <Search className="absolute left-3 top-2.5 size-4 text-slate-400" />
                     <input
                       type="text"
+                      aria-label="Search messages"
                       placeholder="Search messages"
                       className="w-full pl-9 pr-4 py-2 text-xs rounded-xl bg-[#f8fafc] dark:bg-[#070a13] border border-slate-200 dark:border-white/5 text-slate-800 dark:text-white focus:outline-none"
                     />
@@ -1421,8 +1431,8 @@ export default function NutritionistDashboard() {
                             {item.initials}
                           </div>
                           <div className="space-y-0.5 text-left font-sans">
-                            <span className="text-xs font-bold text-slate-850 dark:text-white block">{item.name}</span>
-                            <p className="text-[10px] text-slate-455 truncate w-36">{item.txt}</p>
+                            <span className="text-xs font-bold text-slate-800 dark:text-white block">{item.name}</span>
+                            <p className="text-[10px] text-slate-500 truncate w-36">{item.txt}</p>
                           </div>
                         </div>
 
@@ -1502,6 +1512,7 @@ export default function NutritionistDashboard() {
                   <div className="border-t border-slate-200/60 dark:border-white/5 pt-4 flex-shrink-0 flex items-center gap-3">
                     <input
                       type="text"
+                      aria-label="Message A. Mendez"
                       placeholder="Message A. Mendez"
                       value={nutritionChatMessage}
                       onChange={(e) => setNutritionChatMessage(e.target.value)}
