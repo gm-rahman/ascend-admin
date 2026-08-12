@@ -38,8 +38,21 @@ yarn-error.log*
 .vercel
 
 # claude code agents (local tooling, not shared with the repo)
-# .claude/
+.claude/
+.betopia/
+/canonical/
+/fix/
+
+# project handoff / spec docs (local, not shared)
+ASCEND-SPEC.md
+CLAUDE.md
+IMPLEMENTATION-PLAN.txt
+IMPLEMENTATION-TRACKER.txt
+SESSION-HANDOFF.txt
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local notes / fixes (not shared with the repo)
+src/app/dashboard/mp/FIXES.md
