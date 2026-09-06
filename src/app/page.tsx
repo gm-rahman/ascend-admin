@@ -1,58 +1,48 @@
 "use client";
 
-import { useState, useEffect, type SubmitEvent } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
+  ArrowUpRight,
+  CheckCircle2,
+  Compass,
   Mail,
+  Loader2,
+  Sparkles,
+  Eye,
+  Database,
+  KeyRound,
+  Shield,
   Moon,
   Sun,
-  Clock,
-  Lock,
-  KeyRound,
-  Loader2,
+  ArrowRight,
+  type LucideIcon,
 } from "lucide-react";
 import { AscendLogo } from "@/components/ascend-logo";
 import { AscendBanner } from "@/components/ascend-banner";
-import { useAuthStore } from "@/store/auth-store";
-import { useUsersStore } from "@/store/users-store";
+import { roles } from "@/lib/roles";
 
-export default function Home() {
-  const router = useRouter();
-  const { isAuthenticated, currentUserRole, login } = useAuthStore();
-  const verifyCredentials = useUsersStore((state) => state.verifyCredentials);
+type SectionId = "mission" | "capabilities" | "roles" | "contact";
+
+const navLinks: { id: SectionId; label: string }[] = [
+  { id: "mission", label: "Mission" },
+  { id: "capabilities", label: "Capabilities" },
+  { id: "roles", label: "Workspaces" },
+  { id: "contact", label: "Contact" },
+];
+
+export default function LandingPage() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [authStep, setAuthStep] = useState(0);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [authError, setAuthError] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactMessage, setContactMessage] = useState("");
+  const [contactStatus, setContactStatus] = useState<"idle" | "submitting" | "sent">("idle");
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      router.push(currentUserRole ? `/dashboard/${currentUserRole}` : "/roles");
-    }
-  }, [isAuthenticated, currentUserRole, router]);
-
-  // Sync theme with document class list
   useEffect(() => {
     const savedTheme = localStorage.getItem("ascend_admin_theme") as "light" | "dark" | null;
-    let initialTheme: "light" | "dark" = "light";
-
-    if (savedTheme) {
-      initialTheme = savedTheme;
-    }
-
+    const initialTheme: "light" | "dark" = savedTheme ?? "light";
     document.documentElement.classList.toggle("dark", initialTheme === "dark");
-    
-    // Set state asynchronously to avoid synchronous setState inside render/effect hook
-    const timer = setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
-
+    const timer = setTimeout(() => setTheme(initialTheme), 0);
     return () => clearTimeout(timer);
   }, []);
 
@@ -63,351 +53,498 @@ export default function Home() {
     document.documentElement.classList.toggle("dark", newTheme === "dark");
   };
 
+  const scrollToSection = (id: SectionId) => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const isValidEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 
-  const handleSignIn = (e: SubmitEvent<HTMLFormElement>) => {
+  const handleContactSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    let hasError = false;
-    if (!isValidEmail(email)) {
-      setEmailError("Enter the email address assigned to your account.");
-      hasError = true;
-    } else {
-      setEmailError("");
+    if (!contactName.trim() || !isValidEmail(contactEmail) || !contactMessage.trim()) {
+      return;
     }
-    if (!password) {
-      setPasswordError("Enter your password.");
-      hasError = true;
-    } else {
-      setPasswordError("");
-    }
-    if (hasError) return;
-
-    setAuthError("");
-    setIsAuthenticating(true);
-    setAuthStep(0);
-
-    // Simulate multi-step secure login handshake
-    const timer1 = setTimeout(() => setAuthStep(1), 500);
-    const timer2 = setTimeout(() => setAuthStep(2), 1000);
-    const timer3 = setTimeout(() => setAuthStep(3), 1500);
-    const timer4 = setTimeout(() => {
-      const result = verifyCredentials(email, password);
-      if (result === "invalid") {
-        setIsAuthenticating(false);
-        setAuthError("Incorrect email or password.");
-        return;
-      }
-      if (result === "deactivated") {
-        setIsAuthenticating(false);
-        setAuthError("This account has been deactivated — contact your administrator.");
-        return;
-      }
-      login(result);
-      setIsAuthenticating(false);
-      router.push(`/dashboard/${result.role}`);
-    }, 2000);
-
-    return () => {
-      clearTimeout(timer1);
-      clearTimeout(timer2);
-      clearTimeout(timer3);
-      clearTimeout(timer4);
-    };
+    setContactStatus("submitting");
+    setTimeout(() => {
+      setContactStatus("sent");
+      setContactName("");
+      setContactEmail("");
+      setContactMessage("");
+      setTimeout(() => setContactStatus("idle"), 4000);
+    }, 900);
   };
 
-  // Secure Auth logs for simulated scanning
-  const getAuthLogs = () => {
-    switch (authStep) {
-      case 0:
-        return [
-          `[INIT] Requesting session for ${email}...`,
-          `[CONN] Handshaking with secure government gateway...`,
-        ];
-      case 1:
-        return [
-          `[INIT] Requesting session for ${email}...`,
-          `[CONN] Handshaking with secure government gateway...`,
-          `[AUTH] Verifying email against assigned account directory...`,
-          `[AUTH] Confirming role assignment...`,
-        ];
-      case 2:
-        return [
-          `[INIT] Requesting session for ${email}...`,
-          `[CONN] Handshaking with secure government gateway...`,
-          `[AUTH] Verifying email against assigned account directory...`,
-          `[AUTH] Confirming role assignment...`,
-          `[VERI] Account verified. Running compliance checks...`,
-          `[SECURE] Establishing secure session context (AES-256)...`,
-        ];
-      case 3:
-      default:
-        return [
-          `[INIT] Requesting session for ${email}...`,
-          `[CONN] Handshaking with secure government gateway...`,
-          `[AUTH] Verifying email against assigned account directory...`,
-          `[AUTH] Confirming role assignment...`,
-          `[VERI] Account verified. Running compliance checks...`,
-          `[SECURE] Establishing secure session context (AES-256)...`,
-          `[OK] Authentication successful! Loading workspace...`,
-        ];
-    }
-  };
+  const capabilities: { icon: LucideIcon; title: string; body: string }[] = [
+    {
+      icon: Compass,
+      title: "Assessed readiness, every day",
+      body: "Continuous signals across physical, mental, nutritional, and purpose domains — surfaced for the right role at the right time.",
+    },
+    {
+      icon: Eye,
+      title: "Privacy-first by default",
+      body: "Population scope and consent state are stamped on every record. Restricted data stays restricted until authorization is granted.",
+    },
+    {
+      icon: Shield,
+      title: "OPSEC-aware workflows",
+      body: "CUI/OPSEC markings, explicit handling banners, and a system-of-record disclaimer that never blurs the line.",
+    },
+    {
+      icon: Database,
+      title: "Typed, auditable data",
+      body: "Zod-validated contracts, immutable audit trails, and a single glossary of approved terminology — no improvised labels.",
+    },
+    {
+      icon: KeyRound,
+      title: "Role-based workspaces",
+      body: "Eight purpose-built workspaces — each scoped to its mission, with access gated by role, scope, and privacy state.",
+    },
+    {
+      icon: Sparkles,
+      title: "Designed to be extended",
+      body: "Feature-based folders, Zustand stores, and a Tailwind theme ready to ship — without rewriting the shell.",
+    },
+  ];
 
   return (
-    <div className="flex h-screen flex-col bg-background text-foreground font-sans transition-colors duration-200 overflow-hidden">
-      
-      {/* 1. TOP HEADER BAR */}
-      <header className="flex h-14 w-full items-center justify-between border-b border-border bg-surface px-6 md:px-8 flex-shrink-0 z-20">
-        {/* Left Brand Badge */}
-        <div className="flex items-center gap-2">
-          <AscendLogo width={20} height={20} showDetails={false} />
-          <span className="text-sm font-semibold tracking-tight text-foreground">Ascend</span>
-          <span className="text-xs text-muted/60 font-light select-none">/</span>
-          <span className="text-xs font-medium text-muted">Role directory</span>
-        </div>
-
-        {/* Right Action Menu */}
-        <div className="flex items-center gap-6">
-          {/* Theme Switcher Button */}
-          <button
-            onClick={toggleTheme}
-            className="flex size-8 items-center justify-center rounded-lg border border-border bg-background hover:bg-surface-muted text-foreground transition-all duration-200 cursor-pointer"
-            title={theme === "light" ? "Switch to Dark Mode" : "Switch to Light Mode"}
-            type="button"
-          >
-            {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
-          </button>
-
-          {/* Workspace Directory Link with Status Dot */}
-          <button 
-            className="group relative flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted hover:text-foreground transition-colors duration-200 cursor-pointer"
-            type="button"
-          >
-            WORKSPACE DIRECTORY
-            {/* Blinking Red Dot on Workspace Directory */}
-            <span className="relative flex size-1.5">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75"></span>
-              <span className="relative inline-flex size-1.5 rounded-full bg-red-500"></span>
+    <div className="flex min-h-screen flex-col bg-background text-foreground font-sans antialiased transition-colors duration-200 selection:bg-[var(--brand-color)]/20">
+      {/* HEADER */}
+      <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/70 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6 md:px-10">
+          <Link href="/" className="flex items-center gap-2.5">
+            <AscendLogo width={24} height={24} showDetails={false} />
+            <span className="text-base font-semibold tracking-tight text-foreground">
+              Ascend
             </span>
-          </button>
+          </Link>
+
+          <nav className="hidden items-center gap-1 md:flex">
+            {navLinks.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => scrollToSection(link.id)}
+                className="rounded-full px-3.5 py-1.5 text-sm font-medium text-muted transition-colors duration-150 hover:bg-surface-muted hover:text-foreground cursor-pointer"
+                type="button"
+              >
+                {link.label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleTheme}
+              className="flex size-9 items-center justify-center rounded-full border border-border bg-surface text-foreground transition-all duration-200 hover:border-border-strong hover:bg-surface-muted cursor-pointer"
+              title={theme === "light" ? "Switch to dark" : "Switch to light"}
+              type="button"
+            >
+              {theme === "light" ? <Moon className="size-4" /> : <Sun className="size-4" />}
+            </button>
+            <Link
+              href="/signin"
+              className="group inline-flex items-center gap-1.5 rounded-full bg-foreground px-4 py-2 text-sm font-semibold text-background transition-all duration-200 hover:opacity-90"
+            >
+              Sign in
+              <ArrowRight className="size-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+          </div>
         </div>
       </header>
 
-      {/* 2. CUI / OPSEC NAVY BANNER */}
-      <section className="flex h-9 w-full items-center justify-center bg-[#101b22] px-6 text-center text-[10px] font-semibold tracking-wider text-slate-400 select-none flex-shrink-0 z-10">
-        <div className="flex items-center gap-2">
-          <span className="size-1.5 rounded-full bg-[var(--brand-color)]"></span>
-          <span>CUI // OPSEC · Not a Government System of Record</span>
+      {/* HERO */}
+      <section
+        id="mission"
+        className="relative overflow-hidden"
+      >
+        {/* Layered ambient backdrop */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-[var(--brand-color)]/8 via-transparent to-transparent" />
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.025)_1px,transparent_1px)] bg-[size:56px_56px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_75%)]" />
+          <div className="absolute -top-32 left-1/2 h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-[var(--brand-color)]/10 blur-3xl" />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 md:px-10 md:pb-32 md:pt-28">
+          <div className="mx-auto max-w-3xl text-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-muted backdrop-blur">
+              <span className="size-1.5 rounded-full bg-[var(--brand-color)] shadow-[0_0_0_4px_var(--brand-color)]/15" />
+              Ascend · Assess · Adapt · Ascent
+            </div>
+
+            <h1 className="mt-8 text-5xl font-semibold tracking-[-0.03em] text-balance text-foreground md:text-7xl">
+              The operating system for{" "}
+              <span className="relative inline-block">
+                <span className="relative z-10 bg-gradient-to-br from-[var(--brand-color)] via-[#0da2b3] to-[#0c8a99] bg-clip-text text-transparent">
+                  human readiness.
+                </span>
+                <span className="absolute bottom-1.5 left-0 right-0 -z-0 h-3 rounded-full bg-[var(--brand-color)]/15 blur-md" />
+              </span>
+            </h1>
+
+            <p className="mx-auto mt-7 max-w-2xl text-lg leading-relaxed text-muted md:text-xl">
+              A console built for the work between moments — where the right role
+              sees the right signal, with privacy and OPSEC honored by default.
+            </p>
+
+            <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
+              <Link
+                href="/signin"
+                className="group inline-flex items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3.5 text-sm font-semibold text-background shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+              >
+                Open the workspace
+                <ArrowRight className="size-4 transition-transform duration-200 group-hover:translate-x-0.5" />
+              </Link>
+              <button
+                onClick={() => scrollToSection("capabilities")}
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-surface px-6 py-3.5 text-sm font-semibold text-foreground transition-all duration-200 hover:border-border-strong hover:bg-surface-muted cursor-pointer"
+                type="button"
+              >
+                See what&apos;s inside
+              </button>
+            </div>
+
+            <div className="mt-14 flex flex-col items-center justify-center gap-6 text-xs font-medium text-muted sm:flex-row sm:gap-10">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-[var(--brand-color)]" />
+                CUI-marked & OPSEC-aware
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-[var(--brand-color)]" />
+                Role-scoped workspaces
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-[var(--brand-color)]" />
+                Auditable, typed records
+              </div>
+            </div>
+          </div>
+
+          {/* Floating showcase card */}
+          <div className="relative mx-auto mt-20 max-w-5xl">
+            <div className="absolute -inset-x-6 -inset-y-6 -z-10 rounded-[2rem] bg-gradient-to-br from-[var(--brand-color)]/10 via-transparent to-transparent blur-2xl" />
+            <div className="rounded-3xl border border-border bg-surface/80 p-2 shadow-2xl shadow-slate-900/5 backdrop-blur">
+              <div className="rounded-[1.4rem] bg-gradient-to-br from-[#0a3339] via-[#114b53] to-[#1e6f77] p-8 md:p-12">
+                <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-center">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#e2b13c]">
+                      Mission statement
+                    </p>
+                    <p className="mt-3 max-w-xl text-2xl font-medium leading-snug text-white md:text-3xl">
+                      &ldquo;Readiness is the work we do every day, not the moment we need it.&rdquo;
+                    </p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md">
+                    <AscendBanner logoSize={56} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 
-      {/* 3. SPLIT MAIN CONTAINER */}
-      <main className="flex flex-1 flex-col lg:flex-row overflow-hidden">
-        
-        {/* LEFT COLUMN: AUTH FORM */}
-        <section className="flex flex-col justify-between bg-[#f0f4f9] dark:bg-background p-8 sm:p-12 md:p-16 lg:w-1/2 overflow-y-auto">
-          
-          {/* Header/Greeting */}
-          <div className="mb-8">
-            <div className="flex items-center gap-3">
-              <AscendLogo width={36} height={36} showDetails={true} />
-              <div>
-                <h1 className="text-xl font-bold tracking-tight text-foreground">Ascend</h1>
-                <p className="text-xs font-medium text-muted">Role directory</p>
-              </div>
+      {/* CAPABILITIES */}
+      <section id="capabilities" className="relative border-t border-border/60 bg-surface/40">
+        <div className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          <div className="flex flex-col items-start justify-between gap-6 md:flex-row md:items-end">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--brand-color)]">
+                Capabilities
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-balance text-foreground md:text-5xl">
+                Built around the mission — and the data.
+              </h2>
             </div>
+            <p className="max-w-md text-base leading-relaxed text-muted">
+              Every surface in Ascend reflects one idea: readiness is a continuous
+              practice, not a moment. Assessed signals, auditable workflows, and a
+              vocabulary that stays consistent across teams.
+            </p>
           </div>
 
-          {/* Simulated scanning / Login form panel */}
-          <div className="my-auto max-w-lg py-8">
-            {isAuthenticating ? (
-              /* Simulated Handshake Scanner view */
-              <div className="rounded-2xl border border-border bg-surface p-6 shadow-xl dark:shadow-2xl/10 animate-fade-in">
-                <div className="flex items-center gap-4 mb-5">
-                  <div className="flex size-12 items-center justify-center rounded-xl bg-[var(--brand-color)/10] text-[var(--brand-color)]">
-                    <Loader2 className="size-6 animate-spin" />
+          <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {capabilities.map((cap) => {
+              const Icon = cap.icon;
+              return (
+                <div
+                  key={cap.title}
+                  className="group relative overflow-hidden rounded-2xl border border-border bg-background p-7 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--brand-color)]/40 hover:shadow-lg hover:shadow-[var(--brand-color)]/5"
+                >
+                  <div className="absolute right-0 top-0 h-32 w-32 -translate-y-12 translate-x-12 rounded-full bg-[var(--brand-color)]/0 blur-2xl transition-colors duration-500 group-hover:bg-[var(--brand-color)]/15" />
+
+                  <div className="relative flex size-11 items-center justify-center rounded-xl border border-border bg-surface text-[var(--brand-color)] transition-all duration-300 group-hover:border-[var(--brand-color)]/40 group-hover:bg-[var(--brand-color)]/10">
+                    <Icon className="size-5" />
+                  </div>
+
+                  <h3 className="relative mt-6 text-base font-semibold tracking-tight text-foreground">
+                    {cap.title}
+                  </h3>
+                  <p className="relative mt-2 text-sm leading-relaxed text-muted">
+                    {cap.body}
+                  </p>
+
+                  <div className="relative mt-6 inline-flex items-center gap-1 text-xs font-semibold text-[var(--brand-color)] opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    Learn more
+                    <ArrowUpRight className="size-3.5" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* ROLES / WORKSPACES */}
+      <section id="roles" className="relative border-t border-border/60">
+        <div className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--brand-color)]">
+              Workspaces
+            </p>
+            <h2 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-balance text-foreground md:text-5xl">
+              Eight workspaces. One mission.
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-muted">
+              Each role lands in a workspace purpose-built for its daily work —
+              from admins wiring the system to specialists closing the loop with
+              the people they serve.
+            </p>
+          </div>
+
+          <div className="mt-14 grid grid-cols-2 gap-3 md:grid-cols-4 lg:gap-4">
+            {roles.map((role, i) => {
+              const Icon = role.icon;
+              return (
+                <div
+                  key={role.id}
+                  className="group relative overflow-hidden rounded-2xl border border-border bg-surface p-5 transition-all duration-300 hover:-translate-y-1 hover:border-[var(--brand-color)]/40 hover:shadow-md"
+                  style={{ animationDelay: `${i * 30}ms` }}
+                >
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-[var(--brand-color)]/10 text-[var(--brand-color)] transition-colors duration-300 group-hover:bg-[var(--brand-color)] group-hover:text-white">
+                    <Icon className="size-4" />
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold text-foreground">
+                    {role.name}
+                  </h3>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted">
+                    {role.description}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      {/* CONTACT */}
+      <section
+        id="contact"
+        className="relative border-t border-border/60 bg-surface/40"
+      >
+        <div className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+            <div className="lg:col-span-5">
+              <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[var(--brand-color)]">
+                Get in touch
+              </p>
+              <h2 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-balance text-foreground md:text-5xl">
+                Request access or talk to the team.
+              </h2>
+              <p className="mt-5 max-w-md text-base leading-relaxed text-muted">
+                New accounts are provisioned by your local administrator. Reach
+                out for general inquiries, partnerships, or to flag an issue with
+                the platform.
+              </p>
+
+              <div className="mt-10 space-y-4">
+                <a
+                  href="mailto:support@ascend.mil"
+                  className="group flex items-center gap-4 rounded-xl border border-border bg-background p-4 transition-all duration-200 hover:border-[var(--brand-color)]/40 hover:shadow-sm"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-[var(--brand-color)]/10 text-[var(--brand-color)]">
+                    <Mail className="size-4" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Email
+                    </p>
+                    <p className="mt-0.5 text-sm font-semibold text-foreground">
+                      support@ascend.mil
+                    </p>
+                  </div>
+                  <ArrowUpRight className="size-4 text-muted transition-all duration-200 group-hover:text-[var(--brand-color)] group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                </a>
+
+                <div className="flex items-center gap-4 rounded-xl border border-border bg-background p-4">
+                  <div className="flex size-10 items-center justify-center rounded-lg bg-[var(--brand-color)]/10 text-[var(--brand-color)]">
+                    <Shield className="size-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-foreground">Secure Authentication</h3>
-                    <p className="text-xs text-muted">Performing security checks...</p>
+                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                      Handling
+                    </p>
+                    <p className="mt-0.5 text-sm font-medium text-foreground">
+                      CUI // OPSEC — no classified info.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-7">
+              <form
+                onSubmit={handleContactSubmit}
+                className="rounded-3xl border border-border bg-background p-7 shadow-sm md:p-10"
+              >
+                <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                  <div>
+                    <label
+                      htmlFor="contact-name"
+                      className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted"
+                    >
+                      Full name
+                    </label>
+                    <input
+                      id="contact-name"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                      placeholder="Jane Doe"
+                      className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted/50 transition-all duration-150 focus:outline-none focus:border-[var(--brand-color)] focus:ring-4 focus:ring-[var(--brand-color)]/10"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      htmlFor="contact-email"
+                      className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="contact-email"
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      placeholder="name@ascend.mil"
+                      className="w-full rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted/50 transition-all duration-150 focus:outline-none focus:border-[var(--brand-color)] focus:ring-4 focus:ring-[var(--brand-color)]/10"
+                    />
                   </div>
                 </div>
 
-                {/* Progress bar */}
-                <div className="mb-4 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                  <div
-                    className="h-full bg-gradient-to-r from-[var(--brand-color)] to-[#e2b13c] transition-all duration-500 ease-out"
-                    style={{ width: `${(authStep + 1) * 25}%` }}
+                <div className="mt-5">
+                  <label
+                    htmlFor="contact-message"
+                    className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted"
+                  >
+                    Message
+                  </label>
+                  <textarea
+                    id="contact-message"
+                    value={contactMessage}
+                    onChange={(e) => setContactMessage(e.target.value)}
+                    rows={5}
+                    placeholder="How can we help?"
+                    className="w-full resize-none rounded-xl border border-border bg-surface px-4 py-3 text-sm text-foreground shadow-sm placeholder:text-muted/50 transition-all duration-150 focus:outline-none focus:border-[var(--brand-color)] focus:ring-4 focus:ring-[var(--brand-color)]/10"
                   />
                 </div>
 
-                {/* Tactical Terminal logs */}
-                <div className="rounded-xl border border-border/80 bg-slate-950 p-4 font-mono text-[10px] leading-relaxed text-[var(--brand-color)]">
-                  <div className="flex flex-col gap-1">
-                    {getAuthLogs().map((log, idx) => (
-                      <div key={idx} className="animate-fade-in">
-                        <span className="text-slate-500 mr-1.5">[{new Date().toLocaleTimeString()}]</span>
-                        {log}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              /* Static Credentials Buttons View */
-              <div className="space-y-6">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[#4f46e5] dark:text-[#818cf8]">
-                    AUTHENTICATION
-                  </p>
-                  <h2 className="mt-2 text-4xl font-extrabold tracking-tight text-foreground lg:text-5xl">
-                    Sign in
-                  </h2>
-                  <p className="mt-4 text-sm leading-relaxed text-muted">
-                    Sign in with your assigned email address. First-use continues into 20 onboarding questions, then drops you into your workspace.
-                  </p>
-                </div>
-
-                {/* Email Sign-In Form */}
-                <form onSubmit={handleSignIn} noValidate className="flex flex-col gap-3 pt-4">
-                  <div>
-                    <label htmlFor="email" className="mb-1.5 block text-xs font-semibold text-foreground">
-                      Email address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
-                      <input
-                        id="email"
-                        type="email"
-                        autoComplete="email"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          if (emailError) setEmailError("");
-                        }}
-                        placeholder="name@ascend.mil"
-                        className="w-full rounded-xl border border-border bg-surface py-3.5 pl-10 pr-4 text-sm text-foreground shadow-sm placeholder:text-muted/60 focus:outline-none focus:border-[var(--brand-color)] focus:ring-2 focus:ring-[var(--brand-color)]/20 transition-all duration-150"
-                      />
-                    </div>
-                    {emailError && (
-                      <p className="mt-1.5 text-xs font-medium text-rose-500">{emailError}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <div className="mb-1.5 flex items-center justify-between">
-                      <label htmlFor="password" className="block text-xs font-semibold text-foreground">
-                        Password
-                      </label>
-                      <Link
-                        href="/forgot-password"
-                        className="text-xs font-semibold text-[var(--brand-color)] hover:text-[var(--brand-color-hover)] transition-colors duration-150"
-                      >
-                        Forgot password?
-                      </Link>
-                    </div>
-                    <div className="relative">
-                      <KeyRound className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted" />
-                      <input
-                        id="password"
-                        type="password"
-                        autoComplete="current-password"
-                        value={password}
-                        onChange={(e) => {
-                          setPassword(e.target.value);
-                          if (passwordError) setPasswordError("");
-                        }}
-                        placeholder="••••••••"
-                        className="w-full rounded-xl border border-border bg-surface py-3.5 pl-10 pr-4 text-sm text-foreground shadow-sm placeholder:text-muted/60 focus:outline-none focus:border-[var(--brand-color)] focus:ring-2 focus:ring-[var(--brand-color)]/20 transition-all duration-150"
-                      />
-                    </div>
-                    {passwordError && (
-                      <p className="mt-1.5 text-xs font-medium text-rose-500">{passwordError}</p>
-                    )}
-                  </div>
-
-                  {authError && (
-                    <p className="rounded-lg border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20 px-3 py-2 text-xs font-medium text-rose-600 dark:text-rose-400">
-                      {authError}
-                    </p>
+                <button
+                  type="submit"
+                  disabled={contactStatus === "submitting"}
+                  className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-foreground px-5 py-3.5 text-sm font-semibold text-background shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {contactStatus === "submitting" ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Sending...
+                    </>
+                  ) : contactStatus === "sent" ? (
+                    <>
+                      <CheckCircle2 className="size-4" />
+                      Message sent
+                    </>
+                  ) : (
+                    <>
+                      Send message
+                      <ArrowRight className="size-4" />
+                    </>
                   )}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
 
-                  <button
-                    type="submit"
-                    className="group flex w-full items-center justify-center rounded-xl bg-[var(--brand-color)] hover:bg-[var(--brand-color-hover)] px-5 py-3.5 text-sm font-bold text-white shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md cursor-pointer"
-                  >
-                    Sign in
-                  </button>
-                </form>
-
-                {/* Last Used Badge Widget */}
-                <div className="mt-8 rounded-xl border border-[var(--brand-color)]/20 bg-[var(--brand-color)]/5 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex mt-0.5 size-5 items-center justify-center rounded-full bg-[var(--brand-color)/10] text-[var(--brand-color)]">
-                      <Clock className="size-3.5" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-foreground">Last used · Email sign-in</span>
-                        {/* Live blinking green active light */}
-                        <span className="relative flex size-2">
-                          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75"></span>
-                          <span className="relative inline-flex size-2 rounded-full bg-emerald-500"></span>
-                        </span>
-                      </div>
-                      <p className="mt-1 text-[11px] text-muted">
-                        2 days ago from this device
-                      </p>
-                    </div>
-                  </div>
-                </div>
+      {/* FOOTER */}
+      <footer className="border-t border-border/60">
+        <div className="mx-auto max-w-7xl px-6 py-12 md:px-10">
+          <div className="flex flex-col items-start justify-between gap-10 md:flex-row md:items-center">
+            <div className="flex items-center gap-3">
+              <AscendLogo width={28} height={28} showDetails={true} />
+              <div>
+                <p className="text-sm font-semibold tracking-tight text-foreground">
+                  Ascend
+                </p>
+                <p className="text-xs text-muted">Assess · Adapt · Ascent</p>
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Footer links */}
-          <footer className="mt-12 flex flex-wrap gap-6 border-t border-border/40 pt-6 text-xs text-muted">
-            <a href="#" className="hover:text-foreground transition-colors duration-150">Privacy</a>
-            <a href="#" className="hover:text-foreground transition-colors duration-150">Terms</a>
-            <a href="#" className="hover:text-foreground transition-colors duration-150">Accessibility</a>
-          </footer>
-        </section>
-
-        {/* RIGHT COLUMN: GRAPHICS & MISSION GRADIENT */}
-        <section className="relative flex flex-col justify-between overflow-hidden bg-gradient-to-br from-[#1e6f77] via-[#114b53] to-[#0a3339] p-8 sm:p-12 md:p-16 text-white lg:w-1/2">
-          {/* Subtle grid mesh overlay overlay for tactical aesthetic */}
-          <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none opacity-40" />
-
-          {/* Soft ambient lighting effect in center */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-[var(--brand-color)]/15 blur-[80px] pointer-events-none" />
-
-          {/* Top Branding Banner */}
-          <div className="relative z-10 flex justify-center">
-            <div className="inline-flex items-center rounded-xl border border-white/10 bg-white/5 backdrop-blur-md px-6 py-4 shadow-lg">
-              <AscendBanner logoSize={64} />
+            <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm font-medium text-muted">
+              <button
+                onClick={() => scrollToSection("mission")}
+                className="transition-colors duration-150 hover:text-foreground cursor-pointer"
+                type="button"
+              >
+                Mission
+              </button>
+              <button
+                onClick={() => scrollToSection("capabilities")}
+                className="transition-colors duration-150 hover:text-foreground cursor-pointer"
+                type="button"
+              >
+                Capabilities
+              </button>
+              <button
+                onClick={() => scrollToSection("roles")}
+                className="transition-colors duration-150 hover:text-foreground cursor-pointer"
+                type="button"
+              >
+                Workspaces
+              </button>
+              <button
+                onClick={() => scrollToSection("contact")}
+                className="transition-colors duration-150 hover:text-foreground cursor-pointer"
+                type="button"
+              >
+                Contact
+              </button>
+              <span className="h-4 w-px bg-border" />
+              <Link
+                href="/terms"
+                className="transition-colors duration-150 hover:text-foreground"
+              >
+                Terms
+              </Link>
+              <Link
+                href="/privacy"
+                className="transition-colors duration-150 hover:text-foreground"
+              >
+                Privacy
+              </Link>
             </div>
           </div>
 
-          {/* Central Quote Section */}
-          <div className="relative z-10 my-auto max-w-xl py-12 text-center mx-auto">
-            <h3 className="text-3xl font-medium leading-normal md:text-4xl text-white/95">
-              “Readiness is the work we do every day, not the moment we need it.”
-            </h3>
-            <div className="mt-6 flex items-center justify-center gap-2.5 text-xs tracking-wider text-slate-300">
-              <span className="font-semibold text-[#e2b13c]">Ascend</span>
-              <span className="text-slate-500">•</span>
-              <span>Mission statement</span>
-            </div>
+          <div className="mt-10 flex flex-col items-start justify-between gap-3 border-t border-border pt-6 text-xs text-muted md:flex-row md:items-center">
+            <p>
+              © {new Date().getFullYear()} Ascend Program Office · All rights reserved.
+            </p>
+            <p className="font-medium">
+              CUI // OPSEC · Not a Government System of Record
+            </p>
           </div>
-
-          {/* Bottom Security Info */}
-          <div className="relative z-10 flex items-center gap-2 text-[10px] font-semibold tracking-wider text-white/60">
-            <Lock className="size-3.5 text-[#e2b13c]" />
-            <span>CUI // OPSEC · Not a Government System of Record</span>
-          </div>
-        </section>
-
-      </main>
+        </div>
+      </footer>
     </div>
   );
 }
